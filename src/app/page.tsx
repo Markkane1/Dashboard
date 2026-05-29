@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { signIn, signOut } from "next-auth/react";
 import { Course } from "@/core/domain/entities/Course";
 import { User } from "@/core/domain/entities/User";
 
@@ -17,6 +18,7 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authTab, setAuthTab] = useState<"login" | "register">("login");
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState<boolean>(false);
   const [authForm, setAuthForm] = useState({
     name: "",
     email: "",
@@ -61,6 +63,27 @@ export default function Home() {
     }, 4000);
   };
 
+  const loadAuthSession = async () => {
+    const response = await fetch("/api/auth/session");
+    const session = await response.json();
+
+    if (session?.user?.id) {
+      const sessionUser: User = {
+        id: session.user.id,
+        name: session.user.name || "Learner",
+        email: session.user.email || "",
+        role: session.user.role || "student",
+        avatar: session.user.avatar || session.user.image || "",
+        enrolledCourses: session.user.enrolledCourses || [],
+      };
+      setUser(sessionUser);
+      return sessionUser;
+    }
+
+    setUser(null);
+    return null;
+  };
+
   // Fetch Courses from API
   const fetchCourses = async (category = "All", search = "") => {
     setIsLoading(true);
@@ -84,8 +107,8 @@ export default function Home() {
       } else {
         setError(resData.error || "Failed to load courses");
       }
-    } catch (e: any) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       setError("Unable to connect to server. Check database status.");
     } finally {
       setIsLoading(false);
@@ -118,15 +141,7 @@ export default function Home() {
   // Run on start
   useEffect(() => {
     fetchCourses("All", "");
-    // Check if user session mock exists
-    const storedUser = localStorage.getItem("epa_user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        localStorage.removeItem("epa_user");
-      }
-    }
+    loadAuthSession();
   }, []);
 
   // Category filter trigger
@@ -162,7 +177,7 @@ export default function Home() {
       } else {
         showToast(data.error || "Seeding failed.", "error");
       }
-    } catch (e: any) {
+    } catch {
       showToast("Seed request failed. Check server log.", "error");
     } finally {
       setIsLoading(false);
@@ -172,43 +187,57 @@ export default function Home() {
   // Authentication Submission
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsAuthSubmitting(true);
     try {
-      const endpoint = authTab === "login" ? "/api/auth/login" : "/api/auth/register";
-      const payload = authTab === "login" 
-        ? { email: authForm.email, password: authForm.password }
-        : { email: authForm.email, password: authForm.password, name: authForm.name, role: authForm.role };
+      if (authTab === "register") {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: authForm.email,
+            password: authForm.password,
+            name: authForm.name,
+            role: authForm.role,
+          }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+          showToast(data.error || "Registration failed", "error");
+          return;
+        }
+      }
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const result = await signIn("credentials", {
+        email: authForm.email,
+        password: authForm.password,
+        redirect: false,
       });
 
-      const data = await res.json();
-      if (data.success) {
-        setUser(data.data);
-        localStorage.setItem("epa_user", JSON.stringify(data.data));
+      if (!result?.error) {
+        const sessionUser = await loadAuthSession();
         showToast(
           authTab === "login" 
-            ? `Welcome back, ${data.data.name}!` 
-            : `Registration successful, welcome ${data.data.name}!`,
+            ? `Welcome back, ${sessionUser?.name || "learner"}!` 
+            : `Registration successful, welcome ${sessionUser?.name || "learner"}!`,
           "success"
         );
         setShowAuthModal(false);
         // Reset auth fields
         setAuthForm({ name: "", email: "", password: "", role: "student" });
       } else {
-        showToast(data.error || "Authentication failed", "error");
+        showToast("Invalid email or password", "error");
       }
-    } catch (e: any) {
+    } catch {
       showToast("Authentication server error", "error");
+    } finally {
+      setIsAuthSubmitting(false);
     }
   };
 
   // Logout utility
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut({ redirect: false });
     setUser(null);
-    localStorage.removeItem("epa_user");
     showToast("Logged out successfully.", "info");
   };
 
@@ -252,10 +281,9 @@ export default function Home() {
 
       const resData = await res.json();
       if (resData.success) {
-        // Sync local user state and storage with updated enrolledCourses list
+        // Sync local user state with updated enrolledCourses list
         const updatedUser = resData.data.user;
         setUser(updatedUser);
-        localStorage.setItem("epa_user", JSON.stringify(updatedUser));
 
         // Update courses list local enrolledCount
         setCourses(prev => prev.map(c => {
@@ -276,8 +304,8 @@ export default function Home() {
       } else {
         showToast(resData.error || "Enrollment failed.", "error");
       }
-    } catch (e: any) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       showToast("Enrollment failed. Server connection error.", "error");
     }
   };
@@ -416,9 +444,9 @@ export default function Home() {
                 </button>
               </div>
             ) : (
-              <button onClick={() => { setAuthTab("login"); setShowAuthModal(true); }} className="btn btn-primary pulse-glow">
+              <Link href="/login" className="btn btn-primary pulse-glow">
                 Sign In
-              </button>
+              </Link>
             )}
           </div>
         </div>
@@ -786,12 +814,29 @@ export default function Home() {
               )}
 
               <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: "1rem" }}>
-                {authTab === "login" ? "Sign In to ELearningEPA" : "Create Developer Profile"}
+                {isAuthSubmitting
+                  ? "Please wait..."
+                  : authTab === "login"
+                    ? "Sign In to ELearningEPA"
+                    : "Create Developer Profile"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => signIn("google", { callbackUrl: "/" })}
+                className="btn btn-secondary"
+                style={{ width: "100%" }}
+              >
+                Continue with Google
               </button>
               
               <div className="modal-auth-helper-msg">
                 {authTab === "login" ? (
                   <p>
+                    <Link href="/forgot-password" className="auth-toggle-link">
+                      Forgotten username/password?
+                    </Link>
+                    <br />
                     No account?{" "}
                     <span onClick={() => setAuthTab("register")} className="auth-toggle-link">
                       Create one

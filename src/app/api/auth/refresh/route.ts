@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { MongoUserRepository } from "@/infrastructure/repositories/MongoUserRepository";
 import { GenerateTokenPairUseCase } from "@/core/use-cases/GenerateTokenPair";
 import {
@@ -52,7 +52,7 @@ function clearAuthCookies(response: NextResponse) {
   });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
     if (!refreshToken) {

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { TokenService, ACCESS_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME, REFRESH_TOKEN_EXPIRES_MS } from "@/infrastructure/security/TokenService";
+import { NextRequest, NextResponse } from "next/server";
+import { TokenService, ACCESS_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME } from "@/infrastructure/security/TokenService";
 
 const tokenService = new TokenService();
 
@@ -24,7 +24,7 @@ function clearAuthCookies(response: NextResponse) {
   });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
     if (refreshToken) {

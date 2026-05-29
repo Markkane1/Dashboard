@@ -10,9 +10,13 @@ export type AuthorizationResult =
   | { success: true; user: UserTokenPayload }
   | NextResponse;
 
+function isAuthorized(result: AuthorizationResult): result is { success: true; user: UserTokenPayload } {
+  return !(result instanceof NextResponse) && result.success === true;
+}
+
 function getCookieValue(request: Request | NextRequest, name: string): string | undefined {
-  if (typeof (request as any).cookies?.get === "function") {
-    return (request as any).cookies.get(name)?.value;
+  if ("cookies" in request && typeof request.cookies?.get === "function") {
+    return request.cookies.get(name)?.value;
   }
   return undefined;
 }
@@ -59,7 +63,7 @@ export function withAuthorization(
 
   return async (request: Request | NextRequest) => {
     const authorization = enforcePermissions(...allowedRoles)(request, tokenService);
-    if (!(authorization as any).success) {
+    if (!isAuthorized(authorization)) {
       return authorization as NextResponse;
     }
     return handler(request, authorization.user);

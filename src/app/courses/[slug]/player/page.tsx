@@ -20,6 +20,7 @@ export default function CoursePlayerPage({ params }: PageProps) {
   const [completedChapters, setCompletedChapters] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   
   // Custom Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -49,18 +50,14 @@ export default function CoursePlayerPage({ params }: PageProps) {
         setCourse(resData.data);
 
         // 2. Fetch logged-in user's Progress record from MongoDB
-        const storedUser = localStorage.getItem("epa_user");
-        let currentUserId = "";
-        if (storedUser) {
-          try {
-            const parsed = JSON.parse(storedUser);
-            currentUserId = parsed.id || "";
-          } catch {}
-        }
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json();
+        const sessionUserId = session?.user?.id || "";
+        setCurrentUserId(sessionUserId);
 
         const completedMap: Record<string, boolean> = {};
-        if (currentUserId) {
-          const progressRes = await fetch(`/api/progress?userId=${currentUserId}&courseId=${courseId}`);
+        if (sessionUserId) {
+          const progressRes = await fetch(`/api/progress?userId=${sessionUserId}&courseId=${courseId}`);
           const progressData = await progressRes.json();
           
           if (progressData.success && progressData.data) {
@@ -124,15 +121,6 @@ export default function CoursePlayerPage({ params }: PageProps) {
 
   // Toggle Chapter completed checklist (Calls API with $addToSet logic)
   const handleToggleComplete = async (chapterSlug: string) => {
-    const storedUser = localStorage.getItem("epa_user");
-    let currentUserId = "";
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        currentUserId = parsed.id || "";
-      } catch {}
-    }
-
     if (!currentUserId) {
       showToast("❌ Register or sign in to track and persist completion progress!");
       return;

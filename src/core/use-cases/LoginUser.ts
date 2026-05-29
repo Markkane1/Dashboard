@@ -1,6 +1,6 @@
 import { IUserRepository } from "../domain/repositories/IUserRepository";
-import { User } from "../domain/entities/User";
-import crypto from "crypto";
+import { User, isUserLocked } from "../domain/entities/User";
+import bcrypt from "bcryptjs";
 
 export class LoginUserUseCase {
   constructor(private userRepository: IUserRepository) {}
@@ -15,11 +15,37 @@ export class LoginUserUseCase {
       throw new Error("Invalid email or password");
     }
 
-    // Hash plain password to check against stored hash
-    const inputHash = crypto.createHash("sha256").update(plainPassword).digest("hex");
+    // 1. Check if the account is currently frozen due to repeated failed entry attempts
+    if (isUserLocked(user)) {
+      const remainingTime = Math.ceil(
+        (new Date(user.lockUntil!).getTime() - Date.now()) / 60000
+      );
+      throw new Error(
+        `Account is temporarily locked due to repeated failed login attempts. Please try again in ${remainingTime} minute(s).`
+      );
+    }
 
-    if (inputHash !== user.password) {
+    // 2. Verify password using bcrypt comparison
+    const isPasswordValid = await bcrypt.compare(plainPassword, user.password);
+    if (!isPasswordValid) {
+      const attempts = (user.loginAttempts || 0) + 1;
+      const updates: Partial<User> = { loginAttempts: attempts };
+
+      if (attempts >= 5) {
+        updates.lockUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes lockout
+      }
+
+      await this.userRepository.update(user.id!, updates);
+
       throw new Error("Invalid email or password");
+    }
+
+    // 3. Reset failed login attempts on successful authentication
+    if (user.loginAttempts && user.loginAttempts > 0) {
+      await this.userRepository.update(user.id!, {
+        loginAttempts: 0,
+        lockUntil: undefined,
+      });
     }
 
     // Exclude password in return

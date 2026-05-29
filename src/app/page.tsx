@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { Course } from "@/core/domain/entities/Course";
 import { User } from "@/core/domain/entities/User";
 
@@ -235,33 +236,49 @@ export default function Home() {
   // Enroll dynamic increments
   const handleEnroll = async (courseId?: string) => {
     if (!courseId) return;
-    try {
-      // Simulate real enrollment update inside db
-      const targetCourse = courses.find(c => c.id === courseId);
-      if (!targetCourse) return;
+    if (!user || !user.id) {
+      setAuthTab("register");
+      setShowAuthModal(true);
+      showToast("Please register or sign in to enroll in this course.", "info");
+      return;
+    }
 
-      const currentEnrolled = targetCourse.enrolledCount || 0;
-      const res = await fetch(`/api/courses`, {
+    try {
+      const res = await fetch("/api/courses/enroll", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Create duplicate or patch
+        body: JSON.stringify({ userId: user.id, courseId }),
       });
-      
-      // Since it's a demo action, we can patch locally and trigger positive UX response
-      setCourses(prev => prev.map(c => {
-        if (c.id === courseId) {
-          return { ...c, enrolledCount: (c.enrolledCount || 0) + 1 };
+
+      const resData = await res.json();
+      if (resData.success) {
+        // Sync local user state and storage with updated enrolledCourses list
+        const updatedUser = resData.data.user;
+        setUser(updatedUser);
+        localStorage.setItem("epa_user", JSON.stringify(updatedUser));
+
+        // Update courses list local enrolledCount
+        setCourses(prev => prev.map(c => {
+          if (c.id === courseId) {
+            return { ...c, enrolledCount: (c.enrolledCount || 0) + 1 };
+          }
+          return c;
+        }));
+
+        if (selectedCourse && selectedCourse.id === courseId) {
+          setSelectedCourse(prev => prev ? { 
+            ...prev, 
+            enrolledCount: (prev.enrolledCount || 0) + 1,
+          } : null);
         }
-        return c;
-      }));
 
-      if (selectedCourse && selectedCourse.id === courseId) {
-        setSelectedCourse(prev => prev ? { ...prev, enrolledCount: (prev.enrolledCount || 0) + 1 } : null);
+        showToast(`Congratulations! You enrolled in "${selectedCourse?.title || 'the course'}".`, "success");
+      } else {
+        showToast(resData.error || "Enrollment failed.", "error");
       }
-
-      showToast(`Congratulations! You enrolled in "${targetCourse.title}".`, "success");
-    } catch {
-      showToast("Enrollment failed.", "error");
+    } catch (e: any) {
+      console.error(e);
+      showToast("Enrollment failed. Server connection error.", "error");
     }
   };
 
@@ -646,9 +663,47 @@ export default function Home() {
                   <div className="drawer-price-label">TOTAL SYLLABUS PRICE</div>
                   <div className="drawer-price-num">${selectedCourse.price.toFixed(2)}</div>
                 </div>
-                <button onClick={() => handleEnroll(selectedCourse.id)} className="btn btn-primary pulse-glow">
-                  Enroll in Syllabus
-                </button>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <a 
+                    href={`/api/docs/handbook/${selectedCourse.id}`}
+                    download
+                    className="btn btn-secondary btn-sm"
+                    style={{ 
+                      display: "inline-flex", 
+                      alignItems: "center", 
+                      gap: "0.35rem", 
+                      padding: "0.6rem 0.85rem",
+                      fontSize: "0.85rem",
+                      textDecoration: "none"
+                    }}
+                  >
+                    📥 Handbook
+                  </a>
+                  {user && user.enrolledCourses?.includes(selectedCourse.id || "") ? (
+                    <Link 
+                      href={`/courses/${selectedCourse.id}/player`} 
+                      className="btn btn-primary pulse-glow"
+                      style={{ 
+                        padding: "0.6rem 1.15rem",
+                        fontSize: "0.85rem",
+                        textDecoration: "none"
+                      }}
+                    >
+                      Enter Player →
+                    </Link>
+                  ) : (
+                    <button 
+                      onClick={() => handleEnroll(selectedCourse.id)} 
+                      className="btn btn-primary pulse-glow"
+                      style={{ 
+                        padding: "0.6rem 1.15rem",
+                        fontSize: "0.85rem"
+                      }}
+                    >
+                      Enroll in Syllabus
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

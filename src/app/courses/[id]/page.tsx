@@ -1,14 +1,21 @@
 import { notFound } from "next/navigation";
-import { Link } from "@/navigation";
-import CourseCard from "@/components/CourseCard";
-import EnrollButton from "@/components/EnrollButton";
-import { courses, categories } from "@/lib/data/courses";
-import { auth } from "../../../../auth";
-import { findUserByEmail } from "@/lib/data/userDb";
+import { Link } from "@/shared/navigation";
+import CourseCard from "@/features/courses/components/CourseCard";
+import EnrollButton from "@/features/enrollments/components/EnrollButton";
+import { categories } from "@/features/courses/data/categories";
+import { fetchCourseById, fetchCourses } from "@/infrastructure/api/courses";
+import { auth } from "@/../auth";
+import { findUserByEmail } from "@/features/users/data/userDb";
 import { Metadata } from "next";
+import { Course } from "@/shared/types";
 
 export async function generateStaticParams() {
-  return courses.map((course) => ({ id: course.id }));
+  try {
+    const courses = await fetchCourses();
+    return courses.map((course) => ({ id: course.id }));
+  } catch (error) {
+    return [];
+  }
 }
 
 interface CourseDetailPageProps {
@@ -18,8 +25,10 @@ interface CourseDetailPageProps {
 }
 
 export async function generateMetadata({ params }: CourseDetailPageProps): Promise<Metadata> {
-  const course = courses.find((item) => item.id === params.id);
-  if (!course) {
+  let course;
+  try {
+    course = await fetchCourseById(params.id);
+  } catch (error) {
     return {
       title: "Course Not Found | InforMEA Learning",
     };
@@ -42,8 +51,10 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
 }
 
 export default async function CourseDetailPage({ params }: CourseDetailPageProps) {
-  const course = courses.find((item) => item.id === params.id);
-  if (!course) {
+  let course;
+  try {
+    course = await fetchCourseById(params.id);
+  } catch (error) {
     notFound();
   }
 
@@ -65,9 +76,13 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
   const categoryLabel = categoryObj?.label || course.category;
 
   // Related courses (up to 4, same category, excluding current)
-  const related = courses
-    .filter((c) => c.category === course.category && c.id !== course.id)
-    .slice(0, 4);
+  let related: Course[] = [];
+  try {
+    const allCourses = await fetchCourses();
+    related = allCourses
+      .filter((c) => c.category === course.category && c.id !== course.id)
+      .slice(0, 4);
+  } catch (error) {}
 
   const sdgColors: Record<number, string> = {
     1: "#E5243B",

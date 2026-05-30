@@ -1,9 +1,9 @@
-import CategoryTabs from "@/components/CategoryTabs";
-import CourseCard from "@/components/CourseCard";
-import MEADropdown from "@/components/MEADropdown";
-import SDGFilter from "@/components/SDGFilter";
-import { courses } from "@/lib/data/courses";
-import { Category } from "@/lib/types";
+import CategoryTabs from "@/features/courses/components/CategoryTabs";
+import CourseCard from "@/features/courses/components/CourseCard";
+import MEADropdown from "@/shared/components/MEADropdown";
+import SDGFilter from "@/features/courses/components/SDGFilter";
+import { Category } from "@/shared/types";
+import { fetchCourses } from "@/infrastructure/api/courses";
 
 type CoursesPageProps = {
   searchParams: {
@@ -15,9 +15,10 @@ type CoursesPageProps = {
   };
 };
 
-export default function CoursesPage({ searchParams }: CoursesPageProps) {
+export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   const activeGoal = searchParams.sdg ? Number(searchParams.sdg) : undefined;
   const query = searchParams.q?.toLowerCase().trim() || "";
+  const courses = await fetchCourses();
 
   const filtered = courses.filter((course) => {
     if (searchParams.category && course.category !== searchParams.category) return false;

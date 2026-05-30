@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { rateLimit } from "@/infrastructure/security/rateLimit";
 
 const AUTH_SECRET = process.env.AUTH_SECRET || "elearning-epa-dev-auth-secret-change-me";
 const LOCALES = ["en", "pak"];
@@ -12,17 +11,6 @@ export async function middleware(request: NextRequest) {
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
     "127.0.0.1";
-
-  // 1. Rate limiting check (for credentials auth & quiz submission)
-  if (pathname === "/api/auth/callback/credentials" || pathname.endsWith("quiz-submit")) {
-    const limiter = await rateLimit(ip, 5);
-    if (!limiter.success) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
-    }
-  }
 
   // 2. Internationalization / Locale Prefix Handling
   let locale = "en";

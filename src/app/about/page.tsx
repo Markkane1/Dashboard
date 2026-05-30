@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "@/navigation";
+import { Link } from "@/shared/navigation";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

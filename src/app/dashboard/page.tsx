@@ -1,15 +1,15 @@
 import React from "react";
 import { redirect } from "next/navigation";
-import { auth } from "../../../auth";
-import { findUserByEmail } from "@/lib/data/userDb";
-import { courses } from "@/lib/data/courses";
-import CourseCard from "@/components/CourseCard";
-import { Link } from "@/navigation";
+import { auth } from "@/../auth";
+import { findUserByEmail } from "@/features/users/data/userDb";
+import { fetchCourses } from "@/infrastructure/api/courses";
+import CourseCard from "@/features/courses/components/CourseCard";
+import { Link } from "@/shared/navigation";
 import {
   MarkCompleteButton,
   UnenrollButton,
   DownloadCertificateButton,
-} from "@/components/DashboardActions";
+} from "@/features/users/components/DashboardActions";
 
 export default async function DashboardPage() {
   // Get active session securely on the server
@@ -27,6 +27,7 @@ export default async function DashboardPage() {
   const inProgressIds = enrolledIds.filter((id) => !completedIds.includes(id));
 
   // Map IDs to original course records
+  const courses = await fetchCourses();
   const inProgressCourses = courses.filter((c) => inProgressIds.includes(c.id));
   const completedCourses = courses.filter((c) => completedIds.includes(c.id));
 

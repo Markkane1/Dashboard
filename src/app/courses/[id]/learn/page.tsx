@@ -1,8 +1,8 @@
 import React from "react";
 import { redirect } from "next/navigation";
-import { auth } from "../../../../../auth";
-import { fetchCourseLessons } from "@/lib/api/lessons";
-import CoursePlayer from "@/components/player/CoursePlayer";
+import { auth } from "@/../auth";
+import { fetchCourseLessons } from "@/infrastructure/api/lessons";
+import CoursePlayer from "@/features/lessons/components/CoursePlayer";
 import jwt from "jsonwebtoken";
 
 interface LearnPageProps {

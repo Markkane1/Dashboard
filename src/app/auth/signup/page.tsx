@@ -5,9 +5,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Link } from "@/navigation";
-import { registerUser } from "@/lib/actions/authActions";
-import { signupSchema, SignupInput } from "@/lib/validations/auth";
+import { Link } from "@/shared/navigation";
+import { registerUser } from "@/features/auth/actions";
+import { signupSchema, SignupInput } from "@/features/auth/validations";
 
 export default function SignupPage() {
   const router = useRouter();

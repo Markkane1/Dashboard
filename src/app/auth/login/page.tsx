@@ -5,8 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Link } from "@/navigation";
-import { loginSchema, LoginInput } from "@/lib/validations/auth";
+import { Link } from "@/shared/navigation";
+import { loginSchema, LoginInput } from "@/features/auth/validations";
 
 function LoginForm() {
   const router = useRouter();

@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "@/navigation";
+import { Link } from "@/shared/navigation";
 
 export default function NotFound() {
   return (

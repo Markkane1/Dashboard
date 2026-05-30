@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Link } from "@/navigation";
+import { Link } from "@/shared/navigation";
 
 interface ErrorProps {
   error: Error & { digest?: string };

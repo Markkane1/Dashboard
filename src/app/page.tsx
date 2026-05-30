@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import HomeClient from "@/components/HomeClient";
+import HomeClient from "@/features/courses/components/HomeClient";
 import { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,7 +21,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function HomePage() {
+import { fetchCourses } from "@/infrastructure/api/courses";
+
+export default async function HomePage() {
+  const courses = await fetchCourses();
+
   return (
     <Suspense
       fallback={
@@ -30,7 +34,7 @@ export default function HomePage() {
         </div>
       }
     >
-      <HomeClient />
+      <HomeClient courses={courses} />
     </Suspense>
   );
 }

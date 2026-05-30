@@ -73,18 +73,13 @@ export function UnenrollButton({ courseId }: ActionProps) {
   );
 }
 
-export function DownloadCertificateButton({ courseTitle }: { courseTitle: string }) {
-  const handleDownload = () => {
-    console.log(`Downloading certificate for course: ${courseTitle}`);
-    alert(`Downloading certificate for course: ${courseTitle} (Placeholder action successful!)`);
-  };
-
+export function DownloadCertificateButton({ courseId }: { courseId: string }) {
   return (
-    <button
-      onClick={handleDownload}
-      className="mt-3 w-full rounded-md bg-forest py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors"
+    <a
+      href={`/api/certificates/${courseId}`}
+      className="mt-3 block w-full rounded-md bg-forest py-2 text-center text-xs font-bold text-white hover:bg-emerald-800 transition-colors"
     >
       Download Certificate
-    </button>
+    </a>
   );
 }

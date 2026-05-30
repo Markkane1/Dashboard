@@ -14,11 +14,11 @@ const courseSchema = new mongoose.Schema(
     },
     instructorId: {
       type: String,
-      required: true
+      default: ''
     },
     instructorName: {
       type: String,
-      required: true
+      default: ''
     },
     instructorAvatar: {
       type: String,
@@ -31,15 +31,52 @@ const courseSchema = new mongoose.Schema(
     },
     thumbnail: {
       type: String,
-      required: true
+      default: ''
     },
     category: {
       type: String,
       required: true
     },
+    sdgGoals: [
+      {
+        type: Number
+      }
+    ],
+    topics: [
+      {
+        type: String
+      }
+    ],
+    mea: [
+      {
+        type: String
+      }
+    ],
+    syllabusUrl: {
+      type: String
+    },
+    courseUrl: {
+      type: String
+    },
+    isDiploma: {
+      type: Boolean,
+      default: false
+    },
+    isExternal: {
+      type: Boolean,
+      default: false
+    },
+    externalUrl: {
+      type: String
+    },
+    diplomaRequiredCourseIds: [
+      {
+        type: String
+      }
+    ],
     duration: {
       type: String,
-      required: true
+      default: ''
     },
     lessonsCount: {
       type: Number,
@@ -53,6 +90,19 @@ const courseSchema = new mongoose.Schema(
     enrolledCount: {
       type: Number,
       default: 0
+    },
+    quizQuestions: [
+      {
+        id: { type: String },
+        prompt: { type: String, required: true },
+        options: [{ type: String, required: true }],
+        correctAnswerIndex: { type: Number, required: true },
+        explanation: { type: String }
+      }
+    ],
+    quizPassingScore: {
+      type: Number,
+      default: 70
     }
   },
   {

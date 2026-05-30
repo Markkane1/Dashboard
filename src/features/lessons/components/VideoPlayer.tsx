@@ -7,16 +7,15 @@ interface VideoPlayerProps {
   lesson: Lesson;
   courseId: string;
   onComplete: () => void;
-  token: string;
 }
 
-export default function VideoPlayer({ lesson, courseId, onComplete, token }: VideoPlayerProps) {
+export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentTimeRef = useRef(0);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  const videoSource = `${apiBase}/api/video/${lesson._id}?token=${token}`;
+  const videoSource = `${apiBase}/api/video/${lesson._id}`;
 
   // 1. Sync progress coordinates to backend Express API
   const syncProgress = async (watched: number, total: number) => {
@@ -25,9 +24,9 @@ export default function VideoPlayer({ lesson, courseId, onComplete, token }: Vid
     try {
       await fetch(`${apiBase}/api/progress`, {
         method: "POST",
+        credentials: "include",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           lessonId: lesson._id,
@@ -72,7 +71,7 @@ export default function VideoPlayer({ lesson, courseId, onComplete, token }: Vid
   useEffect(() => {
     const interval = setInterval(() => {
       const video = videoRef.current;
-      if (video && video.duration && !video.paused) {
+      if (video && video.duration && !video.paused && !video.ended) {
         syncProgress(currentTimeRef.current, video.duration);
       }
     }, 10000);
@@ -80,7 +79,7 @@ export default function VideoPlayer({ lesson, courseId, onComplete, token }: Vid
     return () => {
       clearInterval(interval);
     };
-  }, [lesson._id, token]);
+  }, [lesson._id]);
 
   // 4. Update play coordinates in refs on tick updates (no re-renders)
   const handleTimeUpdate = () => {

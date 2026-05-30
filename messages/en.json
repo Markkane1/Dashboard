@@ -1,0 +1,30 @@
+{
+  "common": {
+    "appName": "InforMEA Learning",
+    "browseCatalog": "Browse catalog",
+    "createAccount": "Create free account",
+    "dashboard": "Dashboard",
+    "courses": "Courses",
+    "diploma": "Diploma",
+    "signIn": "Sign in"
+  },
+  "home": {
+    "eyebrow": "United Nations Information Portal on Multilateral Environmental Agreements",
+    "title": "Free, self-paced environmental law courses",
+    "subtitle": "Browse a course catalog inspired by InforMEA eLearning, featuring SDG goals tracking, MEA thematic paths, and professional certifications."
+  },
+  "dashboard": {
+    "title": "Your Learning Journey",
+    "continueLearning": "Continue learning",
+    "completedCourses": "Completed courses",
+    "diplomaPathways": "Specialist diploma pathways"
+  },
+  "instructor": {
+    "videoUploads": "Video uploads",
+    "selectCourse": "Select course",
+    "selectLesson": "Select lesson",
+    "uploadVideo": "Upload video",
+    "uploading": "Uploading...",
+    "success": "Video uploaded and lesson metadata updated."
+  }
+}

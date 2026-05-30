@@ -1,14 +1,18 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env.local') });
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const mongoose = require('mongoose');
+const cookieParser = require('cookie-parser');
+const { connectMongo } = require('./db/mongoose');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // 1. Core middlewares
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 // 2. Security Middleware: Serve uploads directory for static images only.
 // Explicitly blocks direct static streaming of .mp4 and other video files.
@@ -30,6 +34,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/video', require('./routes/video'));
 app.use('/api/progress', require('./routes/progress'));
+app.use('/api/quiz', require('./routes/quiz'));
 
 // 4. Default error handling middleware
 app.use((err, req, res, next) => {
@@ -39,8 +44,7 @@ app.use((err, req, res, next) => {
 
 // 5. Connect to Database (Optional standalone launch support)
 if (process.env.NODE_ENV !== 'test') {
-  const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/elearning';
-  mongoose.connect(mongoURI)
+  connectMongo()
     .then(() => {
       console.log('MongoDB successfully connected.');
       app.listen(PORT, () => {

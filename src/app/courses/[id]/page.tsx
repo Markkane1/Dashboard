@@ -22,6 +22,9 @@ interface CourseDetailPageProps {
   params: {
     id: string;
   };
+  searchParams?: {
+    error?: string;
+  };
 }
 
 export async function generateMetadata({ params }: CourseDetailPageProps): Promise<Metadata> {
@@ -50,7 +53,7 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
   };
 }
 
-export default async function CourseDetailPage({ params }: CourseDetailPageProps) {
+export default async function CourseDetailPage({ params, searchParams }: CourseDetailPageProps) {
   let course;
   try {
     course = await fetchCourseById(params.id);
@@ -123,6 +126,12 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
         <span className="text-slate-800 line-clamp-1 max-w-md">{course.title}</span>
       </nav>
 
+      {searchParams?.error === "not-enrolled" && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-900">
+          Enroll in this course to access the video lessons.
+        </div>
+      )}
+
       {/* Course Detail Card */}
       <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200 lg:p-10">
         
@@ -184,6 +193,15 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
             isAuthenticated={isAuthenticated}
             initialEnrolled={initialEnrolled}
           />
+
+          {initialEnrolled && !course.isExternal && (
+            <Link
+              href={`/courses/${course.id}/learn`}
+              className="inline-flex items-center justify-center rounded-lg bg-forest px-6 py-3 text-sm font-black text-white hover:bg-[#0d4f3a] transition-colors shadow-sm"
+            >
+              Continue Learning &rarr;
+            </Link>
+          )}
 
           {/* View Syllabus (PDF) */}
           {course.syllabusUrl && (

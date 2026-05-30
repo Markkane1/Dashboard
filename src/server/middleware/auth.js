@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 
 /**
  * Express Authentication Middleware.
- * Decodes the JWT from the Authorization Header (Bearer token) or req.query.token, and sets req.user.
+ * Decodes the JWT from the Authorization Header (Bearer token), auth cookie, or req.query.token, and sets req.user.
  */
 module.exports = function (req, res, next) {
   let token = null;
@@ -10,7 +10,12 @@ module.exports = function (req, res, next) {
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (req.query && req.query.token) {
+  }
+
+  const cookie = req.cookies?.auth_token;
+  if (!token && cookie) token = cookie;
+
+  if (!token && req.query && req.query.token) {
     token = req.query.token;
   }
 
@@ -19,8 +24,8 @@ module.exports = function (req, res, next) {
   }
 
   try {
-    // Decodes the token using the system NEXTAUTH_SECRET (or default fallback for development)
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'jwtSecret');
+    // Decodes the token using the system AUTH_SECRET (or default fallback for development)
+    const decoded = jwt.verify(token, process.env.AUTH_SECRET || 'elearning-epa-dev-auth-secret-change-me');
     
     // Decoded object should contain user identity: { id, email, name, etc. }
     req.user = decoded;

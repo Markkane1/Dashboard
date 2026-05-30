@@ -1,3 +1,6 @@
+import { connectMongo } from "@/server/db/mongoose";
+import UserModel from "@/server/models/User";
+
 export interface StoredUser {
   id: string;
   name: string;
@@ -10,13 +13,29 @@ export interface StoredUser {
   createdAt: string;
 }
 
-const getBaseUrl = () => process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
+function serializeUser(user: any): StoredUser {
+  const plain = typeof user.toObject === "function" ? user.toObject() : user;
+
+  return {
+    id: String(plain._id || plain.id),
+    name: plain.name,
+    email: plain.email,
+    password: plain.password,
+    role: plain.role || "student",
+    avatar: plain.avatar || "",
+    enrolledCourses: plain.enrolledCourses || [],
+    completedCourses: plain.completedCourses || [],
+    createdAt: plain.createdAt instanceof Date
+      ? plain.createdAt.toISOString()
+      : plain.createdAt || new Date().toISOString(),
+  };
+}
 
 export async function findUserByEmail(email: string): Promise<StoredUser | null> {
   try {
-    const res = await fetch(`${getBaseUrl()}/api/users/email/${encodeURIComponent(email)}`, { cache: 'no-store' });
-    if (!res.ok) return null;
-    return await res.json();
+    await connectMongo();
+    const user = await UserModel.findOne({ email: email.toLowerCase().trim() });
+    return user ? serializeUser(user) : null;
   } catch (error) {
     console.error("Error fetching user by email:", error);
     return null;
@@ -25,9 +44,9 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
 
 export async function findUserById(id: string): Promise<StoredUser | null> {
   try {
-    const res = await fetch(`${getBaseUrl()}/api/users/${encodeURIComponent(id)}`, { cache: 'no-store' });
-    if (!res.ok) return null;
-    return await res.json();
+    await connectMongo();
+    const user = await UserModel.findById(id);
+    return user ? serializeUser(user) : null;
   } catch (error) {
     console.error("Error fetching user by ID:", error);
     return null;
@@ -36,13 +55,10 @@ export async function findUserById(id: string): Promise<StoredUser | null> {
 
 export async function updateUser(id: string, updatedFields: Partial<StoredUser>): Promise<StoredUser | null> {
   try {
-    const res = await fetch(`${getBaseUrl()}/api/users/${encodeURIComponent(id)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedFields),
-    });
-    if (!res.ok) return null;
-    return await res.json();
+    await connectMongo();
+    const { id: _ignoredId, createdAt: _ignoredCreatedAt, ...fields } = updatedFields;
+    const user = await UserModel.findByIdAndUpdate(id, { $set: fields }, { new: true });
+    return user ? serializeUser(user) : null;
   } catch (error) {
     console.error("Error updating user:", error);
     return null;
@@ -51,16 +67,18 @@ export async function updateUser(id: string, updatedFields: Partial<StoredUser>)
 
 export async function saveUser(user: StoredUser): Promise<StoredUser> {
   try {
-    const res = await fetch(`${getBaseUrl()}/api/users`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(user),
+    await connectMongo();
+    const createdUser = await UserModel.create({
+      name: user.name,
+      email: user.email,
+      password: user.password,
+      role: user.role || "student",
+      avatar: user.avatar || "",
+      enrolledCourses: user.enrolledCourses || [],
+      completedCourses: user.completedCourses || [],
     });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || `Failed to save user. Status: ${res.status}`);
-    }
-    return await res.json();
+
+    return serializeUser(createdUser);
   } catch (error) {
     console.error("Error saving user:", error);
     throw error;

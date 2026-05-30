@@ -18,6 +18,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    role: {
+      type: String,
+      default: 'student'
+    },
+    avatar: {
+      type: String,
+      default: ''
+    },
     enrolledCourses: [
       {
         type: String // List of course IDs the user is enrolled in

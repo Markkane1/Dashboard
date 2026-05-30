@@ -36,16 +36,15 @@ export async function registerUser(input: SignupInput) {
       createdAt: new Date().toISOString(),
     };
 
-    // Save to local users.json
-    await saveUser(newUser);
+    const savedUser = await saveUser(newUser);
 
     return {
       success: true,
       user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
+        id: savedUser.id,
+        name: savedUser.name,
+        email: savedUser.email,
+        role: savedUser.role,
       },
     };
   } catch (error) {

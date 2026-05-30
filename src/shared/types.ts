@@ -19,6 +19,17 @@ export type Course = {
   isExternal: boolean;
   externalUrl?: string;
   description?: string;
+  instructorId?: string;
+  instructorName?: string;
+  instructorAvatar?: string;
+  price?: number;
+  thumbnail?: string;
+  duration?: string;
+  lessonsCount?: number;
+  rating?: number;
+  enrolledCount?: number;
+  quizPassingScore?: number;
+  diplomaRequiredCourseIds?: string[];
 };
 
 export type User = {
@@ -51,4 +62,23 @@ export type Lesson = {
   transcript?: string;
   isPublished: boolean;
   progress: LessonProgress;
+};
+
+export type QuizQuestion = {
+  id: string;
+  prompt: string;
+  options: string[];
+};
+
+export type CourseQuiz = {
+  courseId: string;
+  courseTitle: string;
+  passingScore: number;
+  questions: QuizQuestion[];
+  latestSubmission?: {
+    score: number;
+    totalQuestions: number;
+    passed: boolean;
+    submittedAt: string;
+  } | null;
 };

@@ -18,7 +18,7 @@ export default async function DashboardPage() {
     redirect("/auth/login");
   }
 
-  // Look up user from users.json filesystem database
+  // Look up user from the shared MongoDB user repository
   const user = await findUserByEmail(session.user.email);
   const enrolledIds = user?.enrolledCourses || [];
   const completedIds = user?.completedCourses || [];
@@ -94,6 +94,14 @@ export default async function DashboardPage() {
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {inProgressCourses.map((course) => (
               <CourseCard key={course.id} course={course}>
+                {!course.isExternal && (
+                  <Link
+                    href={`/courses/${course.id}/learn`}
+                    className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-ocean px-4 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#0b5366] focus:outline-none focus:ring-2 focus:ring-ocean focus:ring-offset-2"
+                  >
+                    Continue learning &rarr;
+                  </Link>
+                )}
                 
                 {/* Fake progress bar under the card */}
                 <div className="mt-5 border-t border-slate-100 pt-4 space-y-2">
@@ -138,14 +146,31 @@ export default async function DashboardPage() {
                     <span>✓</span> Completed
                   </div>
                   
-                  {/* Download certificate mock button */}
-                  <DownloadCertificateButton courseTitle={course.title} />
+                  <DownloadCertificateButton courseId={course.id} />
                 </div>
 
               </CourseCard>
             ))}
           </div>
         )}
+      </div>
+
+      {/* Diploma Pathways */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-black text-slate-950">Specialist diploma pathways</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-600">
+              Track multi-course requirements and download eligible diploma PDFs.
+            </p>
+          </div>
+          <Link
+            href="/diploma"
+            className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-amber-700"
+          >
+            View diploma progress
+          </Link>
+        </div>
       </div>
 
       {/* 5. Browse CTA Banner */}

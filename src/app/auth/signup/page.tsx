@@ -33,7 +33,7 @@ export default function SignupPage() {
     setGlobalError(null);
 
     try {
-      // 1. Call server action to register user in users.json database
+      // 1. Call server action to register user in the shared MongoDB database
       const response = await registerUser(data);
 
       if (!response.success) {

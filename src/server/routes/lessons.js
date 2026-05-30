@@ -1,7 +1,73 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const ffmpeg = require('fluent-ffmpeg');
 const auth = require('../middleware/auth');
 const { Lesson, Progress, User } = require('../models');
+const {
+  VIDEO_STORAGE,
+  getLocalVideoDir,
+  getPublicVideoUrl
+} = require('../services/videoStorage');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, getLocalVideoDir()),
+  filename: (req, file, cb) => {
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-');
+    cb(null, `${Date.now()}-${safeName}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 500 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype !== 'video/mp4') {
+      return cb(new Error('Only MP4 video uploads are supported.'));
+    }
+
+    cb(null, true);
+  }
+});
+
+function readVideoDuration(filePath) {
+  return new Promise((resolve) => {
+    ffmpeg.ffprobe(filePath, (error, metadata) => {
+      if (error) {
+        console.warn("Unable to read uploaded video duration with ffprobe:", error.message);
+        resolve(undefined);
+        return;
+      }
+
+      resolve(Math.round(metadata.format.duration || 0));
+    });
+  });
+}
+
+function removeUploadedFile(file) {
+  if (!file?.path) return;
+
+  require('fs').unlink(file.path, (error) => {
+    if (error) {
+      console.warn("Unable to clean up uploaded lesson video:", error.message);
+    }
+  });
+}
+
+async function requireContentManager(req, res, next) {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || !['admin', 'instructor'].includes(user.role)) {
+      return res.status(403).json({ error: "Instructor access is required." });
+    }
+
+    req.contentManager = user;
+    next();
+  } catch (error) {
+    console.error("Error checking instructor permissions:", error);
+    res.status(500).json({ error: "Failed to verify instructor permissions." });
+  }
+}
 
 /**
  * GET /api/lessons/course/:courseId
@@ -47,6 +113,66 @@ router.get('/course/:courseId', auth, async (req, res) => {
     res.status(500).json({ error: "Internal server error occurred while retrieving lessons." });
   }
 });
+
+/**
+ * GET /api/lessons/manage/course/:courseId
+ * Instructor/admin lesson listing for content management.
+ */
+router.get('/manage/course/:courseId', auth, requireContentManager, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const lessons = await Lesson.find({ courseId }).sort({ order: 1 });
+    res.json(lessons);
+  } catch (error) {
+    console.error("Error fetching manageable course lessons:", error);
+    res.status(500).json({ error: "Internal server error occurred while retrieving lessons." });
+  }
+});
+
+/**
+ * POST /api/lessons/:lessonId/upload
+ * Upload an MP4 video for a lesson and update its videoUrl/duration metadata.
+ */
+router.post(
+  '/:lessonId/upload',
+  auth,
+  requireContentManager,
+  (req, res, next) => {
+    if (VIDEO_STORAGE !== 'local') {
+      return res.status(501).json({ error: "Configured video storage provider is not implemented for direct uploads yet." });
+    }
+
+    next();
+  },
+  upload.single('video'),
+  async (req, res) => {
+    try {
+      const { lessonId } = req.params;
+      const lesson = await Lesson.findById(lessonId);
+      if (!lesson) {
+        removeUploadedFile(req.file);
+        return res.status(404).json({ error: "Lesson not found." });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "Video file is required in the 'video' form field." });
+      }
+
+      const duration = await readVideoDuration(req.file.path);
+      lesson.videoUrl = getPublicVideoUrl(req.file.filename);
+      if (duration) {
+        lesson.duration = duration;
+      }
+
+      await lesson.save();
+      res.json(lesson);
+    } catch (error) {
+      removeUploadedFile(req.file);
+      console.error("Error uploading lesson video:", error);
+      res.status(500).json({ error: "Failed to upload lesson video." });
+    }
+  }
+);
 
 /**
  * GET /api/lessons/:lessonId

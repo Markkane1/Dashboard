@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Link } from "@/shared/navigation";
 import { Lesson } from "@/shared/types";
 import VideoPlayer from "./VideoPlayer";
 import LessonSidebar from "./LessonSidebar";
@@ -10,13 +11,14 @@ interface CoursePlayerProps {
   courseId: string;
   lessons: Lesson[];
   initialLesson: Lesson;
-  token: string;
 }
 
-export default function CoursePlayer({ courseId, lessons, initialLesson, token }: CoursePlayerProps) {
+export default function CoursePlayer({ courseId, lessons, initialLesson }: CoursePlayerProps) {
   const router = useRouter();
   const [activeLesson, setActiveLesson] = useState<Lesson>(initialLesson);
+  const [lessonList, setLessonList] = useState(lessons);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const allLessonsCompleted = lessonList.length > 0 && lessonList.every((lesson) => lesson.progress.completed);
 
   // Sync lesson switch state with URL search param without triggers scroll resets
   const handleSelectLesson = (lesson: Lesson) => {
@@ -28,7 +30,7 @@ export default function CoursePlayer({ courseId, lessons, initialLesson, token }
   // Called when active lesson video reaches natural playback completion
   const handleLessonComplete = () => {
     // 1. Mark current lesson locally as completed for fluid visual feedback
-    const updatedLessons = lessons.map(l => {
+    const updatedLessons = lessonList.map(l => {
       if (l._id === activeLesson._id) {
         return {
           ...l,
@@ -37,10 +39,11 @@ export default function CoursePlayer({ courseId, lessons, initialLesson, token }
       }
       return l;
     });
+    setLessonList(updatedLessons);
 
     // 2. Automatically navigate to the next incomplete or adjacent lesson in order
-    const currentIndex = lessons.findIndex((l) => l._id === activeLesson._id);
-    const nextLesson = lessons[currentIndex + 1] || lessons[0];
+    const currentIndex = updatedLessons.findIndex((l) => l._id === activeLesson._id);
+    const nextLesson = updatedLessons[currentIndex + 1] || updatedLessons[0];
 
     if (nextLesson && nextLesson._id !== activeLesson._id) {
       handleSelectLesson(nextLesson);
@@ -68,7 +71,7 @@ export default function CoursePlayer({ courseId, lessons, initialLesson, token }
         {/* Desktop View Sidebar or Expanded Mobile Accordion List */}
         <div className={`${isMobileSidebarOpen ? "block" : "hidden"} md:block`}>
           <LessonSidebar
-            lessons={lessons}
+            lessons={lessonList}
             activeLesson={activeLesson}
             onSelect={handleSelectLesson}
           />
@@ -77,11 +80,27 @@ export default function CoursePlayer({ courseId, lessons, initialLesson, token }
 
       {/* Main viewport: Video player + description resources layout */}
       <main className="flex-1 bg-slate-50/50 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        {allLessonsCompleted && (
+          <div className="mx-auto mb-6 flex max-w-4xl flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-black text-emerald-950">All lessons completed</p>
+              <p className="mt-1 text-sm font-semibold text-emerald-800">
+                Take the final quiz to complete this course.
+              </p>
+            </div>
+            <Link
+              href={`/courses/${courseId}/quiz`}
+              className="inline-flex items-center justify-center rounded-lg bg-forest px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-emerald-800"
+            >
+              Take final quiz &rarr;
+            </Link>
+          </div>
+        )}
+
         <VideoPlayer
           lesson={activeLesson}
           courseId={courseId}
           onComplete={handleLessonComplete}
-          token={token}
         />
       </main>
     </div>

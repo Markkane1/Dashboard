@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
-const path = require('path');
 const auth = require('../middleware/auth');
 const { Lesson, User } = require('../models');
+const { isRemoteVideoUrl, resolveLocalVideoPath } = require('../services/videoStorage');
 
 /**
  * GET /api/video/:lessonId
@@ -33,13 +33,13 @@ router.get('/:lessonId', auth, async (req, res) => {
     }
 
     // 3. Handle External Video Hosts (redirect with 302 status)
-    if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
+    if (isRemoteVideoUrl(videoUrl)) {
       return res.redirect(302, videoUrl);
     }
 
     // 4. Handle Local File Streaming (HTTP Range Partial Responses)
     // Resolve absolute path from project root uploads folder
-    const filePath = path.join(process.cwd(), videoUrl);
+    const filePath = resolveLocalVideoPath(videoUrl);
     
     if (!fs.existsSync(filePath)) {
       console.error(`Local video file not found at path: ${filePath}`);

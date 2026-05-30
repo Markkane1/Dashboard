@@ -1,8 +1,13 @@
 const jwt = require('jsonwebtoken');
+const { env } = require('../config/env');
+
+const API_TOKEN_ISSUER = 'next-auth';
+const API_TOKEN_AUDIENCE = 'express-api';
+const API_TOKEN_USE = 'api';
 
 /**
  * Express Authentication Middleware.
- * Decodes the JWT from the Authorization Header (Bearer token), auth cookie, or req.query.token, and sets req.user.
+ * Decodes the JWT from the Authorization Header (Bearer token), and sets req.user.
  */
 module.exports = function (req, res, next) {
   let token = null;
@@ -12,23 +17,26 @@ module.exports = function (req, res, next) {
     token = authHeader.split(' ')[1];
   }
 
-  const cookie = req.cookies?.auth_token;
-  if (!token && cookie) token = cookie;
-
-  if (!token && req.query && req.query.token) {
-    token = req.query.token;
-  }
-
   if (!token) {
     return res.status(401).json({ error: 'Access denied. No authentication token provided.' });
   }
 
   try {
-    // Decodes the token using the system AUTH_SECRET (or default fallback for development)
-    const decoded = jwt.verify(token, process.env.AUTH_SECRET || 'elearning-epa-dev-auth-secret-change-me');
+    const decoded = jwt.verify(token, env.AUTH_SECRET, {
+      issuer: API_TOKEN_ISSUER,
+      audience: API_TOKEN_AUDIENCE
+    });
+
+    if (decoded.tokenUse !== API_TOKEN_USE) {
+      return res.status(401).json({ error: 'Authentication failed. Token is not an API access token.' });
+    }
     
-    // Decoded object should contain user identity: { id, email, name, etc. }
-    req.user = decoded;
+    req.user = {
+      ...decoded,
+      id: decoded.id || decoded.sub,
+      email: decoded.email,
+      role: decoded.role || 'student'
+    };
     
     next();
   } catch (err) {

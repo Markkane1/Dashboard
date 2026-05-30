@@ -1,11 +1,9 @@
 import React from "react";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { auth } from "@/../auth";
 import { fetchCourseLessons } from "@/infrastructure/api/lessons";
 import CoursePlayer from "@/features/lessons/components/CoursePlayer";
 import { findUserByEmail } from "@/features/users/data/userDb";
-import jwt from "jsonwebtoken";
 
 interface LearnPageProps {
   params: {
@@ -24,21 +22,15 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
   }
 
   const courseId = params.id;
-  const userId = session.user.id;
-
   const dbUser = await findUserByEmail(session.user.email);
   if (!dbUser || !dbUser.enrolledCourses?.includes(courseId)) {
     redirect(`/courses/${courseId}?error=not-enrolled`);
   }
 
-  // 2. Generate a valid JWT token on the server using NextAuth configurations
-  // This matches our Express auth middleware verification keys
-  const token = jwt.sign(
-    { id: userId, email: session.user.email },
-    process.env.AUTH_SECRET || "elearning-epa-dev-auth-secret-change-me",
-    { expiresIn: "1h" }
-  );
-  cookies().set("auth_token", token, { httpOnly: true, sameSite: "strict", maxAge: 3600 });
+  const token = session.apiAccessToken;
+  if (!token) {
+    redirect("/auth/login");
+  }
 
   // 3. Fetch all lessons belonging to this course
   let lessons = [];

@@ -2,47 +2,95 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env.
 
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
+const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
 const { connectMongo } = require('./db/mongoose');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const cspConnectSources = ["'self'", ...allowedOrigins, 'https://challenges.cloudflare.com'];
+const apiLimiter = rateLimit({
+  windowMs: Number(process.env.API_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
+  limit: Number(process.env.API_RATE_LIMIT_MAX || 300),
+  standardHeaders: true,
+  legacyHeaders: false
+});
+const authLimiter = rateLimit({
+  windowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
+  limit: Number(process.env.AUTH_RATE_LIMIT_MAX || 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many authentication attempts. Please try again later.' }
+});
 
 // 1. Core middlewares
-app.use(cors({ origin: true, credentials: true }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      formAction: ["'self'"],
+      scriptSrc: ["'self'", 'https://challenges.cloudflare.com'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      fontSrc: ["'self'", 'data:'],
+      connectSrc: cspConnectSources,
+      mediaSrc: ["'self'", ...allowedOrigins, 'blob:'],
+      frameSrc: ['https://challenges.cloudflare.com'],
+      workerSrc: ["'self'", 'blob:']
+    }
+  },
+  crossOriginResourcePolicy: { policy: 'same-site' },
+  frameguard: { action: 'deny' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
+app.use(cors({
+  credentials: true,
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  }
+}));
 app.use(express.json());
 app.use(cookieParser());
-
-// 2. Security Middleware: Serve uploads directory for static images only.
-// Explicitly blocks direct static streaming of .mp4 and other video files.
-app.use('/uploads', (req, res, next) => {
-  const ext = path.extname(req.path).toLowerCase();
-  const allowedImageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
-
-  if (allowedImageExtensions.includes(ext)) {
-    next(); // Pass control to express.static below
-  } else {
-    console.warn(`Blocked static download request for non-image file type: ${req.path}`);
-    res.status(403).json({ error: "Access denied. Private resources must be requested through secure API endpoints." });
+app.use('/api', apiLimiter);
+app.use('/api/users/authenticate', authLimiter);
+app.use('/api/users', (req, res, next) => {
+  if (req.method === 'POST' && req.path === '/') {
+    return authLimiter(req, res, next);
   }
-}, express.static(path.join(process.cwd(), 'uploads')));
 
-// 3. API Routers Mount
+  next();
+});
+
+// 2. API Routers Mount
 app.use('/api/courses', require('./routes/courses'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/video', require('./routes/video'));
 app.use('/api/progress', require('./routes/progress'));
 app.use('/api/quiz', require('./routes/quiz'));
+app.use('/api/docs', require('./routes/docs'));
+app.use('/api/certificates', require('./routes/docs'));
 
-// 4. Default error handling middleware
+// 3. Default error handling middleware
 app.use((err, req, res, next) => {
   console.error("Unhandled global server exception:", err);
   res.status(500).json({ error: "An unexpected error occurred on the server." });
 });
 
-// 5. Connect to Database (Optional standalone launch support)
+// 4. Connect to Database (Optional standalone launch support)
 if (process.env.NODE_ENV !== 'test') {
   connectMongo()
     .then(() => {

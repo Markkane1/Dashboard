@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { CourseQuiz } from "@/shared/types";
 
 type QuizResult = {
@@ -10,18 +11,11 @@ type QuizResult = {
   totalQuestions: number;
   correctCount: number;
   passed: boolean;
-  results: {
-    questionId: string;
-    prompt: string;
-    selectedOptionIndex?: number;
-    correctOptionIndex: number;
-    correct: boolean;
-    explanation?: string;
-  }[];
 };
 
 export default function QuizForm({ quiz }: { quiz: CourseQuiz }) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<QuizResult | null>(null);
@@ -36,11 +30,17 @@ export default function QuizForm({ quiz }: { quiz: CourseQuiz }) {
     setError("");
 
     try {
+      if (!session?.apiAccessToken) {
+        throw new Error("Your session expired. Please sign in again.");
+      }
+
       const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const res = await fetch(`${apiBase}/api/quiz/${quiz.courseId}/submit`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.apiAccessToken}`,
+        },
         body: JSON.stringify({
           answers: Object.entries(answers).map(([questionId, selectedOptionIndex]) => ({
             questionId,

@@ -28,6 +28,7 @@ export default async function DashboardPage() {
 
   // Map IDs to original course records
   const courses = await fetchCourses();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
   const inProgressCourses = courses.filter((c) => inProgressIds.includes(c.id));
   const completedCourses = courses.filter((c) => completedIds.includes(c.id));
 
@@ -146,7 +147,7 @@ export default async function DashboardPage() {
                     <span>✓</span> Completed
                   </div>
                   
-                  <DownloadCertificateButton courseId={course.id} />
+                  <DownloadCertificateButton downloadUrl={`${apiUrl}/api/certificates/${course.id}/download`} />
                 </div>
 
               </CourseCard>

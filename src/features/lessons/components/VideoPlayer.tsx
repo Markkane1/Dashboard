@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Lesson } from "@/shared/types";
 
 interface VideoPlayerProps {
@@ -10,23 +11,67 @@ interface VideoPlayerProps {
 }
 
 export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlayerProps) {
+  const { data: session } = useSession();
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentTimeRef = useRef(0);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
+  const [videoSource, setVideoSource] = useState("");
+  const apiToken = session?.apiAccessToken;
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  const videoSource = `${apiBase}/api/video/${lesson._id}`;
+
+  useEffect(() => {
+    let objectUrl = "";
+    const abortController = new AbortController();
+
+    async function loadVideo() {
+      if (!apiToken) {
+        setVideoSource("");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${apiBase}/api/video/${lesson._id}`, {
+          headers: {
+            Authorization: `Bearer ${apiToken}`,
+          },
+          signal: abortController.signal,
+        });
+        if (!res.ok) {
+          throw new Error(`Failed to load video. Status: ${res.status}`);
+        }
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        setVideoSource(objectUrl);
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          console.error("Failed to load authenticated video:", error);
+          setVideoSource("");
+        }
+      }
+    }
+
+    loadVideo();
+
+    return () => {
+      abortController.abort();
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [apiBase, apiToken, lesson._id]);
 
   // 1. Sync progress coordinates to backend Express API
   const syncProgress = async (watched: number, total: number) => {
     if (!watched || !total || isNaN(watched) || isNaN(total)) return;
+    if (!apiToken) return;
 
     try {
       await fetch(`${apiBase}/api/progress`, {
         method: "POST",
-        credentials: "include",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiToken}`
         },
         body: JSON.stringify({
           lessonId: lesson._id,
@@ -113,6 +158,11 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
           playsInline
           className="h-full w-full object-contain"
         />
+        {!videoSource && (
+          <div className="absolute inset-0 grid place-items-center bg-black text-sm font-bold text-white">
+            Loading secure video...
+          </div>
+        )}
       </div>
 
       {/* Lesson Metadata details section */}

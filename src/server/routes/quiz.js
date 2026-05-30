@@ -167,11 +167,8 @@ router.post('/:courseId/submit', auth, async (req, res) => {
 
       return {
         questionId: question.id,
-        prompt: question.prompt,
         selectedOptionIndex,
-        correctOptionIndex: question.correctAnswerIndex,
-        correct,
-        explanation: question.explanation
+        correct
       };
     });
 
@@ -209,8 +206,7 @@ router.post('/:courseId/submit', auth, async (req, res) => {
       passingScore,
       totalQuestions: questions.length,
       correctCount,
-      passed,
-      results: gradedQuestions
+      passed
     });
   } catch (error) {
     console.error("Error submitting course quiz:", error);

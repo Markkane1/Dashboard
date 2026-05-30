@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link } from "@/shared/navigation";
+import { requestPasswordReset } from "@/features/auth/actions";
 
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
@@ -29,11 +30,9 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: ForgotPasswordInput) => {
     setIsLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSubmitted(true);
-    }, 600);
+    await requestPasswordReset(data);
+    setIsLoading(false);
+    setIsSubmitted(true);
   };
 
   return (

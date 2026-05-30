@@ -1,7 +1,5 @@
 import React from "react";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
 import { auth } from "@/../auth";
 import { fetchCourses } from "@/infrastructure/api/courses";
 import { fetchManageableLessons } from "@/infrastructure/api/instructorLessons";
@@ -18,12 +16,10 @@ export default async function InstructorVideosPage() {
     redirect("/dashboard");
   }
 
-  const token = jwt.sign(
-    { id: session.user.id, email: session.user.email, role },
-    process.env.AUTH_SECRET || "elearning-epa-dev-auth-secret-change-me",
-    { expiresIn: "1h" }
-  );
-  cookies().set("auth_token", token, { httpOnly: true, sameSite: "strict", maxAge: 3600 });
+  const token = session.apiAccessToken;
+  if (!token) {
+    redirect("/auth/login");
+  }
 
   const courses = (await fetchCourses()).filter((course) => !course.isExternal && !course.isDiploma);
   const lessonsByCourse: Record<string, Awaited<ReturnType<typeof fetchManageableLessons>>> = {};

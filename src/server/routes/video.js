@@ -39,7 +39,13 @@ router.get('/:lessonId', auth, async (req, res) => {
 
     // 4. Handle Local File Streaming (HTTP Range Partial Responses)
     // Resolve absolute path from project root uploads folder
-    const filePath = resolveLocalVideoPath(videoUrl);
+    let filePath;
+    try {
+      filePath = resolveLocalVideoPath(videoUrl);
+    } catch (pathError) {
+      console.error("Invalid local video path:", pathError.message);
+      return res.status(400).json({ error: "Invalid linked video path." });
+    }
     
     if (!fs.existsSync(filePath)) {
       console.error(`Local video file not found at path: ${filePath}`);

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { markComplete, unenrollCourse } from "@/features/enrollments/actions";
 
 interface ActionProps {
@@ -73,13 +74,75 @@ export function UnenrollButton({ courseId }: ActionProps) {
   );
 }
 
-export function DownloadCertificateButton({ courseId }: { courseId: string }) {
+function getFilename(res: Response, fallback: string) {
+  const disposition = res.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  return match?.[1] || fallback;
+}
+
+export function AuthenticatedDownloadButton({
+  downloadUrl,
+  label,
+  fallbackFilename,
+  className,
+}: {
+  downloadUrl: string;
+  label: string;
+  fallbackFilename: string;
+  className?: string;
+}) {
+  const { data: session } = useSession();
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!session?.apiAccessToken || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      const res = await fetch(downloadUrl, {
+        headers: {
+          Authorization: `Bearer ${session.apiAccessToken}`,
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`Download failed with status ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = getFilename(res, fallbackFilename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("Authenticated download failed:", error);
+      alert("Download failed. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
-    <a
-      href={`/api/certificates/${courseId}`}
-      className="mt-3 block w-full rounded-md bg-forest py-2 text-center text-xs font-bold text-white hover:bg-emerald-800 transition-colors"
+    <button
+      type="button"
+      onClick={handleDownload}
+      disabled={isDownloading || !session?.apiAccessToken}
+      className={className || "mt-3 block w-full rounded-md bg-forest py-2 text-center text-xs font-bold text-white hover:bg-emerald-800 transition-colors disabled:cursor-not-allowed disabled:opacity-50"}
     >
-      Download Certificate
-    </a>
+      {isDownloading ? "Downloading..." : label}
+    </button>
+  );
+}
+
+export function DownloadCertificateButton({ downloadUrl }: { downloadUrl: string }) {
+  return (
+    <AuthenticatedDownloadButton
+      downloadUrl={downloadUrl}
+      label="Download Certificate"
+      fallbackFilename="certificate.pdf"
+    />
   );
 }

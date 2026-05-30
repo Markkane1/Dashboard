@@ -1,0 +1,9 @@
+import { z } from "zod";
+
+const envSchema = z.object({
+  AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
+});
+
+export const env = envSchema.parse({
+  AUTH_SECRET: process.env.AUTH_SECRET,
+});

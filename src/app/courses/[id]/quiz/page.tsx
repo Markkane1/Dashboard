@@ -1,7 +1,5 @@
 import React from "react";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
 import { auth } from "@/../auth";
 import { findUserByEmail } from "@/features/users/data/userDb";
 import { fetchCourseById } from "@/infrastructure/api/courses";
@@ -27,12 +25,10 @@ export default async function QuizPage({ params }: QuizPageProps) {
     redirect(`/courses/${courseId}?error=not-enrolled`);
   }
 
-  const token = jwt.sign(
-    { id: session.user.id, email: session.user.email },
-    process.env.AUTH_SECRET || "elearning-epa-dev-auth-secret-change-me",
-    { expiresIn: "1h" }
-  );
-  cookies().set("auth_token", token, { httpOnly: true, sameSite: "strict", maxAge: 3600 });
+  const token = session.apiAccessToken;
+  if (!token) {
+    redirect("/auth/login");
+  }
 
   let courseTitle = "Final Quiz";
   try {

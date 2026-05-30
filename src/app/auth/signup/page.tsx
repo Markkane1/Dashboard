@@ -3,20 +3,21 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import Script from "next/script";
 import { Link } from "@/shared/navigation";
 import { registerUser } from "@/features/auth/actions";
 import { signupSchema, SignupInput } from "@/features/auth/validations";
 
 export default function SignupPage() {
-  const router = useRouter();
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
@@ -25,15 +26,24 @@ export default function SignupPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      captchaToken: "",
     },
   });
+
+  React.useEffect(() => {
+    if (!turnstileSiteKey) return;
+
+    (window as any).onSignupCaptchaSuccess = (token: string) => {
+      setValue("captchaToken", token, { shouldValidate: true });
+    };
+  }, [setValue, turnstileSiteKey]);
 
   const onSubmit = async (data: SignupInput) => {
     setIsLoading(true);
     setGlobalError(null);
+    setSuccessMessage(null);
 
     try {
-      // 1. Call server action to register user in the shared MongoDB database
       const response = await registerUser(data);
 
       if (!response.success) {
@@ -42,20 +52,8 @@ export default function SignupPage() {
         return;
       }
 
-      // 2. Automatically log in the new user
-      const loginResult = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      if (loginResult?.error) {
-        // If auto-login fails, redirect them to the login page to sign in manually
-        router.push("/auth/login?registered=true");
-      } else {
-        router.refresh();
-        router.push("/dashboard");
-      }
+      setSuccessMessage(response.message || "Account created. Check your email to verify your account.");
+      setIsLoading(false);
     } catch (error) {
       console.error("Sign up unexpected error:", error);
       setGlobalError("Something went wrong. Please try again.");
@@ -82,6 +80,15 @@ export default function SignupPage() {
             className="mt-6 rounded-lg bg-red-50 border border-red-200 p-4 text-sm font-semibold text-red-700"
           >
             ⚠️ {globalError}
+          </div>
+        )}
+
+        {successMessage && (
+          <div
+            role="alert"
+            className="mt-6 rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-sm font-semibold text-emerald-800"
+          >
+            {successMessage}
           </div>
         )}
 
@@ -149,6 +156,18 @@ export default function SignupPage() {
               <span className="mt-1 block text-xs font-bold text-red-600">{errors.confirmPassword.message}</span>
             )}
           </label>
+
+          <input type="hidden" {...register("captchaToken")} />
+          {turnstileSiteKey && (
+            <>
+              <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
+              <div
+                className="cf-turnstile"
+                data-sitekey={turnstileSiteKey}
+                data-callback="onSignupCaptchaSuccess"
+              />
+            </>
+          )}
 
           <button
             type="submit"

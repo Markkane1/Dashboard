@@ -1,5 +1,4 @@
-import { connectMongo } from "@/server/db/mongoose";
-import UserModel from "@/server/models/User";
+import { signApiAccessToken } from "@/shared/auth/apiToken";
 
 export interface StoredUser {
   id: string;
@@ -10,32 +9,30 @@ export interface StoredUser {
   avatar?: string;
   enrolledCourses?: string[];
   completedCourses?: string[];
+  emailVerified?: boolean;
+  emailVerificationTokenHash?: string;
+  emailVerificationExpires?: string;
   createdAt: string;
 }
 
-function serializeUser(user: any): StoredUser {
-  const plain = typeof user.toObject === "function" ? user.toObject() : user;
+const getBaseUrl = () => process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-  return {
-    id: String(plain._id || plain.id),
-    name: plain.name,
-    email: plain.email,
-    password: plain.password,
-    role: plain.role || "student",
-    avatar: plain.avatar || "",
-    enrolledCourses: plain.enrolledCourses || [],
-    completedCourses: plain.completedCourses || [],
-    createdAt: plain.createdAt instanceof Date
-      ? plain.createdAt.toISOString()
-      : plain.createdAt || new Date().toISOString(),
-  };
+async function getServerAuthHeader() {
+  const token = signApiAccessToken(
+    { id: "internal-service", role: "service", email: "service@internal.local" },
+    "5m"
+  );
+  return { "Authorization": `Bearer ${token}` };
 }
 
 export async function findUserByEmail(email: string): Promise<StoredUser | null> {
   try {
-    await connectMongo();
-    const user = await UserModel.findOne({ email: email.toLowerCase().trim() });
-    return user ? serializeUser(user) : null;
+    const res = await fetch(`${getBaseUrl()}/api/users/email/${encodeURIComponent(email)}`, {
+      cache: "no-store",
+      headers: await getServerAuthHeader(),
+    });
+    if (!res.ok) return null;
+    return await res.json();
   } catch (error) {
     console.error("Error fetching user by email:", error);
     return null;
@@ -44,21 +41,43 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
 
 export async function findUserById(id: string): Promise<StoredUser | null> {
   try {
-    await connectMongo();
-    const user = await UserModel.findById(id);
-    return user ? serializeUser(user) : null;
+    const res = await fetch(`${getBaseUrl()}/api/users/${encodeURIComponent(id)}`, {
+      cache: "no-store",
+      headers: await getServerAuthHeader(),
+    });
+    if (!res.ok) return null;
+    return await res.json();
   } catch (error) {
     console.error("Error fetching user by ID:", error);
     return null;
   }
 }
 
+export async function authenticateUser(email: string, password: string): Promise<StoredUser | null> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/authenticate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.error("Error authenticating user:", error);
+    return null;
+  }
+}
+
 export async function updateUser(id: string, updatedFields: Partial<StoredUser>): Promise<StoredUser | null> {
   try {
-    await connectMongo();
-    const { id: _ignoredId, createdAt: _ignoredCreatedAt, ...fields } = updatedFields;
-    const user = await UserModel.findByIdAndUpdate(id, { $set: fields }, { new: true });
-    return user ? serializeUser(user) : null;
+    const res = await fetch(`${getBaseUrl()}/api/users/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...(await getServerAuthHeader()) },
+      body: JSON.stringify(updatedFields),
+    });
+    if (!res.ok) return null;
+    return await res.json();
   } catch (error) {
     console.error("Error updating user:", error);
     return null;
@@ -67,20 +86,65 @@ export async function updateUser(id: string, updatedFields: Partial<StoredUser>)
 
 export async function saveUser(user: StoredUser): Promise<StoredUser> {
   try {
-    await connectMongo();
-    const createdUser = await UserModel.create({
-      name: user.name,
-      email: user.email,
-      password: user.password,
-      role: user.role || "student",
-      avatar: user.avatar || "",
-      enrolledCourses: user.enrolledCourses || [],
-      completedCourses: user.completedCourses || [],
+    const res = await fetch(`${getBaseUrl()}/api/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(user),
     });
-
-    return serializeUser(createdUser);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Failed to save user. Status: ${res.status}`);
+    }
+    return await res.json();
   } catch (error) {
     console.error("Error saving user:", error);
     throw error;
+  }
+}
+
+export async function storePasswordResetToken(input: {
+  email: string;
+  tokenHash: string;
+  expiresAt: string;
+}): Promise<boolean> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/password-reset/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await getServerAuthHeader()) },
+      body: JSON.stringify(input),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("Error storing password reset token:", error);
+    return false;
+  }
+}
+
+export async function resetPasswordWithToken(token: string, password: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/password-reset/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, password }),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("Error resetting password:", error);
+    return false;
+  }
+}
+
+export async function verifyEmailToken(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/verify-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+      cache: "no-store",
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    return false;
   }
 }

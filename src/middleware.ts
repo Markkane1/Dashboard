@@ -1,9 +1,36 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { env } from "@/env";
 
-const AUTH_SECRET = process.env.AUTH_SECRET || "elearning-epa-dev-auth-secret-change-me";
+const AUTH_SECRET = env.AUTH_SECRET;
 const LOCALES = ["en", "pak"];
+const AUTHENTICATED_ROUTES = ["/dashboard"];
+const ROLE_ROUTES = [
+  { prefix: "/instructor", roles: ["admin", "instructor"] },
+  { prefix: "/admin", roles: ["admin"] },
+];
+
+function isRoute(pathname: string, prefix: string) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+function loginRedirect(request: NextRequest, hasLocalePrefix: boolean, locale: string) {
+  const redirectPath = hasLocalePrefix ? `/${locale}/auth/login` : "/auth/login";
+  const loginUrl = new URL(redirectPath, request.url);
+  loginUrl.searchParams.set(
+    "callbackUrl",
+    `${request.nextUrl.pathname}${request.nextUrl.search}`
+  );
+  return NextResponse.redirect(loginUrl);
+}
+
+function unauthorizedRedirect(request: NextRequest, hasLocalePrefix: boolean, locale: string) {
+  const redirectPath = hasLocalePrefix ? `/${locale}/dashboard` : "/dashboard";
+  const dashboardUrl = new URL(redirectPath, request.url);
+  dashboardUrl.searchParams.set("error", "unauthorized");
+  return NextResponse.redirect(dashboardUrl);
+}
 
 export async function middleware(request: NextRequest) {
   let pathname = request.nextUrl.pathname;
@@ -32,14 +59,18 @@ export async function middleware(request: NextRequest) {
   // 3. Session & Route Protection Check
   // Check token for authentication
   const token = await getToken({ req: request, secret: AUTH_SECRET });
+  const protectedByAuth = AUTHENTICATED_ROUTES.some((prefix) => isRoute(pathname, prefix));
+  const protectedByRole = ROLE_ROUTES.find((route) => isRoute(pathname, route.prefix));
 
-  // If path is protected (like /dashboard)
-  if (pathname.startsWith("/dashboard") && !token) {
-    // Redirect to login (adding the dynamic prefix to preserve localized URLs)
-    const redirectPath = hasLocalePrefix ? `/${locale}/auth/login` : "/auth/login";
-    const loginUrl = new URL(redirectPath, request.url);
-    loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+  if ((protectedByAuth || protectedByRole) && !token) {
+    return loginRedirect(request, hasLocalePrefix, locale);
+  }
+
+  if (protectedByRole && token) {
+    const role = typeof token.role === "string" ? token.role : "student";
+    if (!protectedByRole.roles.includes(role)) {
+      return unauthorizedRedirect(request, hasLocalePrefix, locale);
+    }
   }
 
   // 4. Perform the Internal Rewrite if localized

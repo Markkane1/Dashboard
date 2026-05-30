@@ -5,6 +5,7 @@ import { findUserByEmail } from "@/features/users/data/userDb";
 import { fetchCourses } from "@/infrastructure/api/courses";
 import { Course } from "@/shared/types";
 import { Link } from "@/shared/navigation";
+import { AuthenticatedDownloadButton } from "@/features/users/components/DashboardActions";
 
 function getRequiredCourses(diploma: Course, courses: Course[]) {
   if (diploma.diplomaRequiredCourseIds && diploma.diplomaRequiredCourseIds.length > 0) {
@@ -25,6 +26,7 @@ export default async function DiplomaPage() {
   const user = await findUserByEmail(session.user.email);
   const completedCourseIds = user?.completedCourses || [];
   const courses = await fetchCourses();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
   const diplomaTracks = courses.filter((course) => course.isDiploma);
 
   return (
@@ -109,12 +111,12 @@ export default async function DiplomaPage() {
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   {isEligible ? (
-                    <a
-                      href={`/api/docs/diploma?diplomaId=${diploma.id}`}
+                    <AuthenticatedDownloadButton
+                      downloadUrl={`${apiUrl}/api/docs/diploma?diplomaId=${diploma.id}`}
+                      label="Download Diploma"
+                      fallbackFilename="diploma.pdf"
                       className="inline-flex rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-amber-700"
-                    >
-                      Download Diploma
-                    </a>
+                    />
                   ) : (
                     <Link
                       href="/courses"

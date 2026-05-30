@@ -4,6 +4,7 @@ import { auth } from "../../../auth";
 import { findUserByEmail, updateUser } from "@/features/users/data/userDb";
 import { fetchCourseById } from "@/infrastructure/api/courses";
 import { revalidatePath } from "next/cache";
+import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
 
 /**
  * Enroll a user in a course.
@@ -11,6 +12,8 @@ import { revalidatePath } from "next/cache";
  */
 export async function enrollCourse(courseId: string): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
+    validateServerActionOrigin();
+
     const session = await auth();
     if (!session || !session.user || !session.user.email) {
       return { success: false, error: "Not authenticated" };
@@ -54,6 +57,8 @@ export async function enrollCourse(courseId: string): Promise<{ success: boolean
  */
 export async function markComplete(courseId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    validateServerActionOrigin();
+
     const session = await auth();
     if (!session || !session.user || !session.user.email) {
       return { success: false, error: "Not authenticated" };
@@ -105,6 +110,8 @@ export async function markComplete(courseId: string): Promise<{ success: boolean
  */
 export async function unenrollCourse(courseId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    validateServerActionOrigin();
+
     const session = await auth();
     if (!session || !session.user || !session.user.email) {
       return { success: false, error: "Not authenticated" };

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Course, Lesson } from "@/shared/types";
 
 export default function VideoUploadForm({ courses, lessonsByCourse }: {
   courses: Course[];
   lessonsByCourse: Record<string, Lesson[]>;
 }) {
+  const { data: session } = useSession();
   const firstCourseId = courses[0]?.id || "";
   const [courseId, setCourseId] = useState(firstCourseId);
   const [lessonId, setLessonId] = useState(lessonsByCourse[firstCourseId]?.[0]?._id || "");
@@ -32,13 +34,19 @@ export default function VideoUploadForm({ courses, lessonsByCourse }: {
     setError("");
 
     try {
+      if (!session?.apiAccessToken) {
+        throw new Error("Your session expired. Please sign in again.");
+      }
+
       const body = new FormData();
       body.append("video", file);
 
       const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const res = await fetch(`${apiBase}/api/lessons/${lessonId}/upload`, {
         method: "POST",
-        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${session.apiAccessToken}`,
+        },
         body
       });
 

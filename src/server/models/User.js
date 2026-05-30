@@ -35,7 +35,30 @@ const userSchema = new mongoose.Schema(
       {
         type: String // List of course IDs the user has completed
       }
-    ]
+    ],
+    emailVerified: {
+      type: Boolean,
+      default: false
+    },
+    emailVerificationTokenHash: {
+      type: String
+    },
+    emailVerificationExpires: {
+      type: Date
+    },
+    passwordResetTokenHash: {
+      type: String
+    },
+    passwordResetExpires: {
+      type: Date
+    },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0
+    },
+    lockUntil: {
+      type: Date
+    }
   },
   {
     timestamps: true

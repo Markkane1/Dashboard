@@ -2,7 +2,9 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { findUserByEmail, saveUser, StoredUser } from "@/features/users/data/userDb";
+import { authenticateUser, findUserByEmail, saveUser, StoredUser } from "@/features/users/data/userDb";
+import { env } from "@/env";
+import { signApiAccessToken } from "@/shared/auth/apiToken";
 
 async function findOrCreateOAuthUser(input: {
   name?: string | null;
@@ -26,6 +28,7 @@ async function findOrCreateOAuthUser(input: {
     role: "student",
     avatar: input.image || "",
     enrolledCourses: [],
+    emailVerified: true,
     createdAt: new Date().toISOString(),
   };
 
@@ -34,7 +37,7 @@ async function findOrCreateOAuthUser(input: {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.AUTH_SECRET || "elearning-epa-dev-auth-secret-change-me",
+  secret: env.AUTH_SECRET,
   pages: {
     signIn: "/auth/login",
   },
@@ -52,13 +55,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = String(credentials?.email || "").toLowerCase().trim();
         const password = String(credentials?.password || "");
 
-        const user = await findUserByEmail(email);
-        if (!user || !user.password) {
-          throw new Error("No user found with this email");
-        }
-
-        const isValid = await bcrypt.compare(password, user.password);
-        if (!isValid) {
+        const user = await authenticateUser(email, password);
+        if (!user) {
           throw new Error("Invalid password");
         }
 
@@ -95,20 +93,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
+      if (token.id && token.email) {
+        token.apiAccessToken = signApiAccessToken({
+          id: String(token.id),
+          email: String(token.email),
+          role: typeof token.role === "string" ? token.role : "student",
+        });
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = String(token.id || "");
-        // @ts-ignore
         session.user.role = (token.role as any) || "student";
-        // @ts-ignore
         session.user.avatar = typeof token.picture === "string" ? token.picture : "";
-        // @ts-ignore
         session.user.enrolledCourses = Array.isArray(token.enrolledCourses)
           ? (token.enrolledCourses as string[])
           : [];
       }
+      session.apiAccessToken = typeof token.apiAccessToken === "string" ? token.apiAccessToken : undefined;
 
       return session;
     },

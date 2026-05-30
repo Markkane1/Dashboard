@@ -1,8 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const { z } = require('zod');
 const auth = require('../middleware/auth');
-const { Progress, Lesson } = require('../models');
+const { Progress, Lesson, User } = require('../models');
+
+const progressSchema = z.object({
+  lessonId: z.string().refine((value) => mongoose.Types.ObjectId.isValid(value), {
+    message: 'A valid ObjectId lessonId is required.'
+  }),
+  watchedSeconds: z.number().finite().min(0),
+  duration: z.number().finite().positive().optional()
+});
 
 /**
  * POST /api/progress
@@ -12,25 +21,31 @@ const { Progress, Lesson } = require('../models');
  */
 router.post('/', auth, async (req, res) => {
   try {
-    const { lessonId, watchedSeconds, duration } = req.body;
+    const parsed = progressSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid progress payload." });
+    }
+
+    const { lessonId } = parsed.data;
     const userId = req.user.id;
 
-    // 1. Validation Checks
-    if (!lessonId || !mongoose.Types.ObjectId.isValid(lessonId)) {
-      return res.status(400).json({ error: "A valid ObjectId lessonId is required." });
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ error: "Associated lesson not found." });
     }
 
-    if (typeof watchedSeconds !== 'number' || watchedSeconds < 0) {
-      return res.status(400).json({ error: "watchedSeconds must be a non-negative number." });
+    const user = await User.findById(userId);
+    if (!user || !user.enrolledCourses.includes(lesson.courseId.toString())) {
+      return res.status(403).json({ error: "Access denied. You must be enrolled in this course to update progress." });
     }
 
-    if (typeof duration !== 'number' || duration <= 0) {
-      return res.status(400).json({ error: "duration must be a positive number." });
+    const dbDuration = Number(lesson.duration || 0);
+    if (!dbDuration || dbDuration <= 0) {
+      return res.status(400).json({ error: "Lesson duration is not configured." });
     }
 
-    if (watchedSeconds > duration) {
-      return res.status(400).json({ error: "watchedSeconds cannot exceed total video duration." });
-    }
+    const watchedSeconds = Math.min(Math.floor(parsed.data.watchedSeconds), dbDuration);
+    const duration = dbDuration;
 
     const completed = watchedSeconds >= (duration * 0.9);
 
@@ -45,12 +60,6 @@ router.post('/', auth, async (req, res) => {
       progress.lastWatchedAt = Date.now();
       await progress.save();
     } else {
-      // First-time progress track creation: Fetch parent course ID once
-      const lesson = await Lesson.findById(lessonId);
-      if (!lesson) {
-        return res.status(404).json({ error: "Associated lesson not found." });
-      }
-
       progress = new Progress({
         userId,
         courseId: lesson.courseId,
@@ -78,6 +87,11 @@ router.get('/course/:courseId', auth, async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user || (!user.enrolledCourses.includes(courseId) && !user.completedCourses.includes(courseId))) {
+      return res.status(403).json({ error: "Access denied. You must be enrolled in this course to view progress." });
+    }
 
     // 1. Fetch total published lessons in the course
     const totalLessons = await Lesson.countDocuments({ courseId, isPublished: true });

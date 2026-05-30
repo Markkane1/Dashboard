@@ -2,12 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { MongoUserRepository } from "@/infrastructure/repositories/MongoUserRepository";
-import { LoginUserUseCase } from "@/core/use-cases/LoginUser";
-import { UserRole } from "@/core/domain/entities/User";
-
-const userRepository = new MongoUserRepository();
-const loginUserUseCase = new LoginUserUseCase(userRepository);
+import { findUserByEmail, saveUser, StoredUser } from "@/lib/data/userDb";
 
 async function findOrCreateOAuthUser(input: {
   name?: string | null;
@@ -18,27 +13,30 @@ async function findOrCreateOAuthUser(input: {
     return null;
   }
 
-  const existingUser = await userRepository.findByEmail(input.email);
+  const existingUser = await findUserByEmail(input.email);
   if (existingUser) {
     return existingUser;
   }
 
-  return userRepository.create({
+  const newUser: StoredUser = {
+    id: crypto.randomUUID(),
     name: input.name || input.email.split("@")[0],
-    email: input.email,
+    email: input.email.toLowerCase().trim(),
     password: await bcrypt.hash(crypto.randomUUID(), 12),
     role: "student",
     avatar: input.image || "",
     enrolledCourses: [],
-    loginAttempts: 0,
-    isVerified: true,
-  });
+    createdAt: new Date().toISOString(),
+  };
+
+  await saveUser(newUser);
+  return newUser;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET || "elearning-epa-dev-auth-secret-change-me",
   pages: {
-    signIn: "/login",
+    signIn: "/auth/login",
   },
   session: {
     strategy: "jwt",
@@ -51,16 +49,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = String(credentials?.email || "");
+        const email = String(credentials?.email || "").toLowerCase().trim();
         const password = String(credentials?.password || "");
-        const user = await loginUserUseCase.execute(email, password);
+
+        const user = await findUserByEmail(email);
+        if (!user || !user.password) {
+          throw new Error("No user found with this email");
+        }
+
+        const isValid = await bcrypt.compare(password, user.password);
+        if (!isValid) {
+          throw new Error("Invalid password");
+        }
 
         return {
-          id: user.id!,
+          id: user.id,
           name: user.name,
           email: user.email,
           image: user.avatar || null,
-          role: user.role,
+          role: user.role as any,
           enrolledCourses: user.enrolledCourses || [],
         };
       },
@@ -71,7 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user?.email) {
         const dbUser =
           account?.provider === "credentials"
-            ? await userRepository.findByEmail(user.email)
+            ? await findUserByEmail(user.email)
             : await findOrCreateOAuthUser({
                 name: user.name,
                 email: user.email,
@@ -80,7 +87,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (dbUser) {
           token.id = dbUser.id;
-          token.role = dbUser.role;
+          token.role = dbUser.role as any;
           token.picture = dbUser.avatar || token.picture;
           token.name = dbUser.name;
           token.email = dbUser.email;
@@ -93,8 +100,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = String(token.id || "");
-        session.user.role = (token.role as UserRole) || "student";
+        // @ts-ignore
+        session.user.role = (token.role as any) || "student";
+        // @ts-ignore
         session.user.avatar = typeof token.picture === "string" ? token.picture : "";
+        // @ts-ignore
         session.user.enrolledCourses = Array.isArray(token.enrolledCourses)
           ? (token.enrolledCourses as string[])
           : [];

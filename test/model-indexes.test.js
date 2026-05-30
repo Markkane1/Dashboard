@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { before, after, describe, it } = require('node:test');
+const fs = require('node:fs');
 const path = require('node:path');
 const mongoose = require('mongoose');
 
@@ -19,7 +20,11 @@ const ids = {
 };
 
 before(async () => {
-  mongoServer = await MongoMemoryServer.create();
+  mongoServer = await MongoMemoryServer.create({
+    binary: {
+      systemBinary: getSystemMongoBinary()
+    }
+  });
   await mongoose.connect(mongoServer.getUri());
 
   await Promise.all([
@@ -182,6 +187,15 @@ async function seedPlannerData() {
   await QuizSubmission.insertMany(quizSubmissionDocs);
 }
 
+function getSystemMongoBinary() {
+  const candidates = [
+    process.env.MONGOMS_SYSTEM_BINARY,
+    'C:\\Program Files\\MongoDB\\Server\\8.3\\bin\\mongod.exe'
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
 function uniqueById(docs) {
   return [...new Map(docs.map((doc) => [doc._id.toString(), doc])).values()];
 }
@@ -193,7 +207,7 @@ function uniqueByUserCourse(docs) {
 }
 
 function assertUsesIndex(explain, indexName) {
-  const indexNames = collectExplainValues(explain, 'indexName');
+  const indexNames = collectExplainValues(getWinningPlan(explain), 'indexName');
 
   assert.ok(
     indexNames.includes(indexName),
@@ -202,9 +216,13 @@ function assertUsesIndex(explain, indexName) {
 }
 
 function assertNoBlockingSort(explain) {
-  const stages = collectExplainValues(explain, 'stage');
+  const stages = collectExplainValues(getWinningPlan(explain), 'stage');
 
   assert.ok(!stages.includes('SORT'), `Expected no blocking SORT stage, got stages: ${stages.join(', ')}`);
+}
+
+function getWinningPlan(explain) {
+  return explain.queryPlanner?.winningPlan;
 }
 
 function collectExplainValues(value, key) {

@@ -56,3 +56,5 @@ lessonSchema.index({ courseId: 1, isPublished: 1, order: 1 });
 const Lesson = mongoose.models.Lesson || mongoose.model('Lesson', lessonSchema);
 
 module.exports = Lesson;
+
+export {};

@@ -9,3 +9,5 @@ const env = envSchema.parse({
 });
 
 module.exports = { env };
+
+export {};

@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { env } = require('../config/env');
+import type { NextFunction, Request, Response } from 'express';
+import type { JwtPayload } from 'jsonwebtoken';
 
 const API_TOKEN_ISSUER = 'next-auth';
 const API_TOKEN_AUDIENCE = 'express-api';
@@ -9,8 +11,8 @@ const API_TOKEN_USE = 'api';
  * Express Authentication Middleware.
  * Decodes the JWT from the Authorization Header (Bearer token), and sets req.user.
  */
-module.exports = function (req, res, next) {
-  let token = null;
+module.exports = function (req: Request, res: Response, next: NextFunction) {
+  let token: string | null = null;
   const authHeader = req.headers.authorization;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -27,20 +29,31 @@ module.exports = function (req, res, next) {
       audience: API_TOKEN_AUDIENCE
     });
 
-    if (decoded.tokenUse !== API_TOKEN_USE) {
+    const payload = decoded as JwtPayload & {
+      tokenUse?: string;
+      id?: string;
+      email?: string;
+      role?: string;
+      name?: string;
+    };
+
+    if (payload.tokenUse !== API_TOKEN_USE) {
       return res.status(401).json({ error: 'Authentication failed. Token is not an API access token.' });
     }
     
     req.user = {
-      ...decoded,
-      id: decoded.id || decoded.sub,
-      email: decoded.email,
-      role: decoded.role || 'student'
+      ...payload,
+      id: String(payload.id || payload.sub || ''),
+      email: payload.email,
+      role: payload.role || 'student'
     };
     
     next();
   } catch (err) {
-    console.error("JWT authentication verification failed:", err.message);
+    const error = err instanceof Error ? err : new Error(String(err));
+    console.error("JWT authentication verification failed:", error.message);
     res.status(401).json({ error: 'Authentication failed. Token is invalid or expired.' });
   }
 };
+
+export {};

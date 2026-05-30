@@ -13,3 +13,5 @@ module.exports = {
   User,
   Enrollment
 };
+
+export {};

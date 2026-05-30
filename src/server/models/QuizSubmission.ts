@@ -44,3 +44,5 @@ const QuizSubmission =
   mongoose.models.QuizSubmission || mongoose.model('QuizSubmission', quizSubmissionSchema);
 
 module.exports = QuizSubmission;
+
+export {};

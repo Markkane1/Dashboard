@@ -3,10 +3,14 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { z } = require('zod');
 const auth = require('../middleware/auth');
-const { Progress, Lesson, User } = require('../models');
+const { Progress, Lesson } = require('../models');
+const { getEnrollment } = require('../services/enrollments');
+import type { Request, Response } from 'express';
+
+type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
 
 const progressSchema = z.object({
-  lessonId: z.string().refine((value) => mongoose.Types.ObjectId.isValid(value), {
+  lessonId: z.string().refine((value: string) => mongoose.Types.ObjectId.isValid(value), {
     message: 'A valid ObjectId lessonId is required.'
   }),
   watchedSeconds: z.number().finite().min(0),
@@ -19,7 +23,7 @@ const progressSchema = z.object({
  * Automatically marks course/lesson as completed at 90%+ duration thresholds.
  * Runs in O(1) database queries when progress already exists.
  */
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const parsed = progressSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -34,8 +38,7 @@ router.post('/', auth, async (req, res) => {
       return res.status(404).json({ error: "Associated lesson not found." });
     }
 
-    const user = await User.findById(userId);
-    if (!user || !user.enrolledCourses.includes(lesson.courseId.toString())) {
+    if (!(await getEnrollment(userId, lesson.courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to update progress." });
     }
 
@@ -83,13 +86,12 @@ router.post('/', auth, async (req, res) => {
  * GET /api/progress/course/:courseId
  * Fetch all progress logs and overall course statistics for the authenticated user.
  */
-router.get('/course/:courseId', auth, async (req, res) => {
+router.get('/course/:courseId', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { courseId } = req.params;
     const userId = req.user.id;
 
-    const user = await User.findById(userId);
-    if (!user || (!user.enrolledCourses.includes(courseId) && !user.completedCourses.includes(courseId))) {
+    if (!(await getEnrollment(userId, courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to view progress." });
     }
 
@@ -100,7 +102,7 @@ router.get('/course/:courseId', auth, async (req, res) => {
     const progressRecords = await Progress.find({ userId, courseId });
 
     // 3. Compute completion statistics summary
-    const completedLessons = progressRecords.filter(p => p.completed).length;
+    const completedLessons = progressRecords.filter((p: any) => p.completed).length;
     const percentComplete = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
     res.json({
@@ -118,3 +120,5 @@ router.get('/course/:courseId', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+export {};

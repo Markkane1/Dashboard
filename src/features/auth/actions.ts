@@ -213,7 +213,7 @@ export async function enrollInCourse(courseId: string) {
 
   // Import dynamically inside server action to avoid circular dependencies
   const { auth } = await import("../../../auth");
-  const { updateUser, findUserByEmail } = await import("@/features/users/data/userDb");
+  const { enrollInCourseApi, findUserByEmail } = await import("@/features/users/data/userDb");
 
   try {
     const session = await auth();
@@ -227,14 +227,13 @@ export async function enrollInCourse(courseId: string) {
     }
 
     const enrolled = user.enrolledCourses || [];
-    if (enrolled.includes(courseId)) {
-      return { success: true, alreadyEnrolled: true };
+    const alreadyEnrolled = enrolled.includes(courseId);
+    const enrolledOnBackend = await enrollInCourseApi(user.id, user.email, courseId);
+    if (!enrolledOnBackend) {
+      return { success: false, error: "Enrollment request failed on backend" };
     }
 
-    const newEnrolled = [...enrolled, courseId];
-    await updateUser(user.id, { enrolledCourses: newEnrolled });
-
-    return { success: true, enrolled: true };
+    return { success: true, enrolled: !alreadyEnrolled, alreadyEnrolled };
   } catch (error) {
     console.error("Error in enrollInCourse server action:", error);
     return { success: false, error: "Something went wrong. Please try again." };

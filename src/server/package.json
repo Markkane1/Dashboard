@@ -1,9 +1,10 @@
 {
   "name": "elearning-backend",
   "version": "1.0.0",
-  "main": "server.js",
+  "type": "commonjs",
+  "main": "server.ts",
   "scripts": {
-    "start": "node server.js"
+    "start": "tsx server.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

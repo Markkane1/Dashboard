@@ -7,24 +7,24 @@ const LOCAL_VIDEO_DIR = process.env.LOCAL_VIDEO_DIR
   : path.resolve(process.cwd(), 'uploads', 'videos');
 const LOCAL_VIDEO_URL_PREFIX = '/uploads/videos/';
 
-function ensureLocalVideoDir() {
+function ensureLocalVideoDir(): void {
   fs.mkdirSync(LOCAL_VIDEO_DIR, { recursive: true });
 }
 
-function getLocalVideoDir() {
+function getLocalVideoDir(): string {
   ensureLocalVideoDir();
   return LOCAL_VIDEO_DIR;
 }
 
-function getPublicVideoUrl(filename) {
+function getPublicVideoUrl(filename: string): string {
   return `${LOCAL_VIDEO_URL_PREFIX}${filename}`;
 }
 
-function isRemoteVideoUrl(videoUrl) {
+function isRemoteVideoUrl(videoUrl: string): boolean {
   return videoUrl.startsWith('http://') || videoUrl.startsWith('https://');
 }
 
-function resolveLocalVideoPath(videoUrl) {
+function resolveLocalVideoPath(videoUrl: string): string {
   if (!videoUrl.startsWith(LOCAL_VIDEO_URL_PREFIX)) {
     throw new Error('Invalid local video URL.');
   }
@@ -60,3 +60,5 @@ module.exports = {
   isRemoteVideoUrl,
   resolveLocalVideoPath
 };
+
+export {};

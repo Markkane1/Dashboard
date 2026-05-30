@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Course = require('../models/Course');
+import type { Request, Response } from 'express';
+import type { Course as SharedCourse } from '../../shared/types';
 
-function serializeCourse(course) {
+function serializeCourse(course: any): SharedCourse {
   const plain = typeof course.toObject === 'function' ? course.toObject() : course;
   const id = String(plain._id || plain.id);
 
@@ -35,7 +37,7 @@ function serializeCourse(course) {
 
 // GET /api/courses
 // Returns all courses
-router.get('/', async (req, res, next) => {
+router.get('/', async (_req: Request, res: Response) => {
   try {
     const courses = await Course.find().sort({ createdAt: -1 });
     res.json(courses.map(serializeCourse));
@@ -47,7 +49,7 @@ router.get('/', async (req, res, next) => {
 
 // GET /api/courses/:id
 // Returns a single course by ID
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const course = await Course.findById(req.params.id);
     if (!course) {
@@ -61,3 +63,5 @@ router.get('/:id', async (req, res, next) => {
 });
 
 module.exports = router;
+
+export {};

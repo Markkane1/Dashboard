@@ -6,17 +6,26 @@ const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
 const auth = require('../middleware/auth');
+import type { Request, Response } from 'express';
+import type { User as SharedUser } from '../../shared/types';
+
+type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
 
 const MAX_FAILED_LOGIN_ATTEMPTS = Number(process.env.MAX_FAILED_LOGIN_ATTEMPTS || 5);
 const ACCOUNT_LOCKOUT_MS = Number(process.env.ACCOUNT_LOCKOUT_MS || 15 * 60 * 1000);
 
-async function serializeUser(user) {
+async function serializeUser(user: any): Promise<SharedUser & Record<string, unknown>> {
   const plain = typeof user.toObject === 'function' ? user.toObject() : user;
   const userId = plain._id || plain.id;
   
-  const enrollments = await Enrollment.find({ userId });
-  const enrolledCourses = enrollments.map(e => String(e.courseId));
-  const completedCourses = enrollments.filter(e => e.completed).map(e => String(e.courseId));
+  const enrollments = await Enrollment.find({ userId }).populate('courseId', '_id');
+  const enrolledCourses = enrollments
+    .map((enrollment: any) => getPopulatedCourseId(enrollment))
+    .filter(Boolean);
+  const completedCourses = enrollments
+    .filter((enrollment: any) => enrollment.completed)
+    .map((enrollment: any) => getPopulatedCourseId(enrollment))
+    .filter(Boolean);
 
   return {
     id: String(userId),
@@ -31,46 +40,46 @@ async function serializeUser(user) {
   };
 }
 
-function isPrivileged(req) {
-  return ['admin', 'service'].includes(req.user?.role);
+function getPopulatedCourseId(enrollment: any): string | null {
+  if (!enrollment.courseId) {
+    return null;
+  }
+
+  return String(enrollment.courseId._id || enrollment.courseId);
 }
 
-function canAccessUser(req, user) {
+function isPrivileged(req: Request): boolean {
+  return ['admin', 'service'].includes(req.user?.role || '');
+}
+
+function canAccessUser(req: AuthenticatedRequest, user: any): boolean {
   return isPrivileged(req) || String(user._id) === String(req.user?.id) || user.email === req.user?.email;
 }
 
-function pickAllowedUserUpdates(req) {
-  const allowed = {};
+function pickAllowedUserUpdates(req: Request): Record<string, unknown> {
+  const allowed: Record<string, unknown> = {};
   for (const key of ['name', 'avatar']) {
     if (Object.prototype.hasOwnProperty.call(req.body, key)) {
       allowed[key] = req.body[key];
     }
   }
 
-  if (isPrivileged(req)) {
-    for (const key of ['enrolledCourses', 'completedCourses']) {
-      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
-        allowed[key] = req.body[key];
-      }
-    }
-  }
-
   return allowed;
 }
 
-function escapeRegExp(value) {
+function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function hashToken(token) {
+function hashToken(token: unknown): string {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
 }
 
 // GET /api/users/email/:email
 // Find a user by email
-router.get('/email/:email', auth, async (req, res, next) => {
+router.get('/email/:email', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const email = req.params.email;
+    const email = String(req.params.email);
     const user = await User.findOne({ email: new RegExp('^' + escapeRegExp(email) + '$', 'i') });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -87,10 +96,14 @@ router.get('/email/:email', auth, async (req, res, next) => {
 
 // GET /api/users/me
 // Return the authenticated user's enrollment list
-router.get('/me', auth, async (req, res, next) => {
+router.get('/me', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const enrollments = await Enrollment.find({ userId: req.user.id });
-    res.json({ enrolledCourses: enrollments.map(e => String(e.courseId)) });
+    const enrollments = await Enrollment.find({ userId: req.user.id }).populate('courseId', '_id');
+    res.json({
+      enrolledCourses: enrollments
+        .map((enrollment: any) => getPopulatedCourseId(enrollment))
+        .filter(Boolean)
+    });
   } catch (error) {
     console.error("Error fetching authenticated user:", error);
     res.status(500).json({ error: "Failed to fetch user" });
@@ -99,7 +112,7 @@ router.get('/me', auth, async (req, res, next) => {
 
 // POST /api/users/authenticate
 // Verify credentials without exposing password hashes
-router.post('/authenticate', async (req, res, next) => {
+router.post('/authenticate', async (req: Request, res: Response) => {
   try {
     const email = String(req.body.email || '').toLowerCase().trim();
     const password = String(req.body.password || '');
@@ -134,7 +147,7 @@ router.post('/authenticate', async (req, res, next) => {
     user.lockUntil = undefined;
     await user.save();
 
-    res.json(serializeUser(user));
+    res.json(await serializeUser(user));
   } catch (error) {
     console.error("Error authenticating user:", error);
     res.status(500).json({ error: "Failed to authenticate user" });
@@ -143,7 +156,7 @@ router.post('/authenticate', async (req, res, next) => {
 
 // POST /api/users/verify-email
 // Verify a newly registered email address using a time-limited token.
-router.post('/verify-email', async (req, res, next) => {
+router.post('/verify-email', async (req: Request, res: Response) => {
   try {
     const token = String(req.body.token || '');
     if (!token) {
@@ -172,7 +185,7 @@ router.post('/verify-email', async (req, res, next) => {
 
 // POST /api/users/password-reset/request
 // Store a hashed reset token. The caller sends the email to avoid token leakage.
-router.post('/password-reset/request', auth, async (req, res, next) => {
+router.post('/password-reset/request', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!isPrivileged(req)) {
       return res.status(403).json({ error: "Access denied" });
@@ -204,7 +217,7 @@ router.post('/password-reset/request', auth, async (req, res, next) => {
 
 // POST /api/users/password-reset/confirm
 // Reset a password using a time-limited token.
-router.post('/password-reset/confirm', async (req, res, next) => {
+router.post('/password-reset/confirm', async (req: Request, res: Response) => {
   try {
     const token = String(req.body.token || '');
     const password = String(req.body.password || '');
@@ -236,7 +249,7 @@ router.post('/password-reset/confirm', async (req, res, next) => {
 
 // POST /api/users/enroll
 // Enroll the authenticated user in a course
-router.post('/enroll', auth, async (req, res, next) => {
+router.post('/enroll', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { courseId } = req.body;
     if (!courseId) {
@@ -251,14 +264,18 @@ router.post('/enroll', auth, async (req, res, next) => {
       return res.status(404).json({ error: "Course not found" });
     }
 
-    // 2. Check if enrollment already exists
-    let enrollment = await Enrollment.findOne({ userId, courseId });
-    if (!enrollment) {
-      // 3. Create new enrollment
-      enrollment = new Enrollment({ userId, courseId });
-      await enrollment.save();
+    const result = await Enrollment.findOneAndUpdate(
+      { userId, courseId },
+      { $setOnInsert: { userId, courseId, completed: false } },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+        includeResultMetadata: true
+      }
+    );
 
-      // 4. Atomically increment course counter
+    if (!result.lastErrorObject?.updatedExisting) {
       await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
     }
 
@@ -272,7 +289,7 @@ router.post('/enroll', auth, async (req, res, next) => {
 
 // POST /api/users/unenroll
 // Unenroll the authenticated user from a course
-router.post('/unenroll', auth, async (req, res, next) => {
+router.post('/unenroll', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { courseId } = req.body;
     if (!courseId) {
@@ -284,8 +301,10 @@ router.post('/unenroll', auth, async (req, res, next) => {
     // Find and delete the enrollment record
     const deleted = await Enrollment.findOneAndDelete({ userId, courseId });
     if (deleted) {
-      // Atomically decrement course counter
-      await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: -1 } });
+      await Course.updateOne(
+        { _id: courseId, enrolledCount: { $gt: 0 } },
+        { $inc: { enrolledCount: -1 } }
+      );
     }
 
     const user = await User.findById(userId);
@@ -298,7 +317,7 @@ router.post('/unenroll', auth, async (req, res, next) => {
 
 // POST /api/users/complete
 // Mark a course as completed for the authenticated user
-router.post('/complete', auth, async (req, res, next) => {
+router.post('/complete', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { courseId } = req.body;
     if (!courseId) {
@@ -307,12 +326,28 @@ router.post('/complete', auth, async (req, res, next) => {
 
     const userId = req.user.id;
 
-    // Update or create enrollment to mark as completed
-    await Enrollment.findOneAndUpdate(
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ error: "Course not found" });
+    }
+
+    const result = await Enrollment.findOneAndUpdate(
       { userId, courseId },
-      { $set: { completed: true, completedAt: new Date() } },
-      { upsert: true }
+      {
+        $set: { completed: true, completedAt: new Date() },
+        $setOnInsert: { userId, courseId }
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+        includeResultMetadata: true
+      }
     );
+
+    if (!result.lastErrorObject?.updatedExisting) {
+      await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
+    }
 
     const user = await User.findById(userId);
     res.json(await serializeUser(user));
@@ -324,7 +359,7 @@ router.post('/complete', auth, async (req, res, next) => {
 
 // GET /api/users/:id
 // Find a user by ID
-router.get('/:id', auth, async (req, res, next) => {
+router.get('/:id', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -342,7 +377,7 @@ router.get('/:id', auth, async (req, res, next) => {
 
 // PATCH /api/users/:id/role
 // Admin-only role changes
-router.patch('/:id/role', auth, async (req, res, next) => {
+router.patch('/:id/role', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (req.user?.role !== 'admin') {
       return res.status(403).json({ error: "Admin access is required" });
@@ -371,7 +406,7 @@ router.patch('/:id/role', auth, async (req, res, next) => {
 
 // PUT /api/users/:id
 // Update a user record
-router.put('/:id', auth, async (req, res, next) => {
+router.put('/:id', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const targetUser = await User.findById(req.params.id);
     if (!targetUser) {
@@ -401,15 +436,13 @@ router.put('/:id', auth, async (req, res, next) => {
 
 // POST /api/users
 // Create a new user
-router.post('/', async (req, res, next) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const {
       name,
       email,
       password,
       avatar,
-      enrolledCourses,
-      completedCourses,
       emailVerified,
       emailVerificationTokenHash,
       emailVerificationExpires
@@ -431,7 +464,7 @@ router.post('/', async (req, res, next) => {
     res.status(201).json(await serializeUser(user));
   } catch (error) {
     console.error("Error creating user:", error);
-    if (error.code === 11000) {
+    if ((error as { code?: number }).code === 11000) {
       return res.status(400).json({ error: "Email already exists" });
     }
     res.status(500).json({ error: "Failed to create user" });
@@ -439,3 +472,5 @@ router.post('/', async (req, res, next) => {
 });
 
 module.exports = router;
+
+export {};

@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev\" \"nodemon src/server/server.js\"",
+    "dev": "concurrently \"next dev\" \"tsx watch src/server/server.ts\"",
     "dev:next": "next dev",
     "build": "next build",
     "start": "next start",
-    "server": "node src/server/server.js",
-    "test": "node --test",
+    "server": "tsx src/server/server.ts",
+    "test": "node --import tsx --test",
     "lint": "eslint",
     "audit:lock": "npm audit --audit-level=high"
   },
@@ -35,7 +35,12 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/fluent-ffmpeg": "^2.1.28",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.1.0",
     "@types/node": "^20",
     "@types/react": "^18.3.29",
     "@types/react-dom": "^18.3.7",
@@ -48,6 +53,7 @@
     "nodemon": "^3.1.14",
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.19",
+    "tsx": "^4.22.3",
     "typescript": "^5"
   }
 }

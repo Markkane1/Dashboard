@@ -2,15 +2,19 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const auth = require('../middleware/auth');
-const { Lesson, User } = require('../models');
+const { Lesson } = require('../models');
+const { isEnrolled } = require('../services/enrollments');
 const { isRemoteVideoUrl, resolveLocalVideoPath } = require('../services/videoStorage');
+import type { Request, Response } from 'express';
+
+type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
 
 /**
  * GET /api/video/:lessonId
  * Stream lesson video files using HTTP partial range streaming or redirect to external hosts.
  * Protects course material through JWT auth and enrollment validations.
  */
-router.get('/:lessonId', auth, async (req, res) => {
+router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { lessonId } = req.params;
     const userId = req.user.id;
@@ -22,8 +26,7 @@ router.get('/:lessonId', auth, async (req, res) => {
     }
 
     // 2. Authorization: Verify user is enrolled in the lesson's parent course
-    const user = await User.findById(userId);
-    if (!user || !user.enrolledCourses.includes(lesson.courseId.toString())) {
+    if (!(await isEnrolled(userId, lesson.courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to access course media." });
     }
 
@@ -43,7 +46,8 @@ router.get('/:lessonId', auth, async (req, res) => {
     try {
       filePath = resolveLocalVideoPath(videoUrl);
     } catch (pathError) {
-      console.error("Invalid local video path:", pathError.message);
+      const error = pathError instanceof Error ? pathError : new Error(String(pathError));
+      console.error("Invalid local video path:", error.message);
       return res.status(400).json({ error: "Invalid linked video path." });
     }
     
@@ -95,7 +99,7 @@ router.get('/:lessonId', auth, async (req, res) => {
     res.writeHead(206, headers);
     const fileStream = fs.createReadStream(filePath, { start, end });
     
-    fileStream.on('error', (streamErr) => {
+    fileStream.on('error', (streamErr: Error) => {
       console.error("ReadStream error occurred during video piping:", streamErr);
       if (!res.headersSent) {
         res.status(500).end();
@@ -110,3 +114,5 @@ router.get('/:lessonId', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+export {};

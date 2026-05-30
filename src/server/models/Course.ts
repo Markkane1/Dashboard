@@ -125,9 +125,9 @@ courseSchema.virtual('lessons', {
 });
 
 // Virtual field to compute the total duration of the course (sum of all lesson durations in seconds)
-courseSchema.virtual('totalDuration').get(function () {
+courseSchema.virtual('totalDuration').get(function (this: { lessons?: Array<{ duration?: number }> }) {
   if (!this.lessons) return 0;
-  return this.lessons.reduce((total, lesson) => total + (lesson.duration || 0), 0);
+  return this.lessons.reduce((total: number, lesson) => total + (lesson.duration || 0), 0);
 });
 
 /**
@@ -135,7 +135,7 @@ courseSchema.virtual('totalDuration').get(function () {
  * @param {mongoose.Types.ObjectId|String} userId - The ID of the authenticated user
  * @returns {Promise<Object>} An object detailing total lessons, completed lessons, completion percentage, and last watched lesson ID.
  */
-courseSchema.methods.getCourseProgress = async function (userId) {
+courseSchema.methods.getCourseProgress = async function (this: { _id: unknown }, userId: unknown) {
   const Lesson = mongoose.model('Lesson');
   const Progress = mongoose.model('Progress');
 
@@ -153,7 +153,7 @@ courseSchema.methods.getCourseProgress = async function (userId) {
   }
 
   // Fetch all playback progress documents for this user and this course
-  const progressRecords = await Progress.find({
+  const progressRecords: Array<{ completed?: boolean; lastWatchedAt: Date; lessonId: unknown }> = await Progress.find({
     userId,
     courseId: this._id
   });
@@ -178,6 +178,45 @@ courseSchema.methods.getCourseProgress = async function (userId) {
   };
 };
 
+async function deleteCourseRelations(courseIds: unknown | unknown[]) {
+  const ids = Array.isArray(courseIds) ? courseIds.filter(Boolean) : [courseIds].filter(Boolean);
+  if (ids.length === 0) return;
+
+  const Enrollment = require('./Enrollment');
+  const Lesson = require('./Lesson');
+  const Progress = require('./Progress');
+  const QuizSubmission = require('./QuizSubmission');
+  const courseFilter = { $in: ids };
+
+  await Promise.all([
+    Enrollment.deleteMany({ courseId: courseFilter }),
+    Lesson.deleteMany({ courseId: courseFilter }),
+    Progress.deleteMany({ courseId: courseFilter }),
+    QuizSubmission.deleteMany({ courseId: courseFilter })
+  ]);
+}
+
+courseSchema.pre('findOneAndDelete', async function (this: any) {
+  const course = await this.model.findOne(this.getFilter()).select('_id');
+  await deleteCourseRelations(course?._id);
+});
+
+courseSchema.pre('deleteOne', { document: true, query: false }, async function (this: { _id: unknown }) {
+  await deleteCourseRelations(this._id);
+});
+
+courseSchema.pre('deleteOne', { document: false, query: true }, async function (this: any) {
+  const course = await this.model.findOne(this.getFilter()).select('_id');
+  await deleteCourseRelations(course?._id);
+});
+
+courseSchema.pre('deleteMany', async function (this: any) {
+  const courses = await this.model.find(this.getFilter()).select('_id');
+  await deleteCourseRelations(courses.map((course: { _id: unknown }) => course._id));
+});
+
 const Course = mongoose.models.Course || mongoose.model('Course', courseSchema);
 
 module.exports = Course;
+
+export {};

@@ -1,9 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const { Course, Lesson, Progress, QuizSubmission, User } = require('../models');
+const { Course, Enrollment, Lesson, Progress, QuizSubmission } = require('../models');
+const { getEnrollment } = require('../services/enrollments');
+import type { Request, Response } from 'express';
+import type { QuizQuestion } from '../../shared/types';
 
-function buildFallbackQuestions(course) {
+type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
+
+function buildFallbackQuestions(course: { title: string }): Array<QuizQuestion & { correctAnswerIndex: number; explanation: string }> {
   return [
     {
       id: 'core-1',
@@ -44,12 +49,12 @@ function buildFallbackQuestions(course) {
   ];
 }
 
-function getQuizQuestions(course) {
+function getQuizQuestions(course: any): Array<QuizQuestion & { correctAnswerIndex: number; explanation?: string }> {
   const questions = Array.isArray(course.quizQuestions) && course.quizQuestions.length > 0
     ? course.quizQuestions
     : buildFallbackQuestions(course);
 
-  return questions.map((question, index) => ({
+  return questions.map((question: any, index: number) => ({
     id: question.id || `question-${index + 1}`,
     prompt: question.prompt,
     options: question.options,
@@ -58,7 +63,7 @@ function getQuizQuestions(course) {
   }));
 }
 
-function serializeQuestion(question) {
+function serializeQuestion(question: QuizQuestion): QuizQuestion {
   return {
     id: question.id,
     prompt: question.prompt,
@@ -66,22 +71,22 @@ function serializeQuestion(question) {
   };
 }
 
-async function getCourseAccessState(courseId, userId) {
+async function getCourseAccessState(courseId: string, userId: string) {
   const course = await Course.findById(courseId);
   if (!course) {
     return { status: 404, error: "Course not found." };
   }
 
-  const user = await User.findById(userId);
-  if (!user || !user.enrolledCourses.includes(courseId)) {
+  const enrollment = await getEnrollment(userId, courseId);
+  if (!enrollment) {
     return { status: 403, error: "You must be enrolled in this course to take the quiz." };
   }
 
   const lessons = await Lesson.find({ courseId, isPublished: true }).select('_id');
   const totalLessons = lessons.length;
   const progressRecords = await Progress.find({ userId, courseId, completed: true }).select('lessonId');
-  const completedLessonIds = new Set(progressRecords.map((progress) => progress.lessonId.toString()));
-  const completedLessons = lessons.filter((lesson) => completedLessonIds.has(lesson._id.toString())).length;
+  const completedLessonIds = new Set(progressRecords.map((progress: any) => progress.lessonId.toString()));
+  const completedLessons = lessons.filter((lesson: any) => completedLessonIds.has(lesson._id.toString())).length;
 
   if (totalLessons > 0 && completedLessons < totalLessons) {
     return {
@@ -96,7 +101,7 @@ async function getCourseAccessState(courseId, userId) {
   return {
     status: 200,
     course,
-    user,
+    enrollment,
     totalLessons,
     completedLessons
   };
@@ -106,9 +111,10 @@ async function getCourseAccessState(courseId, userId) {
  * GET /api/quiz/:courseId
  * Return final quiz questions after all published lessons are completed.
  */
-router.get('/:courseId', auth, async (req, res) => {
+router.get('/:courseId', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const access = await getCourseAccessState(req.params.courseId, req.user.id);
+    const courseId = String(req.params.courseId);
+    const access = await getCourseAccessState(courseId, req.user.id);
     if (access.status !== 200) {
       return res.status(access.status).json({
         error: access.error,
@@ -120,7 +126,7 @@ router.get('/:courseId', auth, async (req, res) => {
     const questions = getQuizQuestions(access.course);
     const latestSubmission = await QuizSubmission.findOne({
       userId: req.user.id,
-      courseId: req.params.courseId
+      courseId
     }).sort({ createdAt: -1 });
 
     res.json({
@@ -148,9 +154,10 @@ router.get('/:courseId', auth, async (req, res) => {
  * POST /api/quiz/:courseId/submit
  * Grade a final quiz submission and mark the course complete when passed.
  */
-router.post('/:courseId/submit', auth, async (req, res) => {
+router.post('/:courseId/submit', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const access = await getCourseAccessState(req.params.courseId, req.user.id);
+    const courseId = String(req.params.courseId);
+    const access = await getCourseAccessState(courseId, req.user.id);
     if (access.status !== 200) {
       return res.status(access.status).json({ error: access.error });
     }
@@ -158,7 +165,7 @@ router.post('/:courseId/submit', auth, async (req, res) => {
     const submittedAnswers = Array.isArray(req.body.answers) ? req.body.answers : [];
     const questions = getQuizQuestions(access.course);
     const answerMap = new Map(
-      submittedAnswers.map((answer) => [answer.questionId, answer.selectedOptionIndex])
+      submittedAnswers.map((answer: any) => [answer.questionId, answer.selectedOptionIndex])
     );
 
     const gradedQuestions = questions.map((question) => {
@@ -172,14 +179,14 @@ router.post('/:courseId/submit', auth, async (req, res) => {
       };
     });
 
-    const correctCount = gradedQuestions.filter((question) => question.correct).length;
+    const correctCount = gradedQuestions.filter((question: { correct: boolean }) => question.correct).length;
     const score = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
     const passingScore = access.course.quizPassingScore || 70;
     const passed = score >= passingScore;
 
     const submission = await QuizSubmission.create({
       userId: req.user.id,
-      courseId: req.params.courseId,
+      courseId,
       answers: submittedAnswers,
       score,
       totalQuestions: questions.length,
@@ -187,17 +194,10 @@ router.post('/:courseId/submit', auth, async (req, res) => {
     });
 
     if (passed) {
-      access.user.completedCourses = access.user.completedCourses || [];
-      access.user.enrolledCourses = access.user.enrolledCourses || [];
-
-      if (!access.user.completedCourses.includes(req.params.courseId)) {
-        access.user.completedCourses.push(req.params.courseId);
-      }
-
-      access.user.enrolledCourses = access.user.enrolledCourses.filter(
-        (courseId) => courseId !== req.params.courseId
+      await Enrollment.updateOne(
+        { userId: req.user.id, courseId },
+        { $set: { completed: true, completedAt: new Date() } }
       );
-      await access.user.save();
     }
 
     res.json({
@@ -215,3 +215,5 @@ router.post('/:courseId/submit', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+export {};

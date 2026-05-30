@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { connectMongo } = require('./db/mongoose');
+import type { NextFunction, Request, Response } from 'express';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,7 +54,7 @@ app.use(helmet({
 }));
 app.use(cors({
   credentials: true,
-  origin(origin, callback) {
+  origin(origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
@@ -66,7 +67,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/api', apiLimiter);
 app.use('/api/users/authenticate', authLimiter);
-app.use('/api/users', (req, res, next) => {
+app.use('/api/users', (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'POST' && req.path === '/') {
     return authLimiter(req, res, next);
   }
@@ -85,7 +86,7 @@ app.use('/api/docs', require('./routes/docs'));
 app.use('/api/certificates', require('./routes/docs'));
 
 // 3. Default error handling middleware
-app.use((err, req, res, next) => {
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error("Unhandled global server exception:", err);
   res.status(500).json({ error: "An unexpected error occurred on the server." });
 });
@@ -99,9 +100,11 @@ if (process.env.NODE_ENV !== 'test') {
         console.log(`Express server running on port ${PORT}`);
       });
     })
-    .catch((err) => {
+    .catch((err: unknown) => {
       console.error('MongoDB database connection error:', err);
     });
 }
 
 module.exports = app;
+
+export {};

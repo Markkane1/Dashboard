@@ -26,16 +26,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
-    enrolledCourses: [
-      {
-        type: String // List of course IDs the user is enrolled in
-      }
-    ],
-    completedCourses: [
-      {
-        type: String // List of course IDs the user has completed
-      }
-    ],
     emailVerified: {
       type: Boolean,
       default: false

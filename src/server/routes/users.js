@@ -3,21 +3,29 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const User = require('../models/User');
+const Enrollment = require('../models/Enrollment');
+const Course = require('../models/Course');
 const auth = require('../middleware/auth');
 
 const MAX_FAILED_LOGIN_ATTEMPTS = Number(process.env.MAX_FAILED_LOGIN_ATTEMPTS || 5);
 const ACCOUNT_LOCKOUT_MS = Number(process.env.ACCOUNT_LOCKOUT_MS || 15 * 60 * 1000);
 
-function serializeUser(user) {
+async function serializeUser(user) {
   const plain = typeof user.toObject === 'function' ? user.toObject() : user;
+  const userId = plain._id || plain.id;
+  
+  const enrollments = await Enrollment.find({ userId });
+  const enrolledCourses = enrollments.map(e => String(e.courseId));
+  const completedCourses = enrollments.filter(e => e.completed).map(e => String(e.courseId));
+
   return {
-    id: String(plain._id || plain.id),
+    id: String(userId),
     name: plain.name,
     email: plain.email,
     role: plain.role || 'student',
     avatar: plain.avatar || '',
-    enrolledCourses: plain.enrolledCourses || [],
-    completedCourses: plain.completedCourses || [],
+    enrolledCourses,
+    completedCourses,
     emailVerified: plain.emailVerified === true,
     createdAt: plain.createdAt
   };
@@ -70,7 +78,7 @@ router.get('/email/:email', auth, async (req, res, next) => {
     if (!canAccessUser(req, user)) {
       return res.status(403).json({ error: "Access denied" });
     }
-    res.json(serializeUser(user));
+    res.json(await serializeUser(user));
   } catch (error) {
     console.error("Error fetching user by email:", error);
     res.status(500).json({ error: "Failed to fetch user" });
@@ -81,12 +89,8 @@ router.get('/email/:email', auth, async (req, res, next) => {
 // Return the authenticated user's enrollment list
 router.get('/me', auth, async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.json({ enrolledCourses: user.enrolledCourses || [] });
+    const enrollments = await Enrollment.find({ userId: req.user.id });
+    res.json({ enrolledCourses: enrollments.map(e => String(e.courseId)) });
   } catch (error) {
     console.error("Error fetching authenticated user:", error);
     res.status(500).json({ error: "Failed to fetch user" });
@@ -239,21 +243,82 @@ router.post('/enroll', auth, async (req, res, next) => {
       return res.status(400).json({ error: "courseId is required" });
     }
 
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    const userId = req.user.id;
+
+    // 1. Verify course exists
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ error: "Course not found" });
     }
 
-    user.enrolledCourses = user.enrolledCourses || [];
-    if (!user.enrolledCourses.includes(courseId)) {
-      user.enrolledCourses.push(courseId);
-      await user.save();
+    // 2. Check if enrollment already exists
+    let enrollment = await Enrollment.findOne({ userId, courseId });
+    if (!enrollment) {
+      // 3. Create new enrollment
+      enrollment = new Enrollment({ userId, courseId });
+      await enrollment.save();
+
+      // 4. Atomically increment course counter
+      await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
     }
 
-    res.json({ success: true, enrolledCourses: user.enrolledCourses });
+    const user = await User.findById(userId);
+    res.json(await serializeUser(user));
   } catch (error) {
     console.error("Error enrolling authenticated user:", error);
     res.status(500).json({ error: "Failed to enroll user" });
+  }
+});
+
+// POST /api/users/unenroll
+// Unenroll the authenticated user from a course
+router.post('/unenroll', auth, async (req, res, next) => {
+  try {
+    const { courseId } = req.body;
+    if (!courseId) {
+      return res.status(400).json({ error: "courseId is required" });
+    }
+
+    const userId = req.user.id;
+
+    // Find and delete the enrollment record
+    const deleted = await Enrollment.findOneAndDelete({ userId, courseId });
+    if (deleted) {
+      // Atomically decrement course counter
+      await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: -1 } });
+    }
+
+    const user = await User.findById(userId);
+    res.json(await serializeUser(user));
+  } catch (error) {
+    console.error("Error unenrolling user:", error);
+    res.status(500).json({ error: "Failed to unenroll user" });
+  }
+});
+
+// POST /api/users/complete
+// Mark a course as completed for the authenticated user
+router.post('/complete', auth, async (req, res, next) => {
+  try {
+    const { courseId } = req.body;
+    if (!courseId) {
+      return res.status(400).json({ error: "courseId is required" });
+    }
+
+    const userId = req.user.id;
+
+    // Update or create enrollment to mark as completed
+    await Enrollment.findOneAndUpdate(
+      { userId, courseId },
+      { $set: { completed: true, completedAt: new Date() } },
+      { upsert: true }
+    );
+
+    const user = await User.findById(userId);
+    res.json(await serializeUser(user));
+  } catch (error) {
+    console.error("Error marking course as complete:", error);
+    res.status(500).json({ error: "Failed to mark course complete" });
   }
 });
 
@@ -268,7 +333,7 @@ router.get('/:id', auth, async (req, res, next) => {
     if (!canAccessUser(req, user)) {
       return res.status(403).json({ error: "Access denied" });
     }
-    res.json(serializeUser(user));
+    res.json(await serializeUser(user));
   } catch (error) {
     console.error("Error fetching user by ID:", error);
     res.status(500).json({ error: "Failed to fetch user" });
@@ -297,7 +362,7 @@ router.patch('/:id/role', auth, async (req, res, next) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.json(serializeUser(updatedUser));
+    res.json(await serializeUser(updatedUser));
   } catch (error) {
     console.error("Error updating user role:", error);
     res.status(500).json({ error: "Failed to update user role" });
@@ -327,7 +392,7 @@ router.put('/:id', auth, async (req, res, next) => {
     if (!updatedUser) {
       return res.status(404).json({ error: "User not found" });
     }
-    res.json(serializeUser(updatedUser));
+    res.json(await serializeUser(updatedUser));
   } catch (error) {
     console.error("Error updating user:", error);
     res.status(500).json({ error: "Failed to update user" });
@@ -356,8 +421,6 @@ router.post('/', async (req, res, next) => {
       password,
       role: 'student',
       avatar: avatar || '',
-      enrolledCourses: enrolledCourses || [],
-      completedCourses: completedCourses || [],
       emailVerified: emailVerified === true,
       emailVerificationTokenHash,
       emailVerificationExpires
@@ -365,7 +428,7 @@ router.post('/', async (req, res, next) => {
     
     const user = new User(userData);
     await user.save();
-    res.status(201).json(serializeUser(user));
+    res.status(201).json(await serializeUser(user));
   } catch (error) {
     console.error("Error creating user:", error);
     if (error.code === 11000) {

@@ -113,6 +113,10 @@ const courseSchema = new mongoose.Schema(
   }
 );
 
+// Indexes for course sorting and filtering to prevent full collection scans
+courseSchema.index({ createdAt: -1 });
+courseSchema.index({ category: 1, createdAt: -1 });
+
 // Virtual field to populate related lessons from the 'Lesson' collection without embedding
 courseSchema.virtual('lessons', {
   ref: 'Lesson',

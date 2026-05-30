@@ -50,6 +50,9 @@ const lessonSchema = new mongoose.Schema(
 // Add a compound index on { courseId: 1, order: 1 }
 lessonSchema.index({ courseId: 1, order: 1 });
 
+// Add a compound index on { courseId: 1, isPublished: 1, order: 1 } for published sorted queries
+lessonSchema.index({ courseId: 1, isPublished: 1, order: 1 });
+
 const Lesson = mongoose.models.Lesson || mongoose.model('Lesson', lessonSchema);
 
 module.exports = Lesson;

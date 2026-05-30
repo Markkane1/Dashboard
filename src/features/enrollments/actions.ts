@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "../../../auth";
-import { findUserByEmail, updateUser } from "@/features/users/data/userDb";
+import { findUserByEmail, enrollInCourseApi, unenrollFromCourseApi, completeCourseApi } from "@/features/users/data/userDb";
 import { fetchCourseById } from "@/infrastructure/api/courses";
 import { revalidatePath } from "next/cache";
 import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
@@ -35,13 +35,10 @@ export async function enrollCourse(courseId: string): Promise<{ success: boolean
       return { success: false, error: "User profile not found" };
     }
 
-    const enrolled = user.enrolledCourses || [];
-    if (enrolled.includes(courseId)) {
-      return { success: true, message: "Already enrolled in this course" };
+    const ok = await enrollInCourseApi(user.id, user.email, courseId);
+    if (!ok) {
+      return { success: false, error: "Enrollment request failed on backend" };
     }
-
-    const newEnrolled = [...enrolled, courseId];
-    await updateUser(user.id, { enrolledCourses: newEnrolled });
 
     revalidatePath("/dashboard");
     return { success: true };
@@ -80,21 +77,10 @@ export async function markComplete(courseId: string): Promise<{ success: boolean
       return { success: false, error: "User profile not found" };
     }
 
-    const enrolled = user.enrolledCourses || [];
-    const completed = user.completedCourses || [];
-
-    // Filter course out of enrolled list
-    const newEnrolled = enrolled.filter((id) => id !== courseId);
-    
-    // Append to completed list if not already present
-    const newCompleted = completed.includes(courseId)
-      ? completed
-      : [...completed, courseId];
-
-    await updateUser(user.id, {
-      enrolledCourses: newEnrolled,
-      completedCourses: newCompleted,
-    });
+    const ok = await completeCourseApi(user.id, user.email, courseId);
+    if (!ok) {
+      return { success: false, error: "Completion request failed on backend" };
+    }
 
     revalidatePath("/dashboard");
     return { success: true };
@@ -133,10 +119,10 @@ export async function unenrollCourse(courseId: string): Promise<{ success: boole
       return { success: false, error: "User profile not found" };
     }
 
-    const enrolled = user.enrolledCourses || [];
-    const newEnrolled = enrolled.filter((id) => id !== courseId);
-
-    await updateUser(user.id, { enrolledCourses: newEnrolled });
+    const ok = await unenrollFromCourseApi(user.id, user.email, courseId);
+    if (!ok) {
+      return { success: false, error: "Unenrollment request failed on backend" };
+    }
 
     revalidatePath("/dashboard");
     return { success: true };

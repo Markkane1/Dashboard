@@ -148,3 +148,53 @@ export async function verifyEmailToken(token: string): Promise<boolean> {
     return false;
   }
 }
+
+async function getStudentAuthHeader(userId: string, email: string) {
+  const token = signApiAccessToken(
+    { id: userId, email, role: "student" },
+    "5m"
+  );
+  return { "Authorization": `Bearer ${token}` };
+}
+
+export async function enrollInCourseApi(userId: string, email: string, courseId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/enroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await getStudentAuthHeader(userId, email)) },
+      body: JSON.stringify({ courseId }),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("Error in enrollInCourseApi:", error);
+    return false;
+  }
+}
+
+export async function unenrollFromCourseApi(userId: string, email: string, courseId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/unenroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await getStudentAuthHeader(userId, email)) },
+      body: JSON.stringify({ courseId }),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("Error in unenrollFromCourseApi:", error);
+    return false;
+  }
+}
+
+export async function completeCourseApi(userId: string, email: string, courseId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await getStudentAuthHeader(userId, email)) },
+      body: JSON.stringify({ courseId }),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("Error in completeCourseApi:", error);
+    return false;
+  }
+}

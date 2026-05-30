@@ -1,6 +1,6 @@
 import { IUserRepository } from "../domain/repositories/IUserRepository";
 import { User } from "../domain/entities/User";
-import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
 export class RegisterUserUseCase {
   constructor(private userRepository: IUserRepository) {}
@@ -15,12 +15,14 @@ export class RegisterUserUseCase {
       throw new Error("An account with this email address already exists");
     }
 
-    // Securely hash password using Node's built-in crypto module
-    const hashedPassword = crypto.createHash("sha256").update(input.password).digest("hex");
+    // Securely hash password using bcrypt with 12 salt rounds
+    const hashedPassword = await bcrypt.hash(input.password, 12);
 
     const createdUser = await this.userRepository.create({
       ...input,
       password: hashedPassword,
+      loginAttempts: 0,
+      isVerified: false, // verification defaults to false until authenticated or validated
     });
 
     // Make sure we never leak the password in the domain entity output

@@ -23,7 +23,14 @@ export async function GET(request: Request) {
           { status: 404 }
         );
       }
-      return NextResponse.json({ success: true, data: course });
+      return NextResponse.json(
+        { success: true, data: course },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+          },
+        }
+      );
     }
 
     // Otherwise load optimized list (excluding chapters) for main page performance
@@ -34,7 +41,14 @@ export async function GET(request: Request) {
       { category, search },
       { includeChapters: false }
     );
-    return NextResponse.json({ success: true, data: courses });
+    return NextResponse.json(
+      { success: true, data: courses },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        },
+      }
+    );
   } catch (error: any) {
     console.error("GET courses error:", error);
     return NextResponse.json(

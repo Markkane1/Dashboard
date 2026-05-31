@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { logger } from '@/shared/logger';
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -9,7 +10,7 @@ interface ErrorProps {
 
 export default function GlobalError({ error, reset }: ErrorProps) {
   useEffect(() => {
-    console.error("Global Error Boundary caught error:", error);
+    logger.error("Global Error Boundary caught error:", error);
   }, [error]);
 
   return (

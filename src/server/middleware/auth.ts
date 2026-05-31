@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { env } = require('../config/env');
+const { logger } = require('../logger');
 import type { NextFunction, Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 
@@ -59,7 +60,7 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
     next();
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
-    console.error("JWT authentication verification failed:", error.message);
+    logger.warn({ err: error }, 'JWT authentication verification failed');
     res.status(401).json({ error: 'Authentication failed. Token is invalid or expired.' });
   }
 };

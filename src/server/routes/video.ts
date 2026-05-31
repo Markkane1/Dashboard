@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const { Lesson } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
 const { isRemoteVideoUrl, resolveLocalVideoPath } = require('../services/videoStorage');
+const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
@@ -99,12 +100,12 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
       filePath = resolveLocalVideoPath(videoUrl);
     } catch (pathError) {
       const error = pathError instanceof Error ? pathError : new Error(String(pathError));
-      console.error("Invalid local video path:", error.message);
+      logger.warn({ err: error }, 'Invalid local video path');
       return res.status(400).json({ error: "Invalid linked video path." });
     }
     
     if (!fs.existsSync(filePath)) {
-      console.error(`Local video file not found at path: ${filePath}`);
+      logger.warn({ path: filePath }, 'Local video file not found');
       return res.status(404).json({ error: "Linked video file does not exist on disk." });
     }
 
@@ -146,7 +147,7 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
     };
     
     fileStream.on('error', (streamErr: Error) => {
-      console.error("ReadStream error occurred during video piping:", streamErr);
+      logger.error({ err: streamErr }, 'ReadStream error occurred during video piping');
       releaseOnce();
       if (!res.headersSent) {
         res.status(500).end();
@@ -157,7 +158,7 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
 
     fileStream.pipe(res);
   } catch (error) {
-    console.error("Error streaming lesson video:", error);
+    logger.error({ err: error }, 'Error streaming lesson video');
     res.status(500).json({ error: "Internal server error occurred during video stream setup." });
   }
 });

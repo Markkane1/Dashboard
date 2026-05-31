@@ -5,6 +5,8 @@ interface SendEmailInput {
   text: string;
 }
 
+import { logger } from '@/shared/logger';
+
 const fromEmail = process.env.EMAIL_FROM || "EPA Learning <no-reply@example.com>";
 
 async function sendWithResend(input: SendEmailInput) {
@@ -66,7 +68,7 @@ export async function sendEmail(input: SendEmailInput) {
     throw new Error("No email provider configured. Set RESEND_API_KEY or SENDGRID_API_KEY.");
   }
 
-  console.info("[dev-email]", {
+  logger.info("[dev-email]", {
     to: input.to,
     subject: input.subject,
     text: input.text,

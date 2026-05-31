@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { logger } from '@/shared/logger';
 import { useRouter } from "next/navigation";
 import { enrollInCourse } from "@/features/auth/actions";
 
@@ -40,7 +41,7 @@ export default function EnrollButton({
         setError(response.error || "Enrollment failed.");
       }
     } catch (err) {
-      console.error("Enrollment error:", err);
+      logger.error("Enrollment error:", err);
       setError("An unexpected error occurred.");
     } finally {
       setIsLoading(false);

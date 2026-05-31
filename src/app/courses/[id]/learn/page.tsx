@@ -4,6 +4,7 @@ import { auth } from "@/../auth";
 import { fetchCourseLessons } from "@/infrastructure/api/lessons";
 import CoursePlayer from "@/features/lessons/components/CoursePlayer";
 import { findUserByEmail } from "@/features/users/data/userDb";
+import { logger } from '@/shared/logger';
 
 interface LearnPageProps {
   params: {
@@ -37,7 +38,7 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
   try {
     lessons = await fetchCourseLessons(courseId, token);
   } catch (error) {
-    console.error("Failed to load course lessons for player UI:", error);
+    logger.error("Failed to load course lessons for player UI:", error);
     // If the error is 403 (unauthorized/not enrolled), we can redirect to course detail
     redirect(`/courses/${courseId}`);
   }

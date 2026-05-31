@@ -9,6 +9,7 @@ import {
   storePasswordResetToken,
   StoredUser,
 } from "@/features/users/data/userDb";
+import { logger } from '@/shared/logger';
 import { signupSchema, SignupInput } from "./validations";
 import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
 import { sendEmail } from "@/shared/email/sendEmail";
@@ -136,7 +137,7 @@ export async function registerUser(input: SignupInput) {
       message: "Account created. Check your email to verify your account before signing in.",
     };
   } catch (error) {
-    console.error("Error in registerUser server action:", error);
+    logger.error("Error in registerUser server action:", error);
     return { success: false, error: "Something went wrong. Please try again." };
   }
 }
@@ -170,7 +171,7 @@ export async function requestPasswordReset(input: { email: string }) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error in requestPasswordReset server action:", error);
+    logger.error("Error in requestPasswordReset server action:", error);
     return { success: false, error: "Unable to start password reset. Please try again." };
   }
 }
@@ -235,7 +236,7 @@ export async function enrollInCourse(courseId: string) {
 
     return { success: true, enrolled: !alreadyEnrolled, alreadyEnrolled };
   } catch (error) {
-    console.error("Error in enrollInCourse server action:", error);
+    logger.error("Error in enrollInCourse server action:", error);
     return { success: false, error: "Something went wrong. Please try again." };
   }
 }

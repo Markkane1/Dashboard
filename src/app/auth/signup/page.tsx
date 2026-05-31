@@ -7,6 +7,7 @@ import Script from "next/script";
 import { Link } from "@/shared/navigation";
 import { registerUser } from "@/features/auth/actions";
 import { signupSchema, SignupInput } from "@/features/auth/validations";
+import { logger } from '@/shared/logger';
 
 export default function SignupPage() {
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -55,7 +56,7 @@ export default function SignupPage() {
       setSuccessMessage(response.message || "Account created. Check your email to verify your account.");
       setIsLoading(false);
     } catch (error) {
-      console.error("Sign up unexpected error:", error);
+      logger.error("Sign up unexpected error:", error);
       setGlobalError("Something went wrong. Please try again.");
       setIsLoading(false);
     }

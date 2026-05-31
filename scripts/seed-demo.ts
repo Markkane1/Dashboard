@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { connectMongo } from '../src/server/db/mongoose';
 import models from '../src/server/models';
+const { logger } = require('../src/server/logger');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
@@ -333,11 +334,11 @@ async function seedDemoData() {
     demoKey: DEMO_KEY
   });
 
-  console.log('Demo data seeded.');
-  console.log('Accounts:');
-  console.log('  demo.admin@example.com / DemoPass123!');
-  console.log('  demo.instructor@example.com / DemoPass123!');
-  console.log('  demo.learner@example.com / DemoPass123!');
+  logger.info('Demo data seeded.');
+  logger.info('Accounts:');
+  logger.info('  demo.admin@example.com / DemoPass123!');
+  logger.info('  demo.instructor@example.com / DemoPass123!');
+  logger.info('  demo.learner@example.com / DemoPass123!');
 }
 
 async function main() {
@@ -346,7 +347,7 @@ async function main() {
 
   if (command === 'remove') {
     await removeDemoData();
-    console.log('Demo data removed.');
+    logger.info('Demo data removed.');
   } else if (command === 'seed') {
     await seedDemoData();
   } else {
@@ -357,7 +358,7 @@ async function main() {
 }
 
 main().catch(async (error: unknown) => {
-  console.error(error);
+  logger.error({ err: error }, 'Seed script failed');
   await mongoose.connection.close().catch(() => {});
   process.exit(1);
 });

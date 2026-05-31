@@ -11,6 +11,11 @@
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.3.1"
+    "mongoose": "^8.3.1",
+    "pino": "^8.18.0",
+    "pino-http": "^8.0.0"
+    ,
+    "rotating-file-stream": "^3.0.5",
+    "pino-multi-stream": "^7.8.0"
   }
 }

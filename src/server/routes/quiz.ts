@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { Course, Enrollment, Lesson, Progress, QuizSubmission } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
+const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 import type { QuizQuestion } from '../../shared/types';
 
@@ -143,7 +144,7 @@ router.get('/:courseId', auth, async (req: AuthenticatedRequest, res: Response) 
           : null
     });
   } catch (error) {
-    console.error("Error fetching course quiz:", error);
+    logger.error({ err: error }, 'Error fetching course quiz');
     res.status(500).json({ error: "Failed to fetch quiz." });
   }
 });
@@ -207,7 +208,7 @@ router.post('/:courseId/submit', auth, async (req: AuthenticatedRequest, res: Re
       passed
     });
   } catch (error) {
-    console.error("Error submitting course quiz:", error);
+    logger.error({ err: error }, 'Error submitting course quiz');
     res.status(500).json({ error: "Failed to submit quiz." });
   }
 });

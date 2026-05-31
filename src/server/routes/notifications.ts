@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/roles');
 const { Notification, User } = require('../models');
+const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
@@ -49,7 +50,7 @@ router.get('/', auth, async (req: AuthenticatedRequest, res: Response) => {
     res.setHeader('X-Unread-Count', String(unreadCount));
     res.json(notifications.map(serializeNotification));
   } catch (error) {
-    console.error('Error fetching notifications:', error);
+    logger.error({ err: error }, 'Error fetching notifications');
     res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 });
@@ -81,7 +82,7 @@ router.post('/announce', auth, requireAdmin, async (req: AuthenticatedRequest, r
 
     res.status(201).json({ createdCount: result.length });
   } catch (error) {
-    console.error('Error creating announcement:', error);
+    logger.error({ err: error }, 'Error creating announcement');
     res.status(500).json({ error: 'Failed to create announcement' });
   }
 });
@@ -99,7 +100,7 @@ router.patch('/:id/read', auth, async (req: AuthenticatedRequest, res: Response)
 
     res.json(serializeNotification(notification));
   } catch (error) {
-    console.error('Error marking notification read:', error);
+    logger.error({ err: error }, 'Error marking notification read');
     res.status(500).json({ error: 'Failed to update notification' });
   }
 });

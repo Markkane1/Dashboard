@@ -1,4 +1,5 @@
 import { signApiAccessToken } from "@/shared/auth/apiToken";
+import { logger } from '@/shared/logger';
 
 export interface StoredUser {
   id: string;
@@ -34,7 +35,7 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
     if (!res.ok) return null;
     return await res.json();
   } catch (error) {
-    console.error("Error fetching user by email:", error);
+    logger.error("Error fetching user by email:", error);
     return null;
   }
 }
@@ -48,7 +49,7 @@ export async function findUserById(id: string): Promise<StoredUser | null> {
     if (!res.ok) return null;
     return await res.json();
   } catch (error) {
-    console.error("Error fetching user by ID:", error);
+    logger.error("Error fetching user by ID:", error);
     return null;
   }
 }
@@ -64,7 +65,7 @@ export async function authenticateUser(email: string, password: string): Promise
     if (!res.ok) return null;
     return await res.json();
   } catch (error) {
-    console.error("Error authenticating user:", error);
+    logger.error("Error authenticating user:", error);
     return null;
   }
 }
@@ -79,7 +80,7 @@ export async function updateUser(id: string, updatedFields: Partial<StoredUser>)
     if (!res.ok) return null;
     return await res.json();
   } catch (error) {
-    console.error("Error updating user:", error);
+    logger.error("Error updating user:", error);
     return null;
   }
 }
@@ -97,7 +98,7 @@ export async function saveUser(user: StoredUser): Promise<StoredUser> {
     }
     return await res.json();
   } catch (error) {
-    console.error("Error saving user:", error);
+    logger.error("Error saving user:", error);
     throw error;
   }
 }
@@ -115,7 +116,7 @@ export async function storePasswordResetToken(input: {
     });
     return res.ok;
   } catch (error) {
-    console.error("Error storing password reset token:", error);
+    logger.error("Error storing password reset token:", error);
     return false;
   }
 }
@@ -129,7 +130,7 @@ export async function resetPasswordWithToken(token: string, password: string): P
     });
     return res.ok;
   } catch (error) {
-    console.error("Error resetting password:", error);
+    logger.error("Error resetting password:", error);
     return false;
   }
 }
@@ -144,7 +145,7 @@ export async function verifyEmailToken(token: string): Promise<boolean> {
     });
     return res.ok;
   } catch (error) {
-    console.error("Error verifying email:", error);
+    logger.error("Error verifying email:", error);
     return false;
   }
 }
@@ -166,7 +167,7 @@ export async function enrollInCourseApi(userId: string, email: string, courseId:
     });
     return res.ok;
   } catch (error) {
-    console.error("Error in enrollInCourseApi:", error);
+    logger.error("Error in enrollInCourseApi:", error);
     return false;
   }
 }
@@ -180,7 +181,7 @@ export async function unenrollFromCourseApi(userId: string, email: string, cours
     });
     return res.ok;
   } catch (error) {
-    console.error("Error in unenrollFromCourseApi:", error);
+    logger.error("Error in unenrollFromCourseApi:", error);
     return false;
   }
 }
@@ -194,7 +195,7 @@ export async function completeCourseApi(userId: string, email: string, courseId:
     });
     return res.ok;
   } catch (error) {
-    console.error("Error in completeCourseApi:", error);
+    logger.error("Error in completeCourseApi:", error);
     return false;
   }
 }

@@ -10,6 +10,7 @@ import type { NextFunction, Request, Response } from 'express';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const { logger, pinoHttp } = require('./logger');
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim())
@@ -64,6 +65,7 @@ app.use(cors({
   }
 }));
 app.use(express.json());
+app.use(pinoHttp);
 app.use(cookieParser());
 app.use('/api', apiLimiter);
 app.use('/api/users/authenticate', authLimiter);
@@ -87,10 +89,11 @@ app.use('/api/docs', require('./routes/docs'));
 app.use('/api/certificates', require('./routes/docs'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/client-logs', require('./routes/client-logs'));
 
 // 3. Default error handling middleware
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("Unhandled global server exception:", err);
+  logger.error({ err }, 'Unhandled global server exception');
   res.status(500).json({ error: "An unexpected error occurred on the server." });
 });
 
@@ -98,13 +101,13 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 if (process.env.NODE_ENV !== 'test') {
   connectMongo()
     .then(() => {
-      console.log('MongoDB successfully connected.');
+      logger.info('MongoDB successfully connected.');
       app.listen(PORT, () => {
-        console.log(`Express server running on port ${PORT}`);
+        logger.info({ port: PORT }, 'Express server running');
       });
     })
     .catch((err: unknown) => {
-      console.error('MongoDB database connection error:', err);
+      logger.error({ err }, 'MongoDB database connection error');
     });
 }
 

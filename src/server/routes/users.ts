@@ -8,6 +8,7 @@ const Course = require('../models/Course');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/roles');
+const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 import type { User as SharedUser } from '../../shared/types';
 
@@ -100,7 +101,7 @@ router.get('/email/:email', auth, async (req: AuthenticatedRequest, res: Respons
     }
     res.json(await serializeUser(user));
   } catch (error) {
-    console.error("Error fetching user by email:", error);
+    logger.error({ err: error }, 'Error fetching user by email');
     res.status(500).json({ error: "Failed to fetch user" });
   }
 });
@@ -116,7 +117,7 @@ router.get('/me', auth, async (req: AuthenticatedRequest, res: Response) => {
         .filter(Boolean)
     });
   } catch (error) {
-    console.error("Error fetching authenticated user:", error);
+    logger.error({ err: error }, 'Error fetching authenticated user');
     res.status(500).json({ error: "Failed to fetch user" });
   }
 });
@@ -150,7 +151,7 @@ router.get('/', auth, requireAdmin, async (req: AuthenticatedRequest, res: Respo
     res.setHeader('X-Page-Limit', String(limit));
     res.json(await Promise.all(users.map((user: any) => serializeUser(user))));
   } catch (error) {
-    console.error('Error listing users:', error);
+    logger.error({ err: error }, 'Error listing users');
     res.status(500).json({ error: 'Failed to list users' });
   }
 });
@@ -194,7 +195,7 @@ router.post('/authenticate', async (req: Request, res: Response) => {
 
     res.json(await serializeUser(user));
   } catch (error) {
-    console.error("Error authenticating user:", error);
+    logger.error({ err: error }, 'Error authenticating user');
     res.status(500).json({ error: "Failed to authenticate user" });
   }
 });
@@ -223,7 +224,7 @@ router.post('/verify-email', async (req: Request, res: Response) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Error verifying email:", error);
+    logger.error({ err: error }, 'Error verifying email');
     res.status(500).json({ error: "Failed to verify email" });
   }
 });
@@ -255,7 +256,7 @@ router.post('/password-reset/request', auth, async (req: AuthenticatedRequest, r
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Error creating password reset token:", error);
+    logger.error({ err: error }, 'Error creating password reset token');
     res.status(500).json({ error: "Failed to create password reset token" });
   }
 });
@@ -287,7 +288,7 @@ router.post('/password-reset/confirm', async (req: Request, res: Response) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Error resetting password:", error);
+    logger.error({ err: error }, 'Error resetting password');
     res.status(500).json({ error: "Failed to reset password" });
   }
 });
@@ -337,7 +338,7 @@ router.post('/enroll', auth, async (req: AuthenticatedRequest, res: Response) =>
     const user = await User.findById(userId);
     res.json(await serializeUser(user));
   } catch (error) {
-    console.error("Error enrolling authenticated user:", error);
+    logger.error({ err: error }, 'Error enrolling authenticated user');
     res.status(500).json({ error: "Failed to enroll user" });
   }
 });
@@ -365,7 +366,7 @@ router.post('/unenroll', auth, async (req: AuthenticatedRequest, res: Response) 
     const user = await User.findById(userId);
     res.json(await serializeUser(user));
   } catch (error) {
-    console.error("Error unenrolling user:", error);
+    logger.error({ err: error }, 'Error unenrolling user');
     res.status(500).json({ error: "Failed to unenroll user" });
   }
 });
@@ -415,7 +416,7 @@ router.post('/complete', auth, async (req: AuthenticatedRequest, res: Response) 
     const user = await User.findById(userId);
     res.json(await serializeUser(user));
   } catch (error) {
-    console.error("Error marking course as complete:", error);
+    logger.error({ err: error }, 'Error marking course as complete');
     res.status(500).json({ error: "Failed to mark course complete" });
   }
 });
@@ -433,7 +434,7 @@ router.get('/:id', auth, async (req: AuthenticatedRequest, res: Response) => {
     }
     res.json(await serializeUser(user));
   } catch (error) {
-    console.error("Error fetching user by ID:", error);
+    logger.error({ err: error }, 'Error fetching user by ID');
     res.status(500).json({ error: "Failed to fetch user" });
   }
 });
@@ -462,7 +463,7 @@ router.patch('/:id/role', auth, async (req: AuthenticatedRequest, res: Response)
 
     res.json(await serializeUser(updatedUser));
   } catch (error) {
-    console.error("Error updating user role:", error);
+    logger.error({ err: error }, 'Error updating user role');
     res.status(500).json({ error: "Failed to update user role" });
   }
 });
@@ -492,7 +493,7 @@ router.put('/:id', auth, async (req: AuthenticatedRequest, res: Response) => {
     }
     res.json(await serializeUser(updatedUser));
   } catch (error) {
-    console.error("Error updating user:", error);
+    logger.error({ err: error }, 'Error updating user');
     res.status(500).json({ error: "Failed to update user" });
   }
 });
@@ -526,7 +527,7 @@ router.post('/', async (req: Request, res: Response) => {
     await user.save();
     res.status(201).json(await serializeUser(user));
   } catch (error) {
-    console.error("Error creating user:", error);
+    logger.error({ err: error }, 'Error creating user');
     if ((error as { code?: number }).code === 11000) {
       return res.status(400).json({ error: "Email already exists" });
     }

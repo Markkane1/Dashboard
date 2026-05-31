@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { logger } from '@/shared/logger';
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -33,7 +34,7 @@ export function MarkCompleteButton({ courseId }: ActionProps) {
       await enrollmentAction("complete", courseId);
       router.refresh();
     } catch (error) {
-      console.error("Complete course error:", error);
+      logger.error("Complete course error:", error);
       alert(error instanceof Error ? error.message : "Failed to mark course as completed.");
     } finally {
       setIsLoading(false);
@@ -64,7 +65,7 @@ export function UnenrollButton({ courseId }: ActionProps) {
       await enrollmentAction("unenroll", courseId);
       router.refresh();
     } catch (error) {
-      console.error("Unenroll course error:", error);
+      logger.error("Unenroll course error:", error);
       alert(error instanceof Error ? error.message : "Failed to unenroll.");
     } finally {
       setIsLoading(false);
@@ -126,7 +127,7 @@ export function AuthenticatedDownloadButton({
       link.remove();
       URL.revokeObjectURL(objectUrl);
     } catch (error) {
-      console.error("Authenticated download failed:", error);
+      logger.error("Authenticated download failed:", error);
       alert("Download failed. Please try again.");
     } finally {
       setIsDownloading(false);

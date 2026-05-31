@@ -10,6 +10,7 @@ const {
   getLocalVideoDir,
   getPublicVideoUrl
 } = require('../services/videoStorage');
+const { logger } = require('../logger');
 import type { NextFunction, Request, Response } from 'express';
 import type { FileFilterCallback } from 'multer';
 
@@ -39,7 +40,7 @@ function readVideoDuration(filePath: string): Promise<number | undefined> {
   return new Promise((resolve) => {
     ffmpeg.ffprobe(filePath, (error: Error | null, metadata: { format?: { duration?: number } }) => {
       if (error) {
-        console.warn("Unable to read uploaded video duration with ffprobe:", error.message);
+        logger.warn({ err: error }, 'Unable to read uploaded video duration with ffprobe');
         resolve(undefined);
         return;
       }
@@ -52,9 +53,9 @@ function readVideoDuration(filePath: string): Promise<number | undefined> {
 function removeUploadedFile(file?: Express.Multer.File) {
   if (!file?.path) return;
 
-  require('fs').unlink(file.path, (error: NodeJS.ErrnoException | null) => {
+    require('fs').unlink(file.path, (error: NodeJS.ErrnoException | null) => {
     if (error) {
-      console.warn("Unable to clean up uploaded lesson video:", error.message);
+      logger.warn({ err: error }, 'Unable to clean up uploaded lesson video');
     }
   });
 }
@@ -69,7 +70,7 @@ async function requireContentManager(req: AuthenticatedRequest, res: Response, n
     req.contentManager = user;
     next();
   } catch (error) {
-    console.error("Error checking instructor permissions:", error);
+    logger.error({ err: error }, 'Error checking instructor permissions');
     res.status(500).json({ error: "Failed to verify instructor permissions." });
   }
 }
@@ -152,7 +153,7 @@ router.get('/course/:courseId', auth, async (req: AuthenticatedRequest, res: Res
 
     res.json(lessonsWithProgress);
   } catch (error) {
-    console.error("Error fetching course lessons:", error);
+    logger.error({ err: error }, 'Error fetching course lessons');
     res.status(500).json({ error: "Internal server error occurred while retrieving lessons." });
   }
 });
@@ -167,7 +168,7 @@ router.get('/manage/course/:courseId', auth, requireContentManager, async (req: 
     const lessons = await Lesson.find({ courseId }).sort({ order: 1 });
     res.json(lessons);
   } catch (error) {
-    console.error("Error fetching manageable course lessons:", error);
+    logger.error({ err: error }, 'Error fetching manageable course lessons');
     res.status(500).json({ error: "Internal server error occurred while retrieving lessons." });
   }
 });
@@ -193,7 +194,7 @@ router.post('/', auth, requireContentManager, async (req: Request, res: Response
     await Course.findByIdAndUpdate(payload.courseId, { $inc: { lessonsCount: 1 } });
     res.status(201).json(lesson);
   } catch (error) {
-    console.error('Error creating lesson:', error);
+    logger.error({ err: error }, 'Error creating lesson');
     res.status(500).json({ error: 'Failed to create lesson.' });
   }
 });
@@ -236,8 +237,8 @@ router.post(
       await lesson.save();
       res.json(lesson);
     } catch (error) {
-      removeUploadedFile(req.file);
-      console.error("Error uploading lesson video:", error);
+        removeUploadedFile(req.file);
+        logger.error({ err: error }, 'Error uploading lesson video');
       res.status(500).json({ error: "Failed to upload lesson video." });
     }
   }
@@ -271,7 +272,7 @@ router.patch('/:lessonId', auth, requireContentManager, async (req: Request, res
 
     res.json(lesson);
   } catch (error) {
-    console.error('Error updating lesson:', error);
+    logger.error({ err: error }, 'Error updating lesson');
     res.status(500).json({ error: 'Failed to update lesson.' });
   }
 });
@@ -293,7 +294,7 @@ router.delete('/:lessonId', auth, requireContentManager, async (req: Request, re
     ]);
     res.status(204).send();
   } catch (error) {
-    console.error('Error deleting lesson:', error);
+    logger.error({ err: error }, 'Error deleting lesson');
     res.status(500).json({ error: 'Failed to delete lesson.' });
   }
 });
@@ -330,7 +331,7 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
 
     res.json(lessonObj);
   } catch (error) {
-    console.error("Error fetching lesson details:", error);
+    logger.error({ err: error }, 'Error fetching lesson details');
     res.status(500).json({ error: "Internal server error occurred while retrieving lesson details." });
   }
 });

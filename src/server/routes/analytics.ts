@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { requireContentManager } = require('../middleware/roles');
 const { Course, Enrollment, Progress, QuizSubmission, User } = require('../models');
+const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 
 function percent(numerator: number, denominator: number) {
@@ -118,7 +119,7 @@ router.get('/overview', auth, requireContentManager, async (_req: Request, res: 
       }))
     });
   } catch (error) {
-    console.error('Error fetching analytics overview:', error);
+    logger.error({ err: error }, 'Error fetching analytics overview');
     res.status(500).json({ error: 'Failed to fetch analytics overview' });
   }
 });
@@ -190,7 +191,7 @@ router.get('/courses/:courseId', auth, requireContentManager, async (req: Reques
       averageLessonWatchRate: Math.round((progressSummary.averageWatchRate || 0) * 100)
     });
   } catch (error) {
-    console.error('Error fetching course analytics:', error);
+    logger.error({ err: error }, 'Error fetching course analytics');
     res.status(500).json({ error: 'Failed to fetch course analytics' });
   }
 });

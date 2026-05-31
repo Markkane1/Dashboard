@@ -6,6 +6,7 @@ import { fetchCoursesByIds } from "@/infrastructure/api/courses";
 import { fetchCourseProgressSummary } from "@/infrastructure/api/progress";
 import CourseCard from "@/features/courses/components/CourseCard";
 import { Link } from "@/shared/navigation";
+import { logger } from '@/shared/logger';
 import {
   MarkCompleteButton,
   UnenrollButton,
@@ -39,7 +40,7 @@ export default async function DashboardPage() {
             const summary = await fetchCourseProgressSummary(courseId, token);
             return [courseId, summary.percentComplete] as const;
           } catch (error) {
-            console.error(`Failed to fetch dashboard progress for course ${courseId}:`, error);
+            logger.error(`Failed to fetch dashboard progress for course ${courseId}:`, error);
             return [courseId, 0] as const;
           }
         })

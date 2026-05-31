@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Link } from "@/shared/navigation";
 import { loginSchema, LoginInput } from "@/features/auth/validations";
+import { logger } from '@/shared/logger';
 
 function LoginForm() {
   const router = useRouter();
@@ -46,7 +47,7 @@ function LoginForm() {
         router.push(callbackUrl);
       }
     } catch (error) {
-      console.error("Login unexpected error:", error);
+      logger.error("Login unexpected error:", error);
       setGlobalError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);

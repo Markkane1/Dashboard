@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const Taxonomy = require('../models/Taxonomy');
 const auth = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/roles');
+const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 
 type TaxonomyType = 'category' | 'sdg' | 'section' | 'topic';
@@ -45,7 +46,7 @@ router.get('/', async (req: Request, res: Response) => {
     const items = await Taxonomy.find(filter).sort({ order: 1, label: 1 });
     res.json(items.map(normalizeItem));
   } catch (error) {
-    console.error('Error fetching taxonomy items:', error);
+    logger.error({ err: error }, 'Error fetching taxonomy items');
     res.status(500).json({ error: 'Failed to load taxonomy items' });
   }
 });
@@ -67,7 +68,7 @@ router.post('/', auth, requireAdmin, async (req: Request<Record<string, string>,
     const item = await Taxonomy.create({ type, key, label, description, order, active, metadata });
     res.status(201).json(normalizeItem(item));
   } catch (error: unknown) {
-    console.error('Error creating taxonomy item:', error);
+    logger.error({ err: error }, 'Error creating taxonomy item');
     if ((error as { code?: number }).code === 11000) {
       return res.status(409).json({ error: 'Taxonomy item already exists for this type and key' });
     }
@@ -98,7 +99,7 @@ router.patch('/:id', auth, requireAdmin, async (req: Request<{ id: string }, unk
 
     res.json(normalizeItem(item));
   } catch (error) {
-    console.error('Error updating taxonomy item:', error);
+    logger.error({ err: error }, 'Error updating taxonomy item');
     res.status(500).json({ error: 'Failed to update taxonomy item' });
   }
 });
@@ -116,7 +117,7 @@ router.delete('/:id', auth, requireAdmin, async (req: Request<{ id: string }>, r
 
     res.status(204).send();
   } catch (error) {
-    console.error('Error deleting taxonomy item:', error);
+    logger.error({ err: error }, 'Error deleting taxonomy item');
     res.status(500).json({ error: 'Failed to delete taxonomy item' });
   }
 });

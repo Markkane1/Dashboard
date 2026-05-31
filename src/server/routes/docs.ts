@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const { CertificateIssuance, Course, User } = require('../models');
 const { getCompletedEnrollments, getEnrollment } = require('../services/enrollments');
 const { formatIssuedOn, getOrCreateDocumentPdf } = require('../services/documentPdf');
+const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
@@ -118,7 +119,7 @@ async function generateCertificate(req: AuthenticatedRequest, res: Response) {
     );
     sendPdf(res, pdfBytes, `certificate-${safeFilename(course.title)}.pdf`);
   } catch (error) {
-    console.error('Error generating certificate PDF:', error);
+    logger.error({ err: error }, 'Error generating certificate PDF');
     res.status(500).json({ error: 'Failed to generate certificate.' });
   }
 }
@@ -144,7 +145,7 @@ router.get('/verify/:certificateId', async (req: Request, res: Response) => {
       userId: issuance.userId.toString()
     });
   } catch (error) {
-    console.error('Error verifying certificate:', error);
+    logger.error({ err: error }, 'Error verifying certificate');
     res.status(500).json({ valid: false, error: 'Failed to verify certificate.' });
   }
 });
@@ -212,7 +213,7 @@ router.get('/diploma', auth, async (req: AuthenticatedRequest, res: Response) =>
     );
     sendPdf(res, pdfBytes, `diploma-${safeFilename(diploma.title)}.pdf`);
   } catch (error) {
-    console.error('Error generating diploma PDF:', error);
+    logger.error({ err: error }, 'Error generating diploma PDF');
     res.status(500).json({ error: 'Failed to generate diploma.' });
   }
 });

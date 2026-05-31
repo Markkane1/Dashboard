@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "../../../auth";
+import { logger } from '@/shared/logger';
 import { findUserByEmail, enrollInCourseApi, unenrollFromCourseApi, completeCourseApi } from "@/features/users/data/userDb";
 import { fetchCourseById } from "@/infrastructure/api/courses";
 import { revalidatePath } from "next/cache";
@@ -43,7 +44,7 @@ export async function enrollCourse(courseId: string): Promise<{ success: boolean
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("Error in enrollCourse server action:", error);
+    logger.error("Error in enrollCourse server action:", error);
     return { success: false, error: "An error occurred while enrolling. Please try again." };
   }
 }
@@ -85,7 +86,7 @@ export async function markComplete(courseId: string): Promise<{ success: boolean
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("Error in markComplete server action:", error);
+    logger.error("Error in markComplete server action:", error);
     return { success: false, error: "An error occurred while completing course. Please try again." };
   }
 }
@@ -127,7 +128,7 @@ export async function unenrollCourse(courseId: string): Promise<{ success: boole
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("Error in unenrollCourse server action:", error);
+    logger.error("Error in unenrollCourse server action:", error);
     return { success: false, error: "An error occurred while unenrolling. Please try again." };
   }
 }

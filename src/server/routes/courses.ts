@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const Course = require('../models/Course');
 const auth = require('../middleware/auth');
 const { requireContentManager } = require('../middleware/roles');
+const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 import type { AuthoredQuizQuestion, Course as SharedCourse } from '../../shared/types';
 
@@ -346,7 +347,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
     res.json(pageCourses.map(serializeCourse));
   } catch (error) {
-    console.error("Error fetching courses:", error);
+    logger.error({ err: error }, 'Error fetching courses');
     res.status(500).json({ error: "Failed to fetch courses" });
   }
 });
@@ -366,7 +367,7 @@ router.post('/batch', async (req: Request, res: Response) => {
 
     res.json(courses.map(serializeCourse));
   } catch (error) {
-    console.error("Error fetching course batch:", error);
+    logger.error({ err: error }, 'Error fetching course batch');
     res.status(500).json({ error: "Failed to fetch requested courses" });
   }
 });
@@ -382,7 +383,7 @@ router.get('/manage/:id', auth, requireContentManager, async (req: Request, res:
 
     res.json(serializeManageCourse(course));
   } catch (error) {
-    console.error('Error fetching manageable course details:', error);
+    logger.error({ err: error }, 'Error fetching manageable course details');
     res.status(500).json({ error: 'Failed to fetch course details' });
   }
 });
@@ -400,7 +401,7 @@ router.post('/', auth, requireContentManager, async (req: Request, res: Response
     const course = await Course.create(payload);
     res.status(201).json(serializeCourse(course));
   } catch (error) {
-    console.error('Error creating course:', error);
+    logger.error({ err: error }, 'Error creating course');
     res.status(500).json({ error: 'Failed to create course' });
   }
 });
@@ -415,7 +416,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     res.json(serializeCourse(course));
   } catch (error) {
-    console.error("Error fetching course details:", error);
+    logger.error({ err: error }, 'Error fetching course details');
     res.status(500).json({ error: "Failed to fetch course details" });
   }
 });
@@ -445,7 +446,7 @@ router.patch('/:id', auth, requireContentManager, async (req: Request, res: Resp
 
     res.json(serializeManageCourse(course));
   } catch (error) {
-    console.error('Error updating course:', error);
+    logger.error({ err: error }, 'Error updating course');
     res.status(500).json({ error: 'Failed to update course' });
   }
 });
@@ -461,7 +462,7 @@ router.delete('/:id', auth, requireContentManager, async (req: Request, res: Res
 
     res.status(204).send();
   } catch (error) {
-    console.error('Error deleting course:', error);
+    logger.error({ err: error }, 'Error deleting course');
     res.status(500).json({ error: 'Failed to delete course' });
   }
 });

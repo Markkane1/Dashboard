@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { Link } from "@/shared/navigation";
+import { logger } from '@/shared/logger';
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -10,7 +11,7 @@ interface ErrorProps {
 
 export default function CourseError({ error, reset }: ErrorProps) {
   useEffect(() => {
-    console.error("Course Error Boundary caught error:", error);
+    logger.error("Course Error Boundary caught error:", error);
   }, [error]);
 
   return (

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Lesson } from "@/shared/types";
+import { logger } from '@/shared/logger';
 
 interface VideoPlayerProps {
   lesson: Lesson;
@@ -43,9 +44,9 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
         const blob = await res.blob();
         objectUrl = URL.createObjectURL(blob);
         setVideoSource(objectUrl);
-      } catch (error) {
+        } catch (error) {
         if (!abortController.signal.aborted) {
-          console.error("Failed to load authenticated video:", error);
+          logger.error("Failed to load authenticated video:", error);
           setVideoSource("");
         }
       }
@@ -80,7 +81,7 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
         })
       });
     } catch (err) {
-      console.error("Failed to sync video playback progress to database:", err);
+      logger.error("Failed to sync video playback progress to database:", err);
     }
   }, [apiBase, apiToken, lesson._id]);
 

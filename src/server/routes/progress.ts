@@ -5,6 +5,7 @@ const { z } = require('zod');
 const auth = require('../middleware/auth');
 const { Progress, Lesson } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
+const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
@@ -77,7 +78,7 @@ router.post('/', auth, async (req: AuthenticatedRequest, res: Response) => {
 
     res.json(progress);
   } catch (error) {
-    console.error("Error saving lesson progress:", error);
+    logger.error({ err: error }, 'Error saving lesson progress');
     res.status(500).json({ error: "Internal server error occurred while updating playback progress." });
   }
 });
@@ -114,7 +115,7 @@ router.get('/course/:courseId', auth, async (req: AuthenticatedRequest, res: Res
       }
     });
   } catch (error) {
-    console.error("Error fetching course progress analytics:", error);
+    logger.error({ err: error }, 'Error fetching course progress analytics');
     res.status(500).json({ error: "Internal server error occurred while retrieving progress analytics." });
   }
 });

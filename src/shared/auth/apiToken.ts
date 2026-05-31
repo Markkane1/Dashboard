@@ -9,6 +9,8 @@ interface ApiTokenUser {
   id: string;
   email: string;
   role?: string;
+  enrolledCourses?: string[];
+  completedCourses?: string[];
 }
 
 export function signApiAccessToken(
@@ -20,6 +22,8 @@ export function signApiAccessToken(
       id: user.id,
       email: user.email,
       role: user.role || "student",
+      enrolledCourses: user.enrolledCourses || [],
+      completedCourses: user.completedCourses || [],
       tokenUse: API_TOKEN_USE,
     },
     env.AUTH_SECRET,

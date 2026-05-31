@@ -116,6 +116,9 @@ const courseSchema = new mongoose.Schema(
 // Indexes for course sorting and filtering to prevent full collection scans
 courseSchema.index({ createdAt: -1 });
 courseSchema.index({ category: 1, createdAt: -1 });
+courseSchema.index({ sdgGoals: 1 });
+courseSchema.index({ mea: 1 });
+courseSchema.index({ title: 'text', description: 'text' });
 
 // Virtual field to populate related lessons from the 'Lesson' collection without embedding
 courseSchema.virtual('lessons', {
@@ -186,13 +189,15 @@ async function deleteCourseRelations(courseIds: unknown | unknown[]) {
   const Lesson = require('./Lesson');
   const Progress = require('./Progress');
   const QuizSubmission = require('./QuizSubmission');
+  const CertificateIssuance = require('./CertificateIssuance');
   const courseFilter = { $in: ids };
 
   await Promise.all([
     Enrollment.deleteMany({ courseId: courseFilter }),
     Lesson.deleteMany({ courseId: courseFilter }),
     Progress.deleteMany({ courseId: courseFilter }),
-    QuizSubmission.deleteMany({ courseId: courseFilter })
+    QuizSubmission.deleteMany({ courseId: courseFilter }),
+    CertificateIssuance.deleteMany({ courseId: courseFilter })
   ]);
 }
 

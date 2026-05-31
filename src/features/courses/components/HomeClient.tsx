@@ -55,41 +55,9 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
     router.push(`/${query}`, { scroll: false });
   };
 
-  // 1. Filter Logic (AND logic)
-  const filteredCourses = courses.filter((course) => {
-    // Category match
-    if (activeCategory && course.category !== activeCategory) {
-      return false;
-    }
-    // SDG match
-    if (activeSdg && !course.sdgGoals.includes(Number(activeSdg))) {
-      return false;
-    }
-    // Topic match
-    if (activeTopic && !course.topics.includes(activeTopic as any)) {
-      return false;
-    }
-    // MEA match
-    if (activeMea) {
-      if (activeMea === "CBD") {
-        const match = course.mea.some(
-          (m) => m.includes("CBD") || m.includes("Nagoya") || m.includes("Cartagena")
-        );
-        if (!match) return false;
-      } else if (activeMea === "UNFCCC") {
-        const match = course.mea.some((m) => m.includes("UNFCCC") || m.includes("Paris"));
-        if (!match) return false;
-      } else if (activeMea === "BRS") {
-        const match = course.mea.some(
-          (m) => m.includes("Basel") || m.includes("Rotterdam") || m.includes("Stockholm")
-        );
-        if (!match) return false;
-      }
-    }
-    return true;
-  });
+  const filteredCourses = courses;
 
-  // Filter out categories that don't have matching courses or are filtered out
+  // Filter out categories that don't have matching courses
   const displayCategories = categories.filter((cat) => {
     if (activeCategory && cat.id !== activeCategory) {
       return false;

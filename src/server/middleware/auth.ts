@@ -35,6 +35,8 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
       email?: string;
       role?: string;
       name?: string;
+      enrolledCourses?: unknown;
+      completedCourses?: unknown;
     };
 
     if (payload.tokenUse !== API_TOKEN_USE) {
@@ -45,7 +47,13 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
       ...payload,
       id: String(payload.id || payload.sub || ''),
       email: payload.email,
-      role: payload.role || 'student'
+      role: payload.role || 'student',
+      enrolledCourses: Array.isArray(payload.enrolledCourses)
+        ? payload.enrolledCourses.map((courseId) => String(courseId))
+        : [],
+      completedCourses: Array.isArray(payload.completedCourses)
+        ? payload.completedCourses.map((courseId) => String(courseId))
+        : []
     };
     
     next();

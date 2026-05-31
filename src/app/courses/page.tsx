@@ -1,9 +1,9 @@
 import CategoryTabs from "@/features/courses/components/CategoryTabs";
-import CourseCard from "@/features/courses/components/CourseCard";
+import CourseInfiniteGrid from "@/features/courses/components/CourseInfiniteGrid";
 import MEADropdown from "@/shared/components/MEADropdown";
 import SDGFilter from "@/features/courses/components/SDGFilter";
 import { Category } from "@/shared/types";
-import { fetchCourses } from "@/infrastructure/api/courses";
+import { CoursePageParams, fetchCoursePage } from "@/infrastructure/api/courses";
 
 type CoursesPageProps = {
   searchParams: {
@@ -17,17 +17,15 @@ type CoursesPageProps = {
 
 export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   const activeGoal = searchParams.sdg ? Number(searchParams.sdg) : undefined;
-  const query = searchParams.q?.toLowerCase().trim() || "";
-  const courses = await fetchCourses();
-
-  const filtered = courses.filter((course) => {
-    if (searchParams.category && course.category !== searchParams.category) return false;
-    if (activeGoal && !course.sdgGoals.includes(activeGoal)) return false;
-    if (searchParams.topic && !course.topics.includes(searchParams.topic as never)) return false;
-    if (searchParams.mea && !course.mea.some((mea) => mea.toLowerCase().includes(searchParams.mea!.toLowerCase()))) return false;
-    if (query && !course.title.toLowerCase().includes(query)) return false;
-    return true;
-  });
+  const filters: CoursePageParams = {
+    limit: 24,
+    category: searchParams.category,
+    sdg: searchParams.sdg,
+    topic: searchParams.topic,
+    mea: searchParams.mea,
+    q: searchParams.q,
+  };
+  const coursePage = await fetchCoursePage(filters);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -63,12 +61,12 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
 
         <section>
           <CategoryTabs activeCategory={searchParams.category} />
-          <p className="mt-5 text-sm font-semibold text-slate-600">{filtered.length} course(s) found</p>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
+          <CourseInfiniteGrid
+            initialCourses={coursePage.courses}
+            initialNextCursor={coursePage.nextCursor}
+            totalCount={coursePage.totalCount}
+            filters={filters}
+          />
         </section>
       </div>
     </div>

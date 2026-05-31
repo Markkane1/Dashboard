@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { Course, Enrollment, Lesson, Progress, QuizSubmission } = require('../models');
-const { getEnrollment } = require('../services/enrollments');
+const { hasCourseAccess } = require('../services/enrollments');
 import type { Request, Response } from 'express';
 import type { QuizQuestion } from '../../shared/types';
 
@@ -71,20 +71,19 @@ function serializeQuestion(question: QuizQuestion): QuizQuestion {
   };
 }
 
-async function getCourseAccessState(courseId: string, userId: string) {
+async function getCourseAccessState(courseId: string, user: NonNullable<Request['user']>) {
   const course = await Course.findById(courseId);
   if (!course) {
     return { status: 404, error: "Course not found." };
   }
 
-  const enrollment = await getEnrollment(userId, courseId);
-  if (!enrollment) {
+  if (!(await hasCourseAccess(user, courseId))) {
     return { status: 403, error: "You must be enrolled in this course to take the quiz." };
   }
 
   const lessons = await Lesson.find({ courseId, isPublished: true }).select('_id');
   const totalLessons = lessons.length;
-  const progressRecords = await Progress.find({ userId, courseId, completed: true }).select('lessonId');
+  const progressRecords = await Progress.find({ userId: user.id, courseId, completed: true }).select('lessonId');
   const completedLessonIds = new Set(progressRecords.map((progress: any) => progress.lessonId.toString()));
   const completedLessons = lessons.filter((lesson: any) => completedLessonIds.has(lesson._id.toString())).length;
 
@@ -101,7 +100,6 @@ async function getCourseAccessState(courseId: string, userId: string) {
   return {
     status: 200,
     course,
-    enrollment,
     totalLessons,
     completedLessons
   };
@@ -114,7 +112,7 @@ async function getCourseAccessState(courseId: string, userId: string) {
 router.get('/:courseId', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const courseId = String(req.params.courseId);
-    const access = await getCourseAccessState(courseId, req.user.id);
+    const access = await getCourseAccessState(courseId, req.user);
     if (access.status !== 200) {
       return res.status(access.status).json({
         error: access.error,
@@ -157,7 +155,7 @@ router.get('/:courseId', auth, async (req: AuthenticatedRequest, res: Response) 
 router.post('/:courseId/submit', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const courseId = String(req.params.courseId);
-    const access = await getCourseAccessState(courseId, req.user.id);
+    const access = await getCourseAccessState(courseId, req.user);
     if (access.status !== 200) {
       return res.status(access.status).json({ error: access.error });
     }

@@ -19,3 +19,28 @@ body {
 a {
   text-decoration: none;
 }
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.skip-link:focus,
+.skip-link:active {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  width: auto;
+  height: auto;
+  padding: 0.75rem 1rem;
+  background: #0f766e;
+  color: #ffffff;
+  border-radius: 0.5rem;
+  z-index: 50;
+  text-decoration: none;
+}
+

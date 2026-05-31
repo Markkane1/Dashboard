@@ -8,7 +8,7 @@ process.env.MONGOMS_DOWNLOAD_DIR = path.join(__dirname, '.mongodb-binaries');
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
-const { Course, Enrollment, Lesson, Progress, QuizSubmission } = require('../src/server/models');
+const { CertificateIssuance, Course, Enrollment, Lesson, Notification, Progress, QuizSubmission } = require('../src/server/models');
 
 let mongoServer;
 
@@ -29,8 +29,10 @@ before(async () => {
 
   await Promise.all([
     Course.syncIndexes(),
+    CertificateIssuance.syncIndexes(),
     Enrollment.syncIndexes(),
     Lesson.syncIndexes(),
+    Notification.syncIndexes(),
     Progress.syncIndexes(),
     QuizSubmission.syncIndexes()
   ]);
@@ -115,6 +117,49 @@ describe('model query indexes', () => {
 
     assertUsesIndex(explain, 'createdAt_-1');
     assertNoBlockingSort(explain);
+  });
+
+  it('uses certificate issuance indexes for verification and first-download idempotency', async () => {
+    await CertificateIssuance.create({
+      certificateId: 'cert-index-check',
+      userId: ids.user,
+      courseId: ids.course,
+      recipientName: 'Index Check',
+      courseTitle: 'Course 0',
+      issuedAt: new Date()
+    });
+
+    const verificationExplain = await CertificateIssuance.findOne({
+      certificateId: 'cert-index-check'
+    }).explain('executionStats');
+    const idempotencyExplain = await CertificateIssuance.findOne({
+      userId: ids.user,
+      courseId: ids.course
+    }).explain('executionStats');
+
+    assertUsesIndex(verificationExplain, 'certificateId_1');
+    assertUsesIndex(idempotencyExplain, 'userId_1_courseId_1');
+  });
+
+  it('uses notification indexes for notification inbox reads', async () => {
+    await Notification.create({
+      userId: ids.user,
+      type: 'course',
+      title: 'Index Check',
+      message: 'Notification index check'
+    });
+
+    const inboxExplain = await Notification.find({ userId: ids.user })
+      .sort({ createdAt: -1 })
+      .explain('executionStats');
+    const unreadExplain = await Notification.find({
+      userId: ids.user,
+      readAt: { $exists: false }
+    }).explain('executionStats');
+
+    assertUsesIndex(inboxExplain, 'userId_1_createdAt_-1');
+    assertNoBlockingSort(inboxExplain);
+    assertUsesIndex(unreadExplain, 'userId_1_readAt_1');
   });
 });
 

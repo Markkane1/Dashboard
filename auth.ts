@@ -90,6 +90,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.name = dbUser.name;
           token.email = dbUser.email;
           token.enrolledCourses = dbUser.enrolledCourses || [];
+          token.completedCourses = dbUser.completedCourses || [];
         }
       }
 
@@ -98,7 +99,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: String(token.id),
           email: String(token.email),
           role: typeof token.role === "string" ? token.role : "student",
-        });
+          enrolledCourses: Array.isArray(token.enrolledCourses) ? (token.enrolledCourses as string[]) : [],
+          completedCourses: Array.isArray(token.completedCourses) ? (token.completedCourses as string[]) : [],
+        }, "5m");
       }
 
       return token;

@@ -4,7 +4,13 @@ import Footer from "@/shared/components/Footer";
 import { SessionProvider } from "next-auth/react";
 import { NextIntlClientProvider } from "next-intl";
 import { headers } from "next/headers";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "InforMEA Learning",
@@ -26,11 +32,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} dir={direction}>
-      <body className="min-h-screen bg-gray-50 antialiased" style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+      <body className={`${inter.className} min-h-screen bg-gray-50 antialiased`}>
         <SessionProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
+            <a href="#main-content" className="skip-link">Skip to main content</a>
             <Navbar />
-            <main>{children}</main>
+            <main id="main-content" tabIndex={-1}>{children}</main>
             <Footer />
           </NextIntlClientProvider>
         </SessionProvider>

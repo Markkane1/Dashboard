@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const { z } = require('zod');
 const auth = require('../middleware/auth');
 const { Progress, Lesson } = require('../models');
-const { getEnrollment } = require('../services/enrollments');
+const { hasCourseAccess } = require('../services/enrollments');
 import type { Request, Response } from 'express';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
@@ -38,7 +38,7 @@ router.post('/', auth, async (req: AuthenticatedRequest, res: Response) => {
       return res.status(404).json({ error: "Associated lesson not found." });
     }
 
-    if (!(await getEnrollment(userId, lesson.courseId))) {
+    if (!(await hasCourseAccess(req.user, lesson.courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to update progress." });
     }
 
@@ -91,7 +91,7 @@ router.get('/course/:courseId', auth, async (req: AuthenticatedRequest, res: Res
     const { courseId } = req.params;
     const userId = req.user.id;
 
-    if (!(await getEnrollment(userId, courseId))) {
+    if (!(await hasCourseAccess(req.user, courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to view progress." });
     }
 

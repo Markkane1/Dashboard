@@ -3,8 +3,8 @@ const router = express.Router();
 const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
 const auth = require('../middleware/auth');
-const { Lesson, Progress, User } = require('../models');
-const { isEnrolled } = require('../services/enrollments');
+const { Lesson, Progress, Course, User } = require('../models');
+const { hasCourseAccess } = require('../services/enrollments');
 const {
   VIDEO_STORAGE,
   getLocalVideoDir,
@@ -74,6 +74,45 @@ async function requireContentManager(req: AuthenticatedRequest, res: Response, n
   }
 }
 
+function pickLessonFields(body: Record<string, unknown>) {
+  const allowed: Record<string, unknown> = {};
+  for (const key of ['courseId', 'title', 'description', 'order', 'videoUrl', 'duration', 'resources', 'transcript', 'isPublished']) {
+    if (Object.prototype.hasOwnProperty.call(body, key)) {
+      allowed[key] = body[key];
+    }
+  }
+
+  return allowed;
+}
+
+function validateLessonPayload(payload: Record<string, unknown>, partial = false) {
+  if (!partial) {
+    for (const field of ['courseId', 'title', 'order', 'videoUrl']) {
+      if (payload[field] === undefined || payload[field] === '') {
+        return `${field} is required`;
+      }
+    }
+  }
+
+  if (payload.order !== undefined) {
+    const order = Number(payload.order);
+    if (!Number.isFinite(order) || order < 0) {
+      return 'order must be a non-negative number';
+    }
+    payload.order = Math.floor(order);
+  }
+
+  if (payload.duration !== undefined && payload.duration !== '') {
+    const duration = Number(payload.duration);
+    if (!Number.isFinite(duration) || duration < 0) {
+      return 'duration must be a non-negative number';
+    }
+    payload.duration = Math.floor(duration);
+  }
+
+  return null;
+}
+
 /**
  * GET /api/lessons/course/:courseId
  * Retrieve all published lessons for a specific course, including the user's progress.
@@ -85,7 +124,7 @@ router.get('/course/:courseId', auth, async (req: AuthenticatedRequest, res: Res
     const userId = req.user.id;
 
     // 1. Authorization: Verify the requesting user is enrolled in this course
-    if (!(await isEnrolled(userId, courseId))) {
+    if (!(await hasCourseAccess(req.user, courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to view lessons." });
     }
 
@@ -130,6 +169,32 @@ router.get('/manage/course/:courseId', auth, requireContentManager, async (req: 
   } catch (error) {
     console.error("Error fetching manageable course lessons:", error);
     res.status(500).json({ error: "Internal server error occurred while retrieving lessons." });
+  }
+});
+
+/**
+ * POST /api/lessons
+ * Create a lesson for a course.
+ */
+router.post('/', auth, requireContentManager, async (req: Request, res: Response) => {
+  try {
+    const payload = pickLessonFields(req.body || {});
+    const validationError = validateLessonPayload(payload);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const course = await Course.findById(payload.courseId).select('_id');
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found.' });
+    }
+
+    const lesson = await Lesson.create(payload);
+    await Course.findByIdAndUpdate(payload.courseId, { $inc: { lessonsCount: 1 } });
+    res.status(201).json(lesson);
+  } catch (error) {
+    console.error('Error creating lesson:', error);
+    res.status(500).json({ error: 'Failed to create lesson.' });
   }
 });
 
@@ -179,6 +244,61 @@ router.post(
 );
 
 /**
+ * PATCH /api/lessons/:lessonId
+ * Update lesson metadata, ordering, publishing state, resources, or transcript.
+ */
+router.patch('/:lessonId', auth, requireContentManager, async (req: Request, res: Response) => {
+  try {
+    const updates = pickLessonFields(req.body || {});
+    delete updates.courseId;
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No allowed lesson fields provided.' });
+    }
+
+    const validationError = validateLessonPayload(updates, true);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const lesson = await Lesson.findByIdAndUpdate(
+      req.params.lessonId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+    if (!lesson) {
+      return res.status(404).json({ error: 'Lesson not found.' });
+    }
+
+    res.json(lesson);
+  } catch (error) {
+    console.error('Error updating lesson:', error);
+    res.status(500).json({ error: 'Failed to update lesson.' });
+  }
+});
+
+/**
+ * DELETE /api/lessons/:lessonId
+ * Delete a lesson and related progress records.
+ */
+router.delete('/:lessonId', auth, requireContentManager, async (req: Request, res: Response) => {
+  try {
+    const lesson = await Lesson.findByIdAndDelete(req.params.lessonId);
+    if (!lesson) {
+      return res.status(404).json({ error: 'Lesson not found.' });
+    }
+
+    await Promise.all([
+      Progress.deleteMany({ lessonId: lesson._id }),
+      Course.updateOne({ _id: lesson.courseId, lessonsCount: { $gt: 0 } }, { $inc: { lessonsCount: -1 } })
+    ]);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting lesson:', error);
+    res.status(500).json({ error: 'Failed to delete lesson.' });
+  }
+});
+
+/**
  * GET /api/lessons/:lessonId
  * Fetch full details of a specific lesson (including the full transcript) and current user progress.
  */
@@ -194,7 +314,7 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
     }
 
     // 2. Authorization: Verify user enrollment in the course associated with this lesson
-    if (!(await isEnrolled(userId, lesson.courseId))) {
+    if (!(await hasCourseAccess(req.user, lesson.courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to view this lesson." });
     }
 

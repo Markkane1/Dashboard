@@ -21,10 +21,19 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-import { fetchCourses } from "@/infrastructure/api/courses";
+import { fetchCoursePage } from "@/infrastructure/api/courses";
 
-export default async function HomePage() {
-  const courses = await fetchCourses();
+export default async function HomePage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+  const filters = {
+    category: typeof searchParams.category === 'string' ? searchParams.category : undefined,
+    sdg: typeof searchParams.sdg === 'string' ? searchParams.sdg : undefined,
+    topic: typeof searchParams.topic === 'string' ? searchParams.topic : undefined,
+    mea: typeof searchParams.mea === 'string' ? searchParams.mea : undefined,
+    q: typeof searchParams.q === 'string' ? searchParams.q : undefined,
+    limit: 60,
+  };
+  const coursePage = await fetchCoursePage(filters);
+  const courses = coursePage.courses;
 
   return (
     <Suspense

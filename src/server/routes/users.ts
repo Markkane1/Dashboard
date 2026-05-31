@@ -5,7 +5,9 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
+const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/roles');
 import type { Request, Response } from 'express';
 import type { User as SharedUser } from '../../shared/types';
 
@@ -75,6 +77,15 @@ function hashToken(token: unknown): string {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
 }
 
+function getListLimit(value: unknown) {
+  const limit = Number(value || 25);
+  if (!Number.isFinite(limit)) {
+    return 25;
+  }
+
+  return Math.min(Math.max(Math.floor(limit), 1), 100);
+}
+
 // GET /api/users/email/:email
 // Find a user by email
 router.get('/email/:email', auth, async (req: AuthenticatedRequest, res: Response) => {
@@ -107,6 +118,40 @@ router.get('/me', auth, async (req: AuthenticatedRequest, res: Response) => {
   } catch (error) {
     console.error("Error fetching authenticated user:", error);
     res.status(500).json({ error: "Failed to fetch user" });
+  }
+});
+
+// GET /api/users
+// Admin user listing for account management.
+router.get('/', auth, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const page = Math.max(Math.floor(Number(req.query.page || 1)), 1);
+    const limit = getListLimit(req.query.limit);
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const filter = q
+      ? {
+          $or: [
+            { name: { $regex: escapeRegExp(q), $options: 'i' } },
+            { email: { $regex: escapeRegExp(q), $options: 'i' } }
+          ]
+        }
+      : {};
+
+    const [totalCount, users] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter)
+        .select('name email role avatar emailVerified createdAt')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+    ]);
+
+    res.setHeader('X-Total-Count', String(totalCount));
+    res.setHeader('X-Page-Limit', String(limit));
+    res.json(await Promise.all(users.map((user: any) => serializeUser(user))));
+  } catch (error) {
+    console.error('Error listing users:', error);
+    res.status(500).json({ error: 'Failed to list users' });
   }
 });
 
@@ -264,6 +309,7 @@ router.post('/enroll', auth, async (req: AuthenticatedRequest, res: Response) =>
       return res.status(404).json({ error: "Course not found" });
     }
 
+    const existingEnrollment = await Enrollment.findOne({ userId, courseId }).select('completed');
     const result = await Enrollment.findOneAndUpdate(
       { userId, courseId },
       { $setOnInsert: { userId, courseId, completed: false } },
@@ -277,6 +323,15 @@ router.post('/enroll', auth, async (req: AuthenticatedRequest, res: Response) =>
 
     if (!result.lastErrorObject?.updatedExisting) {
       await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
+    }
+    if (!existingEnrollment?.completed) {
+      await Notification.create({
+        userId,
+        type: 'course',
+        title: 'Course completed',
+        message: `You completed ${course.title}. Your certificate is ready to download.`,
+        linkUrl: '/dashboard'
+      });
     }
 
     const user = await User.findById(userId);

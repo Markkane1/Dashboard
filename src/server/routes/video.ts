@@ -3,11 +3,64 @@ const router = express.Router();
 const fs = require('fs');
 const auth = require('../middleware/auth');
 const { Lesson } = require('../models');
-const { isEnrolled } = require('../services/enrollments');
+const { hasCourseAccess } = require('../services/enrollments');
 const { isRemoteVideoUrl, resolveLocalVideoPath } = require('../services/videoStorage');
 import type { Request, Response } from 'express';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
+
+const DEFAULT_VIDEO_CHUNK_BYTES = Number(process.env.VIDEO_DEFAULT_CHUNK_BYTES || 1024 * 1024);
+const MAX_VIDEO_CHUNK_BYTES = Number(process.env.VIDEO_MAX_CHUNK_BYTES || 5 * 1024 * 1024);
+const MAX_CONCURRENT_VIDEO_STREAMS = Number(process.env.MAX_CONCURRENT_VIDEO_STREAMS || 25);
+
+let activeVideoStreams = 0;
+const videoStreamQueue: Array<() => void> = [];
+
+function parseByteRange(rangeHeader: string | undefined, fileSize: number) {
+  if (!rangeHeader) {
+    return { start: 0, end: Math.min(DEFAULT_VIDEO_CHUNK_BYTES - 1, fileSize - 1) };
+  }
+
+  const match = rangeHeader.match(/^bytes=(\d*)-(\d*)$/);
+  if (!match) {
+    return null;
+  }
+
+  const [, rawStart, rawEnd] = match;
+  let start = rawStart ? Number(rawStart) : 0;
+  let end = rawEnd ? Number(rawEnd) : Math.min(start + DEFAULT_VIDEO_CHUNK_BYTES - 1, fileSize - 1);
+
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || start >= fileSize) {
+    return null;
+  }
+
+  end = Math.min(end, fileSize - 1, start + MAX_VIDEO_CHUNK_BYTES - 1);
+
+  return { start, end };
+}
+
+function acquireVideoStreamSlot(): Promise<() => void> {
+  return new Promise((resolve) => {
+    const acquire = () => {
+      activeVideoStreams += 1;
+      let released = false;
+
+      resolve(() => {
+        if (released) return;
+        released = true;
+        activeVideoStreams = Math.max(0, activeVideoStreams - 1);
+        videoStreamQueue.shift()?.();
+      });
+    };
+
+    if (activeVideoStreams < MAX_CONCURRENT_VIDEO_STREAMS) {
+      acquire();
+      return;
+    }
+
+    videoStreamQueue.push(acquire);
+  });
+}
 
 /**
  * GET /api/video/:lessonId
@@ -17,7 +70,6 @@ type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
 router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { lessonId } = req.params;
-    const userId = req.user.id;
 
     // 1. Fetch lesson details to obtain video URL
     const lesson = await Lesson.findById(lessonId);
@@ -26,7 +78,7 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
     }
 
     // 2. Authorization: Verify user is enrolled in the lesson's parent course
-    if (!(await isEnrolled(userId, lesson.courseId))) {
+    if (!(await hasCourseAccess(req.user, lesson.courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to access course media." });
     }
 
@@ -60,31 +112,18 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
     const stat = fs.statSync(filePath);
     const fileSize = stat.size;
 
-    // B. Parse Range Header parameter
-    const range = req.headers.range;
-
-    if (!range) {
-      // No range requested - stream full video file content normally
-      res.writeHead(200, {
-        'Content-Length': fileSize,
-        'Content-Type': 'video/mp4'
-      });
-      return fs.createReadStream(filePath).pipe(res);
-    }
-
-    // C. Parse range request segments: e.g. "bytes=30000-50000"
-    const parts = range.replace(/bytes=/, "").split("-");
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    // B. Parse Range Header parameter, defaulting to a bounded first chunk.
+    const parsedRange = parseByteRange(req.headers.range, fileSize);
 
     // Validate boundaries
-    if (start >= fileSize || end >= fileSize) {
+    if (!parsedRange) {
       res.writeHead(416, {
         'Content-Range': `bytes */${fileSize}`
       });
       return res.end();
     }
 
+    const { start, end } = parsedRange;
     const chunkSize = (end - start) + 1;
 
     // D. Formulate Content range header arrays
@@ -97,14 +136,24 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
 
     // E. Pipe HTTP Partial Content status code stream
     res.writeHead(206, headers);
+    const releaseStreamSlot = await acquireVideoStreamSlot();
     const fileStream = fs.createReadStream(filePath, { start, end });
+    let released = false;
+    const releaseOnce = () => {
+      if (released) return;
+      released = true;
+      releaseStreamSlot();
+    };
     
     fileStream.on('error', (streamErr: Error) => {
       console.error("ReadStream error occurred during video piping:", streamErr);
+      releaseOnce();
       if (!res.headersSent) {
         res.status(500).end();
       }
     });
+    fileStream.on('close', releaseOnce);
+    res.on('close', releaseOnce);
 
     fileStream.pipe(res);
   } catch (error) {

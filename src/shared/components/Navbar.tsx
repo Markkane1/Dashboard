@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@/shared/navigation";
 import { useSession, signOut } from "next-auth/react";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -8,8 +8,28 @@ import LanguageSwitcher from "./LanguageSwitcher";
 export default function Navbar() {
   const { data: session, status } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const isAuthenticated = status === "authenticated";
+  const role = session?.user?.role || "student";
+  const canManageContent = role === "admin" || role === "instructor";
+  const isAdmin = role === "admin";
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const firstFocusable = mobileMenuRef.current?.querySelector<HTMLElement>("a, button");
+    firstFocusable?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isMobileMenuOpen]);
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/" });
@@ -58,12 +78,44 @@ export default function Navbar() {
               Contact us
             </Link>
             {isAuthenticated && (
-              <Link
-                href="/dashboard"
-                className="text-sm font-bold text-slate-700 hover:text-forest transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 rounded"
-              >
-                Dashboard
-              </Link>
+              <>
+                <Link
+                  href="/dashboard"
+                  className="text-sm font-bold text-slate-700 hover:text-forest transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 rounded"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/notifications"
+                  className="text-sm font-bold text-slate-700 hover:text-forest transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 rounded"
+                >
+                  Notifications
+                </Link>
+                {canManageContent && (
+                  <>
+                    <Link
+                      href="/instructor/content"
+                      className="text-sm font-bold text-slate-700 hover:text-forest transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 rounded"
+                    >
+                      Instructor
+                    </Link>
+                    <Link
+                      href="/instructor/analytics"
+                      className="text-sm font-bold text-slate-700 hover:text-forest transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 rounded"
+                    >
+                      Analytics
+                    </Link>
+                  </>
+                )}
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="text-sm font-bold text-slate-700 hover:text-forest transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 rounded"
+                  >
+                    Admin
+                  </Link>
+                )}
+              </>
             )}
           </nav>
 
@@ -110,6 +162,8 @@ export default function Navbar() {
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               type="button"
               aria-label="Toggle menu"
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-navigation"
               className="inline-flex items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-forest"
             >
               {isMobileMenuOpen ? (
@@ -129,7 +183,13 @@ export default function Navbar() {
 
       {/* Mobile Slide-down Panel */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white shadow-lg animate-in slide-in-from-top duration-200">
+        <div
+          id="mobile-navigation"
+          ref={mobileMenuRef}
+          role="navigation"
+          aria-label="Mobile menu"
+          className="md:hidden border-t border-slate-200 bg-white shadow-lg animate-in slide-in-from-top duration-200"
+        >
           <div className="space-y-1 px-4 py-4 pb-6">
             <Link
               href="/courses"
@@ -153,13 +213,49 @@ export default function Navbar() {
               Contact us
             </Link>
             {isAuthenticated && (
-              <Link
-                href="/dashboard"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
-              >
-                Dashboard
-              </Link>
+              <>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/notifications"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                >
+                  Notifications
+                </Link>
+                {canManageContent && (
+                  <>
+                    <Link
+                      href="/instructor/content"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                    >
+                      Instructor
+                    </Link>
+                    <Link
+                      href="/instructor/analytics"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                    >
+                      Analytics
+                    </Link>
+                  </>
+                )}
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                  >
+                    Admin
+                  </Link>
+                )}
+              </>
             )}
 
             <div className="border-t border-slate-100 my-4 pt-4">

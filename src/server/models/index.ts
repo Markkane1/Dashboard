@@ -4,6 +4,8 @@ const Progress = require('./Progress');
 const QuizSubmission = require('./QuizSubmission');
 const User = require('./User');
 const Enrollment = require('./Enrollment');
+const CertificateIssuance = require('./CertificateIssuance');
+const Notification = require('./Notification');
 
 module.exports = {
   Course,
@@ -11,7 +13,9 @@ module.exports = {
   Progress,
   QuizSubmission,
   User,
-  Enrollment
+  Enrollment,
+  CertificateIssuance,
+  Notification
 };
 
 export {};

@@ -84,6 +84,8 @@ app.use('/api/progress', require('./routes/progress'));
 app.use('/api/quiz', require('./routes/quiz'));
 app.use('/api/docs', require('./routes/docs'));
 app.use('/api/certificates', require('./routes/docs'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 // 3. Default error handling middleware
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

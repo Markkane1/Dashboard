@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const auth = require('../middleware/auth');
-const { Course, User } = require('../models');
+const { CertificateIssuance, Course, User } = require('../models');
 const { getCompletedEnrollments, getEnrollment } = require('../services/enrollments');
 const { formatIssuedOn, getOrCreateDocumentPdf } = require('../services/documentPdf');
 import type { Request, Response } from 'express';
@@ -36,6 +37,41 @@ function getRequiredCourseIds(diploma: any, courses: any[]): string[] {
     .map((course) => course._id.toString());
 }
 
+function getAppUrl(req: Request): string {
+  return process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+}
+
+function buildVerificationUrl(req: Request, certificateId: string): string {
+  return `${getAppUrl(req).replace(/\/$/, '')}/api/certificates/verify/${certificateId}`;
+}
+
+async function getOrCreateCertificateIssuance(input: {
+  userId: string;
+  courseId: string;
+  recipientName: string;
+  courseTitle: string;
+  issuedAt: Date;
+}) {
+  return CertificateIssuance.findOneAndUpdate(
+    { userId: input.userId, courseId: input.courseId },
+    {
+      $setOnInsert: {
+        certificateId: crypto.randomUUID(),
+        userId: input.userId,
+        courseId: input.courseId,
+        recipientName: input.recipientName,
+        courseTitle: input.courseTitle,
+        issuedAt: input.issuedAt
+      }
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true
+    }
+  );
+}
+
 async function generateCertificate(req: AuthenticatedRequest, res: Response) {
   try {
     const user = await User.findById(req.user.id);
@@ -51,7 +87,15 @@ async function generateCertificate(req: AuthenticatedRequest, res: Response) {
 
     const recipientName = req.user.name || user.name;
     const issuedAt = enrollment.completedAt || enrollment.updatedAt || enrollment.createdAt;
+    const issuance = await getOrCreateCertificateIssuance({
+      userId: req.user.id,
+      courseId: course._id.toString(),
+      recipientName,
+      courseTitle: course.title,
+      issuedAt
+    });
     const issuedOn = formatIssuedOn(issuedAt);
+    const verificationUrl = buildVerificationUrl(req, issuance.certificateId);
     const pdfBytes = await getOrCreateDocumentPdf(
       {
         type: 'certificate',
@@ -59,13 +103,17 @@ async function generateCertificate(req: AuthenticatedRequest, res: Response) {
         courseId: course._id.toString(),
         courseUpdatedAt: course.updatedAt,
         enrollmentCompletedAt: enrollment.completedAt,
-        recipientName
+        recipientName,
+        certificateId: issuance.certificateId,
+        verificationUrl
       },
       {
         type: 'certificate',
         recipientName,
         courseTitle: course.title,
-        issuedOn
+        issuedOn,
+        certificateId: issuance.certificateId,
+        verificationUrl
       }
     );
     sendPdf(res, pdfBytes, `certificate-${safeFilename(course.title)}.pdf`);
@@ -74,6 +122,32 @@ async function generateCertificate(req: AuthenticatedRequest, res: Response) {
     res.status(500).json({ error: 'Failed to generate certificate.' });
   }
 }
+
+router.get('/verify/:certificateId', async (req: Request, res: Response) => {
+  try {
+    const issuance = await CertificateIssuance.findOne({
+      certificateId: String(req.params.certificateId)
+    }).select('certificateId recipientName courseTitle issuedAt revokedAt courseId userId');
+
+    if (!issuance) {
+      return res.status(404).json({ valid: false, error: 'Certificate not found.' });
+    }
+
+    res.json({
+      valid: !issuance.revokedAt,
+      certificateId: issuance.certificateId,
+      recipientName: issuance.recipientName,
+      courseTitle: issuance.courseTitle,
+      issuedAt: issuance.issuedAt,
+      revokedAt: issuance.revokedAt || null,
+      courseId: issuance.courseId.toString(),
+      userId: issuance.userId.toString()
+    });
+  } catch (error) {
+    console.error('Error verifying certificate:', error);
+    res.status(500).json({ valid: false, error: 'Failed to verify certificate.' });
+  }
+});
 
 router.get('/certificates/:courseId/download', auth, generateCertificate);
 router.get('/:courseId/download', auth, generateCertificate);

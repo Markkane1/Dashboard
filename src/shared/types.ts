@@ -29,6 +29,7 @@ export type Course = {
   rating?: number;
   enrolledCount?: number;
   quizPassingScore?: number;
+  quizQuestions?: AuthoredQuizQuestion[];
   diplomaRequiredCourseIds?: string[];
 };
 
@@ -36,8 +37,12 @@ export type User = {
   id: string;
   name: string;
   email: string;
+  role?: "student" | "instructor" | "admin" | "service";
+  avatar?: string;
   enrolledCourses: string[];
   completedCourses: string[];
+  emailVerified?: boolean;
+  createdAt?: string;
 };
 
 export type LessonResource = {
@@ -68,6 +73,11 @@ export type QuizQuestion = {
   id: string;
   prompt: string;
   options: string[];
+};
+
+export type AuthoredQuizQuestion = QuizQuestion & {
+  correctAnswerIndex: number;
+  explanation?: string;
 };
 
 export type CourseQuiz = {

@@ -19,6 +19,7 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: string;
     enrolledCourses?: string[];
+    completedCourses?: string[];
     apiAccessToken?: string;
   }
 }

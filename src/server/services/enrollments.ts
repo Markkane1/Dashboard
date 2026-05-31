@@ -1,4 +1,5 @@
 const { Enrollment } = require('../models');
+import type { Request } from 'express';
 
 async function getEnrollment(userId: unknown, courseId: unknown) {
   return Enrollment.findOne({ userId, courseId });
@@ -6,6 +7,20 @@ async function getEnrollment(userId: unknown, courseId: unknown) {
 
 async function isEnrolled(userId: unknown, courseId: unknown): Promise<boolean> {
   return Boolean(await getEnrollment(userId, courseId));
+}
+
+async function hasCourseAccess(user: NonNullable<Request['user']>, courseId: unknown): Promise<boolean> {
+  const normalizedCourseId = String(courseId);
+  const claimedCourseIds = [
+    ...(user.enrolledCourses || []),
+    ...(user.completedCourses || [])
+  ];
+
+  if (claimedCourseIds.includes(normalizedCourseId)) {
+    return true;
+  }
+
+  return isEnrolled(user.id, normalizedCourseId);
 }
 
 async function hasCompletedCourse(userId: unknown, courseId: unknown): Promise<boolean> {
@@ -24,6 +39,7 @@ async function getCompletedEnrollments(userId: unknown) {
 module.exports = {
   getEnrollment,
   isEnrolled,
+  hasCourseAccess,
   hasCompletedCourse,
   getCompletedCourseIds,
   getCompletedEnrollments

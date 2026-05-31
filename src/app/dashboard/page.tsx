@@ -2,7 +2,8 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
 import { findUserByEmail } from "@/features/users/data/userDb";
-import { fetchCourses } from "@/infrastructure/api/courses";
+import { fetchCoursesByIds } from "@/infrastructure/api/courses";
+import { fetchCourseProgressSummary } from "@/infrastructure/api/progress";
 import CourseCard from "@/features/courses/components/CourseCard";
 import { Link } from "@/shared/navigation";
 import {
@@ -17,6 +18,7 @@ export default async function DashboardPage() {
   if (!session || !session.user || !session.user.email) {
     redirect("/auth/login");
   }
+  const token = session.apiAccessToken;
 
   // Look up user from the shared MongoDB user repository
   const user = await findUserByEmail(session.user.email);
@@ -26,11 +28,25 @@ export default async function DashboardPage() {
   // Filter in-progress courses (enrolled but not completed)
   const inProgressIds = enrolledIds.filter((id) => !completedIds.includes(id));
 
-  // Map IDs to original course records
-  const courses = await fetchCourses();
+  const dashboardCourseIds = [...new Set([...inProgressIds, ...completedIds])];
+  const courses = await fetchCoursesByIds(dashboardCourseIds);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
   const inProgressCourses = courses.filter((c) => inProgressIds.includes(c.id));
   const completedCourses = courses.filter((c) => completedIds.includes(c.id));
+  const progressSummaries = token
+    ? await Promise.all(
+        inProgressIds.map(async (courseId) => {
+          try {
+            const summary = await fetchCourseProgressSummary(courseId, token);
+            return [courseId, summary.percentComplete] as const;
+          } catch (error) {
+            console.error(`Failed to fetch dashboard progress for course ${courseId}:`, error);
+            return [courseId, 0] as const;
+          }
+        })
+      )
+    : [];
+  const progressByCourseId = new Map(progressSummaries);
 
   const stats = [
     { name: "Courses enrolled", value: enrolledIds.length, icon: "📚" },
@@ -93,36 +109,39 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {inProgressCourses.map((course) => (
-              <CourseCard key={course.id} course={course}>
-                {!course.isExternal && (
-                  <Link
-                    href={`/courses/${course.id}/learn`}
-                    className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-ocean px-4 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#0b5366] focus:outline-none focus:ring-2 focus:ring-ocean focus:ring-offset-2"
-                  >
-                    Continue learning &rarr;
-                  </Link>
-                )}
-                
-                {/* Fake progress bar under the card */}
-                <div className="mt-5 border-t border-slate-100 pt-4 space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-slate-500">
-                    <span>Course Progress</span>
-                    <span className="text-forest">30% Complete</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-forest rounded-full" style={{ width: "30%" }} />
-                  </div>
-                </div>
+            {inProgressCourses.map((course) => {
+              const percentComplete = progressByCourseId.get(course.id) ?? 0;
 
-                {/* Dashboard Action buttons */}
-                <div className="mt-4 flex gap-2 w-full pt-1">
-                  <MarkCompleteButton courseId={course.id} />
-                  <UnenrollButton courseId={course.id} />
-                </div>
+              return (
+                <CourseCard key={course.id} course={course}>
+                  {!course.isExternal && (
+                    <Link
+                      href={`/courses/${course.id}/learn`}
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-ocean px-4 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#0b5366] focus:outline-none focus:ring-2 focus:ring-ocean focus:ring-offset-2"
+                    >
+                      Continue learning &rarr;
+                    </Link>
+                  )}
+                  
+                  <div className="mt-5 border-t border-slate-100 pt-4 space-y-2">
+                    <div className="flex justify-between text-xs font-bold text-slate-500">
+                      <span>Course Progress</span>
+                      <span className="text-forest">{percentComplete}% Complete</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-forest rounded-full" style={{ width: `${percentComplete}%` }} />
+                    </div>
+                  </div>
 
-              </CourseCard>
-            ))}
+                  {/* Dashboard Action buttons */}
+                  <div className="mt-4 flex gap-2 w-full pt-1">
+                    <MarkCompleteButton courseId={course.id} />
+                    <UnenrollButton courseId={course.id} />
+                  </div>
+
+                </CourseCard>
+              );
+            })}
           </div>
         )}
       </div>

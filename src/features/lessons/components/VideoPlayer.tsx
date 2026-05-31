@@ -14,6 +14,7 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
   const { data: session } = useSession();
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentTimeRef = useRef(0);
+  const transcriptRef = useRef<HTMLDivElement>(null);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
   const [videoSource, setVideoSource] = useState("");
   const apiToken = session?.apiAccessToken;
@@ -126,6 +127,12 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
     };
   }, [lesson._id]);
 
+  useEffect(() => {
+    if (isTranscriptOpen) {
+      transcriptRef.current?.focus();
+    }
+  }, [isTranscriptOpen]);
+
   // 4. Update play coordinates in refs on tick updates (no re-renders)
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -214,6 +221,9 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
           <div className="pt-4 border-t border-slate-100">
             <button
               onClick={() => setIsTranscriptOpen(!isTranscriptOpen)}
+              aria-expanded={isTranscriptOpen}
+              aria-controls="lesson-transcript"
+              aria-label={`${isTranscriptOpen ? "Collapse" : "Expand"} lesson transcript`}
               className="flex items-center justify-between w-full text-left text-sm font-black uppercase tracking-wider text-slate-800 hover:text-forest transition-colors focus:outline-none focus:ring-2 focus:ring-forest rounded p-1"
             >
               <span className="flex items-center gap-1.5">
@@ -225,7 +235,14 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
             </button>
             
             {isTranscriptOpen && (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-inner">
+              <div
+                id="lesson-transcript"
+                ref={transcriptRef}
+                tabIndex={-1}
+                role="region"
+                aria-label="Lesson transcript"
+                className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-inner"
+              >
                 <div className="overflow-y-auto max-h-[200px] scrollbar-thin text-sm font-medium leading-relaxed text-slate-600 space-y-3 whitespace-pre-line">
                   {lesson.transcript}
                 </div>

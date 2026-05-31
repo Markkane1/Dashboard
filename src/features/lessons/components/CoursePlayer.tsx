@@ -61,6 +61,9 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
           <span className="text-sm font-black text-slate-800">Course Index</span>
           <button
             onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            aria-expanded={isMobileSidebarOpen}
+            aria-controls="lesson-sidebar"
+            aria-label={isMobileSidebarOpen ? "Hide course sidebar" : "Show course sidebar"}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 bg-white text-xs font-black text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-forest"
           >
             <span>{isMobileSidebarOpen ? "Hide syllabus" : "Show syllabus"}</span>
@@ -69,7 +72,7 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
         </div>
 
         {/* Desktop View Sidebar or Expanded Mobile Accordion List */}
-        <div className={`${isMobileSidebarOpen ? "block" : "hidden"} md:block`}>
+        <div id="lesson-sidebar" className={`${isMobileSidebarOpen ? "block" : "hidden"} md:block`}>
           <LessonSidebar
             lessons={lessonList}
             activeLesson={activeLesson}

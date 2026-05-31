@@ -6,6 +6,8 @@ type CertificateInput = {
   recipientName: string;
   courseTitle: string;
   issuedOn: string;
+  certificateId: string;
+  verificationUrl: string;
 };
 
 type DiplomaInput = {
@@ -76,6 +78,21 @@ async function buildCertificate(input: CertificateInput): Promise<Uint8Array> {
     size: 18,
     font: titleFont,
     color: rgb(0.05, 0.32, 0.23)
+  });
+  page.drawText(`Certificate ID: ${input.certificateId}`, {
+    x: 60,
+    y: 75,
+    size: 10,
+    font: bodyFont,
+    color: rgb(0.35, 0.39, 0.45)
+  });
+  page.drawText(`Verify: ${input.verificationUrl}`, {
+    x: 60,
+    y: 58,
+    size: 10,
+    font: bodyFont,
+    color: rgb(0.35, 0.39, 0.45),
+    maxWidth: width - 120
   });
 
   return pdfDoc.save();

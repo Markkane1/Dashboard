@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/roles');
+const { requirePermission } = require('../middleware/roles');
 const { Notification, User } = require('../models');
 const { logger } = require('../logger');
+const { PERMISSIONS } = require('../../shared/permissions');
 import type { Request, Response } from 'express';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
@@ -55,7 +56,7 @@ router.get('/', auth, async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-router.post('/announce', auth, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/announce', auth, requirePermission(PERMISSIONS.ANNOUNCE_NOTIFICATIONS), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const title = String(req.body.title || '').trim();
     const message = String(req.body.message || '').trim();

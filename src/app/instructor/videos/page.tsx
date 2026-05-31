@@ -4,6 +4,7 @@ import { auth } from "@/../auth";
 import { fetchCourses } from "@/infrastructure/api/courses";
 import { fetchManageableLessons } from "@/infrastructure/api/instructorLessons";
 import VideoUploadForm from "@/features/lessons/components/VideoUploadForm";
+import { hasPermission, PERMISSIONS } from "@/shared/permissions";
 
 export default async function InstructorVideosPage() {
   const session = await auth();
@@ -11,8 +12,7 @@ export default async function InstructorVideosPage() {
     redirect("/auth/login");
   }
 
-  const role = (session.user as any).role || "student";
-  if (!["admin", "instructor"].includes(role)) {
+  if (!hasPermission(session.user, PERMISSIONS.MANAGE_CONTENT)) {
     redirect("/dashboard");
   }
 

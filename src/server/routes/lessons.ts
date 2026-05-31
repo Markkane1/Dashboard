@@ -11,6 +11,7 @@ const {
   getPublicVideoUrl
 } = require('../services/videoStorage');
 const { logger } = require('../logger');
+const { roleHasPermission, PERMISSIONS } = require('../../shared/permissions');
 import type { NextFunction, Request, Response } from 'express';
 import type { FileFilterCallback } from 'multer';
 
@@ -63,7 +64,7 @@ function removeUploadedFile(file?: Express.Multer.File) {
 async function requireContentManager(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const user = await User.findById(req.user.id);
-    if (!user || !['admin', 'instructor'].includes(user.role)) {
+    if (!user || !roleHasPermission(user.role, PERMISSIONS.MANAGE_CONTENT)) {
       return res.status(403).json({ error: "Instructor access is required." });
     }
 

@@ -114,13 +114,13 @@ export default function HomeClient({
   return (
     <div>
       {/* Premium Hero section */}
-      <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-br from-white via-emerald-50/40 to-slate-50 py-12 sm:py-16 lg:py-20">
+      <section className="relative overflow-hidden py-12 sm:py-16 lg:py-20">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:px-8">
           <div className="flex flex-col justify-center">
             <p className="max-w-3xl text-xs font-black uppercase tracking-[0.18em] text-forest sm:text-sm">
               United Nations Information Portal on Multilateral Environmental Agreements
             </p>
-            <h1 className="mt-4 max-w-4xl text-4xl font-black leading-[1.06] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+            <h1 className="mt-4 max-w-4xl text-4xl font-black leading-[1.06] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl font-sora">
               Free, self-paced environmental law courses
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
@@ -129,19 +129,19 @@ export default function HomeClient({
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <a
                 href="#catalog"
-                className="inline-flex justify-center rounded-lg bg-forest px-5 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-emerald-800"
+                className="inline-flex justify-center items-center rounded-full bg-forest px-6 py-3 text-sm font-black text-white shadow-lg shadow-forest/10 transition-all duration-300 hover:bg-[#b0f0d6] hover:text-[#003527] hover:scale-[1.02]"
               >
                 Browse catalog
               </a>
               <Link
                 href="/auth/signup"
-                className="inline-flex justify-center rounded-lg bg-white px-5 py-3 text-sm font-black text-forest shadow-sm ring-1 ring-emerald-200 transition-colors hover:bg-emerald-50"
+                className="inline-flex justify-center items-center rounded-full bg-white/70 backdrop-blur-sm px-6 py-3 text-sm font-black text-forest shadow-sm ring-1 ring-emerald-250/30 transition-all duration-300 hover:bg-[#b0f0d6] hover:text-[#003527] hover:scale-[1.02]"
               >
                 Create free account
               </Link>
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm sm:p-5 lg:p-6">
+          <div className="glass-card p-5 sm:p-6 lg:p-8">
             <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4">
               {[
                 ["30+", "catalog entries"],
@@ -149,8 +149,8 @@ export default function HomeClient({
                 ["17", "SDG goal filters"],
                 ["100%", "self-paced"],
               ].map(([value, label]) => (
-                <div key={label} className="min-h-28 rounded-xl bg-slate-50 p-4 sm:p-5">
-                  <p className="text-3xl font-black tracking-tight text-ocean">{value}</p>
+                <div key={label} className="min-h-28 rounded-2xl bg-white/40 border border-white/20 p-4 sm:p-5 hover:scale-[1.02] transition-transform duration-200">
+                  <p className="text-3xl font-black tracking-tight text-forest">{value}</p>
                   <p className="mt-2 text-xs font-black uppercase tracking-wider text-slate-500">{label}</p>
                 </div>
               ))}
@@ -161,7 +161,7 @@ export default function HomeClient({
 
       {/* Main Course Catalog Section */}
       <section id="catalog" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <h2 className="text-3xl font-black tracking-tight text-slate-950">Explore courses</h2>
+        <h2 className="text-3xl font-black tracking-tight text-slate-950 font-sora">Explore courses</h2>
         <p className="mt-2 max-w-2xl text-slate-600">Filter by theme, SDG target, topic, or treaty section.</p>
 
         <form className="mt-6 flex max-w-xl flex-col gap-2 sm:flex-row">
@@ -175,27 +175,27 @@ export default function HomeClient({
             placeholder="Search courses, treaties, topics"
             className="control min-w-0 flex-1"
           />
-          <button className="rounded-lg bg-forest px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-800">
+          <button className="rounded-full bg-forest px-6 py-2.5 text-sm font-black text-white hover:bg-[#b0f0d6] hover:text-[#003527] transition-all">
             Search
           </button>
         </form>
 
         {/* Unified Filter Controls Panel */}
-        <div className="mt-8 space-y-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <div className="mt-8 space-y-6 glass-card p-5 sm:p-8">
           
           {/* 1. Category Tabs */}
           <div>
             <span className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-3">
               Filter by Thematic Area
             </span>
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
               <button
                 type="button"
                 onClick={() => updateParams({ category: "" })}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-black transition-all duration-200 ${
+                className={`whitespace-nowrap rounded-full px-5 py-2.5 text-xs font-black transition-all duration-200 ${
                   !activeCategory
-                    ? "bg-forest text-white shadow-sm"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    ? "bg-forest text-white shadow-md shadow-forest/10"
+                    : "bg-white/40 text-slate-700 hover:bg-white/70 border border-white/20"
                 }`}
               >
                 All Categories
@@ -205,10 +205,10 @@ export default function HomeClient({
                   key={category.id}
                   type="button"
                   onClick={() => updateParams({ category: category.id })}
-                  className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-black transition-all duration-200 ${
+                  className={`whitespace-nowrap rounded-full px-5 py-2.5 text-xs font-black transition-all duration-200 ${
                     activeCategory === category.id
-                      ? "bg-forest text-white shadow-sm"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      ? "bg-forest text-white shadow-md shadow-forest/10"
+                      : "bg-white/40 text-slate-700 hover:bg-white/70 border border-white/20"
                   }`}
                 >
                   {category.label}
@@ -222,15 +222,15 @@ export default function HomeClient({
             <span className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-3">
               Filter by Sustainable Development Goal (SDG)
             </span>
-            <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-thin">
+            <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-none">
               <button
                 type="button"
                 onClick={() => updateParams({ sdg: "" })}
                 aria-label="All SDG Goals"
-                className={`flex-shrink-0 flex flex-col items-center justify-center h-12 w-12 rounded-lg border transition-all duration-200 ${
+                className={`flex-shrink-0 flex flex-col items-center justify-center h-12 w-12 rounded-xl border transition-all duration-200 ${
                   !activeSdg
-                    ? "border-forest bg-emerald-50 text-forest ring-1 ring-forest"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    ? "border-forest bg-forest text-white shadow-md shadow-forest/10"
+                    : "border-white/20 bg-white/40 text-slate-600 hover:bg-white/75"
                 }`}
               >
                 <span className="text-xs font-black leading-tight text-center">ALL</span>
@@ -251,9 +251,9 @@ export default function HomeClient({
                     title={`Goal ${goal.number}: ${goal.name}`}
                     aria-label={`Goal ${goal.number}: ${goal.name}`}
                     style={{ backgroundColor: goal.color }}
-                    className={`flex-shrink-0 relative flex items-center justify-center h-12 w-12 rounded-lg font-black text-white text-base shadow-sm hover:scale-105 transition-all duration-150 ${
+                    className={`flex-shrink-0 relative flex items-center justify-center h-12 w-12 rounded-xl font-black text-white text-base shadow-sm hover:scale-110 transition-all duration-150 ${
                       isSelected
-                        ? "ring-4 ring-forest ring-offset-2 scale-105 z-10"
+                        ? "ring-4 ring-[#b0f0d6] ring-offset-2 scale-110 z-10"
                         : "opacity-85 hover:opacity-100"
                     }`}
                   >
@@ -270,14 +270,14 @@ export default function HomeClient({
           </div>
 
           {/* 3 & 4. Dropdowns Section */}
-          <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t border-slate-100">
+          <div className="grid gap-4 sm:grid-cols-2 pt-4 border-t border-white/20">
             {/* Topic Filter */}
             <label className="block text-sm font-bold text-slate-700">
               Filter by Topic
               <select
                 value={activeTopic}
                 onChange={(e) => updateParams({ topic: e.target.value })}
-                className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest cursor-pointer"
+                className="mt-2 block w-full rounded-full border border-white/20 bg-white/40 backdrop-blur-sm px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest cursor-pointer transition-all"
               >
                 <option value="">All Topics</option>
                 {topicOptions.map((topic) => (
@@ -292,7 +292,7 @@ export default function HomeClient({
               <select
                 value={activeSection}
                 onChange={(e) => updateParams({ section: e.target.value, mea: "" })}
-                className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest cursor-pointer"
+                className="mt-2 block w-full rounded-full border border-white/20 bg-white/40 backdrop-blur-sm px-4 py-2.5 text-sm font-semibold text-slate-800 focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest cursor-pointer transition-all"
               >
                 <option value="">All sections</option>
                 {sectionOptions.map((section) => (
@@ -312,7 +312,7 @@ export default function HomeClient({
           {(activeCategory || activeSdg || activeTopic || activeSection || activeSearch) && (
             <button
               onClick={clearAllFilters}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              className="rounded-full border border-slate-350 bg-white/50 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-white/80 transition-colors"
             >
               Clear all filters
             </button>
@@ -321,15 +321,15 @@ export default function HomeClient({
 
         {/* Grouped Course List */}
         {filteredCourses.length === 0 ? (
-          <div className="mt-16 text-center py-12 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-4xl" aria-hidden="true">No results</span>
-            <h3 className="mt-3 text-lg font-bold text-slate-800">No courses match your filters</h3>
+          <div className="mt-16 text-center py-12 rounded-3xl bg-white/40 border border-white/20 backdrop-blur-sm">
+            <span className="text-4xl" aria-hidden="true">No results</span>
+            <h3 className="mt-3 text-lg font-bold text-slate-800 font-sora">No courses match your filters</h3>
             <p className="mt-1 text-sm text-slate-500">
               Try adjusting your thematic, SDG, topic, or MEA controls.
             </p>
             <button
               onClick={clearAllFilters}
-              className="mt-4 rounded-md bg-forest px-4 py-2 text-sm font-black text-white hover:bg-emerald-800 transition-colors"
+              className="mt-4 rounded-full bg-forest px-5 py-2.5 text-sm font-black text-white hover:bg-[#b0f0d6] hover:text-[#003527] transition-all"
             >
               Reset filters
             </button>
@@ -350,7 +350,7 @@ export default function HomeClient({
               return (
                 <div key={category.id} className="pt-6">
                   {/* Category Header */}
-                  <h3 className="text-2xl font-black text-slate-900 border-b border-slate-200 pb-2 mb-6 tracking-tight">
+                  <h3 className="text-2xl font-black text-slate-900 border-b border-white/25 pb-2 mb-6 tracking-tight font-sora">
                     {category.label}
                   </h3>
 
@@ -369,16 +369,16 @@ export default function HomeClient({
                       {diplomaCourses.map((course) => (
                         <article
                           key={course.id}
-                          className="flex h-full flex-col rounded-xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ring-1 ring-amber-100"
+                          className="flex h-full flex-col glass-card p-6 border-amber-250/30 bg-amber-50/10 shadow-lg shadow-amber-500/5 hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-800 border border-amber-200 shadow-sm animate-pulse">
+                            <span className="rounded-full bg-amber-500 px-3.5 py-1 text-[10px] font-black uppercase tracking-wider text-white border border-amber-400 shadow-sm animate-pulse">
                               Specialist Diploma
                             </span>
                             <span className="text-base">🎓</span>
                           </div>
 
-                          <h4 className="mt-4 text-lg font-black leading-snug text-slate-950">
+                          <h4 className="mt-4 text-lg font-black leading-snug text-slate-950 font-sora">
                             {course.title}
                           </h4>
                           <p className="mt-3 flex-grow text-sm leading-relaxed text-slate-700">
@@ -390,7 +390,7 @@ export default function HomeClient({
                             {course.sdgGoals.map((goal) => (
                               <span
                                 key={goal}
-                                className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800"
+                                className="rounded bg-amber-100/50 backdrop-blur-sm px-2.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200/30"
                               >
                                 SDG {goal}
                               </span>
@@ -399,8 +399,8 @@ export default function HomeClient({
 
                           <div className="mt-6 flex w-full flex-col gap-2 text-sm font-bold min-[420px]:flex-row min-[420px]:items-center">
                             <Link
-                               href={`/courses/${course.id}`}
-                              className="flex-1 text-center rounded-md bg-amber-600 px-3 py-2 text-white hover:bg-amber-700 transition-colors shadow-sm"
+                              href={`/courses/${course.id}`}
+                              className="flex-1 text-center rounded-full bg-amber-600 px-4 py-2 text-white hover:bg-amber-700 transition-colors shadow-sm"
                             >
                               Get Diploma
                             </Link>
@@ -409,7 +409,7 @@ export default function HomeClient({
                                 href={course.syllabusUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex-1 text-center rounded-md border border-amber-300 bg-white px-3 py-2 text-amber-700 hover:border-amber-600 hover:text-amber-600 transition-colors shadow-sm"
+                                className="flex-1 text-center rounded-full border border-amber-300 bg-white/60 px-4 py-2 text-amber-700 hover:border-amber-600 hover:text-amber-600 transition-colors shadow-sm"
                               >
                                 Syllabus
                               </a>
@@ -422,8 +422,8 @@ export default function HomeClient({
 
                   {/* External Related Courses subsection */}
                   {externalCourses.length > 0 && (
-                    <div className="mt-6 rounded-xl bg-slate-50 p-6 border border-slate-200">
-                      <h4 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+                    <div className="mt-6 glass-card p-6 border-white/20 bg-white/40">
+                      <h4 className="text-sm font-black uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2 font-sora">
                         <span>🌐</span> External related courses
                       </h4>
                       <div className="grid gap-3">
@@ -433,7 +433,7 @@ export default function HomeClient({
                             href={course.externalUrl || course.courseUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-sm font-bold text-forest hover:text-emerald-800 hover:underline"
+                            className="inline-flex items-center gap-2 text-sm font-bold text-forest hover:text-brand-secondary hover:underline transition-colors"
                           >
                             <span>→</span> {course.title}
                           </a>

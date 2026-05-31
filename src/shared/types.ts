@@ -1,3 +1,5 @@
+import type { UserRole } from "./permissions";
+
 export type Category = string;
 
 export type Course = {
@@ -32,7 +34,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  role?: "student" | "instructor" | "admin" | "service";
+  role?: UserRole;
   avatar?: string;
   enrolledCourses: string[];
   completedCourses: string[];

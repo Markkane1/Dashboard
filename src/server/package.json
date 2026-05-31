@@ -15,7 +15,6 @@
     "pino": "^8.18.0",
     "pino-http": "^8.0.0"
     ,
-    "rotating-file-stream": "^3.0.5",
-    "pino-multi-stream": "^7.8.0"
+    "rotating-file-stream": "^3.0.5"
   }
 }

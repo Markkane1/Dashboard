@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const { requireContentManager } = require('../middleware/roles');
+const { requirePermission } = require('../middleware/roles');
 const { Course, Enrollment, Progress, QuizSubmission, User } = require('../models');
 const { logger } = require('../logger');
+const { PERMISSIONS } = require('../../shared/permissions');
 import type { Request, Response } from 'express';
 
 function percent(numerator: number, denominator: number) {
@@ -11,7 +12,7 @@ function percent(numerator: number, denominator: number) {
   return Math.round((numerator / denominator) * 100);
 }
 
-router.get('/overview', auth, requireContentManager, async (_req: Request, res: Response) => {
+router.get('/overview', auth, requirePermission(PERMISSIONS.VIEW_ANALYTICS), async (_req: Request, res: Response) => {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -124,7 +125,7 @@ router.get('/overview', auth, requireContentManager, async (_req: Request, res: 
   }
 });
 
-router.get('/courses/:courseId', auth, requireContentManager, async (req: Request, res: Response) => {
+router.get('/courses/:courseId', auth, requirePermission(PERMISSIONS.VIEW_ANALYTICS), async (req: Request, res: Response) => {
   try {
     const { courseId } = req.params;
     const courseObjectId = require('mongoose').Types.ObjectId.isValid(courseId)

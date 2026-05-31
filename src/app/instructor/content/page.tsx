@@ -4,11 +4,11 @@ import { auth } from "@/../auth";
 import ContentManagerPanel from "@/features/admin/components/ContentManagerPanel";
 import { fetchManageableCourses } from "@/infrastructure/api/admin";
 import { Link } from "@/shared/navigation";
+import { hasPermission, PERMISSIONS } from "@/shared/permissions";
 
 export default async function InstructorContentPage() {
   const session = await auth();
-  const role = session?.user?.role || "student";
-  if (!session?.apiAccessToken || !["admin", "instructor"].includes(role)) {
+  if (!session?.user || !session.apiAccessToken || !hasPermission(session.user, PERMISSIONS.MANAGE_CONTENT)) {
     redirect("/dashboard");
   }
 

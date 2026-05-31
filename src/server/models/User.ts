@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { ALL_USER_ROLES, USER_ROLES } = require('../../shared/permissions');
 
 const userSchema = new mongoose.Schema(
   {
@@ -20,7 +21,8 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      default: 'student'
+      enum: ALL_USER_ROLES,
+      default: USER_ROLES.STUDENT
     },
     avatar: {
       type: String,

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { env } = require('../config/env');
 const { logger } = require('../logger');
+const { getPermissionsForRole, normalizePermissions, normalizeUserRole } = require('../../shared/permissions');
 import type { NextFunction, Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 
@@ -35,6 +36,7 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
       id?: string;
       email?: string;
       role?: string;
+      permissions?: unknown;
       name?: string;
       enrolledCourses?: unknown;
       completedCourses?: unknown;
@@ -48,7 +50,10 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
       ...payload,
       id: String(payload.id || payload.sub || ''),
       email: payload.email,
-      role: payload.role || 'student',
+      role: normalizeUserRole(payload.role),
+      permissions: normalizePermissions(payload.permissions).length > 0
+        ? normalizePermissions(payload.permissions)
+        : getPermissionsForRole(payload.role),
       enrolledCourses: Array.isArray(payload.enrolledCourses)
         ? payload.enrolledCourses.map((courseId) => String(courseId))
         : [],

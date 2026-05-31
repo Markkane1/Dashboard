@@ -13,6 +13,7 @@ import { logger } from '@/shared/logger';
 import { signupSchema, SignupInput } from "./validations";
 import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
 import { sendEmail } from "@/shared/email/sendEmail";
+import { USER_ROLES } from "@/shared/permissions";
 
 function createToken() {
   const token = crypto.randomBytes(32).toString("hex");
@@ -114,7 +115,7 @@ export async function registerUser(input: SignupInput) {
       name,
       email: email.toLowerCase().trim(),
       password: hashedPassword,
-      role: "student",
+      role: USER_ROLES.STUDENT,
       avatar: "",
       enrolledCourses: [],
       emailVerified: false,

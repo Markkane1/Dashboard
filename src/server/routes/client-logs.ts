@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { logger } = require('../logger');
+import type { Request, Response } from 'express';
 
-router.post('/', express.json(), (req, res) => {
+router.post('/', express.json(), (req: Request, res: Response) => {
   try {
     const { level, message, meta, url, ts } = req.body || {};
     if (level === 'error') {

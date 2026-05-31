@@ -10,7 +10,6 @@ let logger;
 if (process.env.NODE_ENV === 'production') {
   try {
     const rfs = require('rotating-file-stream');
-    const { multistream } = require('pino-multi-stream');
 
     const logsDir = path.resolve(__dirname, '../../logs');
     if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
@@ -28,7 +27,7 @@ if (process.env.NODE_ENV === 'production') {
       { stream: fileStream }
     ];
 
-    logger = pino({ level }, multistream(streams));
+    logger = pino({ level }, pino.multistream(streams));
   } catch (err) {
     // Fallback to stdout logger if rotation setup fails
     logger = pino({ level });

@@ -4,6 +4,7 @@ declare namespace Express {
       id: string;
       email?: string;
       role?: string;
+      permissions?: string[];
       name?: string;
       enrolledCourses?: string[];
       completedCourses?: string[];

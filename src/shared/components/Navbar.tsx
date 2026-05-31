@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@/shared/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { hasPermission, PERMISSIONS } from '@/shared/permissions';
 import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function Navbar() {
@@ -11,9 +12,8 @@ export default function Navbar() {
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const isAuthenticated = status === "authenticated";
-  const role = session?.user?.role || "student";
-  const canManageContent = role === "admin" || role === "instructor";
-  const isAdmin = role === "admin";
+  const canManageContent = hasPermission(session?.user, PERMISSIONS.MANAGE_CONTENT);
+  const isAdmin = hasPermission(session?.user, PERMISSIONS.MANAGE_USERS);
 
   useEffect(() => {
     if (!isMobileMenuOpen) return;
@@ -36,14 +36,14 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur transition-all duration-200">
+    <header className="sticky top-0 z-40 w-full border-b border-white/25 bg-white/75 backdrop-blur-lg transition-all duration-200">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex min-h-16 items-center justify-between gap-3 py-2">
           
           {/* Left Logo section */}
           <div className="flex-shrink-0">
             <Link href="/" className="group flex min-w-0 items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-forest text-sm font-black text-white shadow-sm transition-transform duration-200 group-hover:scale-105">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-forest text-sm font-black text-white shadow-sm transition-transform duration-200 group-hover:scale-105">
                 EPA
               </span>
               <div className="min-w-0 leading-none max-w-[10rem] sm:max-w-none">
@@ -61,19 +61,19 @@ export default function Navbar() {
           <nav className="hidden items-center gap-1 lg:flex">
             <Link
               href="/courses"
-              className="rounded-full px-3 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+              className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
             >
               Courses
             </Link>
             <Link
               href="/about"
-              className="rounded-full px-3 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+              className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
             >
               About
             </Link>
             <Link
               href="/contact"
-              className="rounded-full px-3 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+              className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
             >
               Contact us
             </Link>
@@ -81,13 +81,13 @@ export default function Navbar() {
               <>
                 <Link
                   href="/dashboard"
-                  className="rounded-full px-3 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                  className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                 >
                   Dashboard
                 </Link>
                 <Link
                   href="/notifications"
-                  className="rounded-full px-3 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                  className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                 >
                   Notifications
                 </Link>
@@ -95,13 +95,13 @@ export default function Navbar() {
                   <>
                     <Link
                       href="/instructor/content"
-                      className="rounded-full px-3 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                      className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                     >
                       Instructor
                     </Link>
                     <Link
                       href="/instructor/analytics"
-                      className="rounded-full px-3 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                      className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                     >
                       Analytics
                     </Link>
@@ -110,7 +110,7 @@ export default function Navbar() {
                 {isAdmin && (
                   <Link
                     href="/admin"
-                    className="rounded-full px-3 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                    className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                   >
                     Admin
                   </Link>
@@ -132,7 +132,7 @@ export default function Navbar() {
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700 transition-all duration-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
+                  className="rounded-full border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 transition-all duration-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
                 >
                   Log out
                 </button>
@@ -141,13 +141,13 @@ export default function Navbar() {
               <div className="flex items-center gap-3">
                 <Link
                   href="/auth/login"
-                  className="text-sm font-bold text-forest hover:text-emerald-800 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 rounded px-3 py-2 transition-colors duration-200"
+                  className="text-sm font-bold text-forest hover:text-brand-secondary focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 rounded px-4 py-2 transition-colors duration-200"
                 >
                   Log in
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="rounded-lg bg-forest px-4 py-2 text-sm font-black text-white shadow-sm transition-all duration-200 hover:bg-emerald-800 hover:shadow focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
+                  className="rounded-full bg-forest px-5 py-2 text-sm font-black text-white shadow-sm transition-all duration-200 hover:bg-[#b0f0d6] hover:text-[#003527] hover:shadow focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
                 >
                   Sign up
                 </Link>
@@ -188,27 +188,27 @@ export default function Navbar() {
           ref={mobileMenuRef}
           role="navigation"
           aria-label="Mobile menu"
-          className="lg:hidden border-t border-slate-200 bg-white shadow-lg animate-in slide-in-from-top duration-200"
+          className="lg:hidden border-t border-white/20 bg-white/90 backdrop-blur-md shadow-lg animate-in slide-in-from-top duration-200"
         >
           <div className="space-y-1 px-4 py-4 pb-6">
             <Link
               href="/courses"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+              className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
             >
               Courses
             </Link>
             <Link
               href="/about"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+              className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
             >
               About
             </Link>
             <Link
               href="/contact"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+              className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
             >
               Contact us
             </Link>
@@ -217,14 +217,14 @@ export default function Navbar() {
                 <Link
                   href="/dashboard"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                  className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
                 >
                   Dashboard
                 </Link>
                 <Link
                   href="/notifications"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                  className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
                 >
                   Notifications
                 </Link>
@@ -233,14 +233,14 @@ export default function Navbar() {
                     <Link
                       href="/instructor/content"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                      className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
                     >
                       Instructor
                     </Link>
                     <Link
                       href="/instructor/analytics"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                      className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
                     >
                       Analytics
                     </Link>
@@ -250,7 +250,7 @@ export default function Navbar() {
                   <Link
                     href="/admin"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="block rounded-md px-3 py-2.5 text-base font-bold text-slate-700 hover:bg-slate-50 hover:text-forest"
+                    className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
                   >
                     Admin
                   </Link>
@@ -269,7 +269,7 @@ export default function Navbar() {
                       setIsMobileMenuOpen(false);
                       handleLogout();
                     }}
-                    className="w-full rounded-md border border-slate-300 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-red-600 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 transition-colors"
+                    className="w-full rounded-full border border-slate-300 py-2.5 text-sm font-bold text-slate-700 hover:bg-white/60 hover:text-red-600 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 transition-colors"
                   >
                     Log out
                   </button>
@@ -279,14 +279,14 @@ export default function Navbar() {
                   <Link
                     href="/auth/login"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex justify-center items-center rounded-md border border-slate-300 py-2.5 text-sm font-bold text-forest hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
+                    className="flex justify-center items-center rounded-full border border-slate-300 py-2.5 text-sm font-bold text-forest hover:bg-white/60 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
                   >
                     Log in
                   </Link>
                   <Link
                     href="/auth/signup"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex justify-center items-center rounded-md bg-forest py-2.5 text-sm font-black text-white hover:bg-emerald-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
+                    className="flex justify-center items-center rounded-full bg-forest py-2.5 text-sm font-black text-white hover:bg-[#b0f0d6] hover:text-[#003527] shadow-sm focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
                   >
                     Sign up
                   </Link>

@@ -4,6 +4,7 @@ import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AuthoredQuizQuestion, Course, User } from "@/shared/types";
 import { AnalyticsOverview } from "@/infrastructure/api/admin";
+import { ASSIGNABLE_USER_ROLES } from "@/shared/permissions";
 import QuizAuthoringEditor from "./QuizAuthoringEditor";
 
 type AdminPanelProps = {
@@ -210,9 +211,9 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
                   <p className="text-xs text-slate-500">{user.email}</p>
                 </div>
                 <select defaultValue={user.role || "student"} onChange={(event) => updateRole(user.id, event.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-sm">
-                  <option value="student">Student</option>
-                  <option value="instructor">Instructor</option>
-                  <option value="admin">Admin</option>
+                  {ASSIGNABLE_USER_ROLES.map((role) => (
+                    <option key={role} value={role}>{role[0].toUpperCase() + role.slice(1)}</option>
+                  ))}
                 </select>
               </div>
             ))}

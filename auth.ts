@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { authenticateUser, findUserByEmail, saveUser, StoredUser } from "@/features/users/data/userDb";
 import { env } from "@/env";
 import { signApiAccessToken } from "@/shared/auth/apiToken";
+import { getPermissionsForRole, normalizeUserRole, USER_ROLES } from "@/shared/permissions";
 
 async function findOrCreateOAuthUser(input: {
   name?: string | null;
@@ -25,7 +26,7 @@ async function findOrCreateOAuthUser(input: {
     name: input.name || input.email.split("@")[0],
     email: input.email.toLowerCase().trim(),
     password: await bcrypt.hash(crypto.randomUUID(), 12),
-    role: "student",
+    role: USER_ROLES.STUDENT,
     avatar: input.image || "",
     enrolledCourses: [],
     emailVerified: true,
@@ -65,7 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           image: user.avatar || null,
-          role: user.role as any,
+          role: normalizeUserRole(user.role),
           enrolledCourses: user.enrolledCourses || [],
         };
       },
@@ -85,7 +86,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (dbUser) {
           token.id = dbUser.id;
-          token.role = dbUser.role as any;
+          token.role = normalizeUserRole(dbUser.role);
+          token.permissions = getPermissionsForRole(token.role);
           token.picture = dbUser.avatar || token.picture;
           token.name = dbUser.name;
           token.email = dbUser.email;
@@ -98,7 +100,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.apiAccessToken = signApiAccessToken({
           id: String(token.id),
           email: String(token.email),
-          role: typeof token.role === "string" ? token.role : "student",
+          role: normalizeUserRole(token.role),
+          permissions: Array.isArray(token.permissions) ? (token.permissions as string[]) : [],
           enrolledCourses: Array.isArray(token.enrolledCourses) ? (token.enrolledCourses as string[]) : [],
           completedCourses: Array.isArray(token.completedCourses) ? (token.completedCourses as string[]) : [],
         }, "5m");
@@ -109,7 +112,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = String(token.id || "");
-        session.user.role = (token.role as any) || "student";
+        session.user.role = normalizeUserRole(token.role);
+        session.user.permissions = getPermissionsForRole(session.user.role);
         session.user.avatar = typeof token.picture === "string" ? token.picture : "";
         session.user.enrolledCourses = Array.isArray(token.enrolledCourses)
           ? (token.enrolledCourses as string[])

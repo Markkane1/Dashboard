@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { connectMongo } from '../src/server/db/mongoose';
 import models from '../src/server/models';
+import { USER_ROLES } from '../src/shared/permissions';
 const { logger } = require('../src/server/logger');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
@@ -200,7 +201,7 @@ async function seedDemoData() {
       name: 'Demo Admin',
       email: 'demo.admin@example.com',
       password,
-      role: 'admin',
+      role: USER_ROLES.ADMIN,
       emailVerified: true,
       demoKey: DEMO_KEY
     },
@@ -208,7 +209,7 @@ async function seedDemoData() {
       name: 'Demo Instructor',
       email: 'demo.instructor@example.com',
       password,
-      role: 'instructor',
+      role: USER_ROLES.INSTRUCTOR,
       emailVerified: true,
       demoKey: DEMO_KEY
     },
@@ -216,7 +217,7 @@ async function seedDemoData() {
       name: 'Demo Learner',
       email: 'demo.learner@example.com',
       password,
-      role: 'student',
+      role: USER_ROLES.STUDENT,
       emailVerified: true,
       demoKey: DEMO_KEY
     }

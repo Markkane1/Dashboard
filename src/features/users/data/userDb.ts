@@ -1,12 +1,13 @@
 import { signApiAccessToken } from "@/shared/auth/apiToken";
 import { logger } from '@/shared/logger';
+import { USER_ROLES, type UserRole } from "@/shared/permissions";
 
 export interface StoredUser {
   id: string;
   name: string;
   email: string;
   password?: string;
-  role: string;
+  role: UserRole;
   avatar?: string;
   enrolledCourses?: string[];
   completedCourses?: string[];
@@ -20,7 +21,7 @@ const getBaseUrl = () => process.env.API_URL || process.env.NEXT_PUBLIC_API_URL 
 
 async function getServerAuthHeader() {
   const token = signApiAccessToken(
-    { id: "internal-service", role: "service", email: "service@internal.local" },
+    { id: "internal-service", role: USER_ROLES.SERVICE, email: "service@internal.local" },
     "5m"
   );
   return { "Authorization": `Bearer ${token}` };
@@ -152,7 +153,7 @@ export async function verifyEmailToken(token: string): Promise<boolean> {
 
 async function getStudentAuthHeader(userId: string, email: string) {
   const token = signApiAccessToken(
-    { id: userId, email, role: "student" },
+    { id: userId, email, role: USER_ROLES.STUDENT },
     "5m"
   );
   return { "Authorization": `Bearer ${token}` };

@@ -77,14 +77,14 @@ const categories = [
 
 export default function AboutPage() {
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="min-h-screen py-6">
       {/* Hero section */}
-      <section className="bg-sand relative overflow-hidden py-16 lg:py-24 border-b border-slate-200/50">
-        <div className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden py-16 lg:py-24 border-b border-white/25 bg-white/40 backdrop-blur-md rounded-3xl mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
           <p className="text-xs font-black uppercase tracking-widest text-forest">
             About the Learning Portal
           </p>
-          <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl font-sora">
             About EPA Elearning
           </h1>
           <p className="mt-6 mx-auto max-w-3xl text-lg sm:text-xl leading-relaxed text-slate-700 font-medium">
@@ -96,7 +96,7 @@ export default function AboutPage() {
       {/* What we offer section */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-black text-slate-950 tracking-tight">What We Offer</h2>
+          <h2 className="text-3xl font-black text-slate-950 tracking-tight font-sora">What We Offer</h2>
           <p className="mt-2 text-slate-500 font-medium max-w-xl mx-auto">
             High-quality environmental training tools available to learners worldwide at zero cost.
           </p>
@@ -106,10 +106,10 @@ export default function AboutPage() {
           {features.map((feat) => (
             <div 
               key={feat.title}
-              className="bg-white rounded-2xl p-8 border border-slate-200/60 shadow-sm flex flex-col items-center text-center transition hover:-translate-y-1 hover:shadow-md duration-200"
+              className="glass-card p-8 border-white/25 bg-white/50 backdrop-blur-sm flex flex-col items-center text-center hover:scale-[1.02] transition-transform duration-300"
             >
-              <span className="text-4xl mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm">{feat.icon}</span>
-              <h3 className="text-xl font-black text-slate-900">{feat.title}</h3>
+              <span className="text-4xl mb-4 bg-white/60 p-4 rounded-2xl border border-white/20 shadow-sm">{feat.icon}</span>
+              <h3 className="text-xl font-black text-slate-900 font-sora">{feat.title}</h3>
               <p className="mt-3 text-sm text-slate-600 leading-relaxed font-semibold">
                 {feat.description}
               </p>
@@ -119,10 +119,10 @@ export default function AboutPage() {
       </section>
 
       {/* Our courses cover section */}
-      <section className="bg-slate-100/50 py-16 lg:py-24 border-y border-slate-200/40">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="py-16 lg:py-24 border-y border-white/25 bg-white/20 backdrop-blur-sm rounded-3xl mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-black text-slate-950 tracking-tight">Our Courses Cover</h2>
+            <h2 className="text-3xl font-black text-slate-950 tracking-tight font-sora">Our Courses Cover</h2>
             <p className="mt-2 text-slate-500 font-medium max-w-xl mx-auto">
               Master the key agreements and regulations across six foundational thematic pillars.
             </p>
@@ -132,12 +132,12 @@ export default function AboutPage() {
             {categories.map((cat) => (
               <div 
                 key={cat.title} 
-                className={`rounded-2xl border p-6 flex flex-col justify-between shadow-sm transition hover:shadow-md duration-200 bg-white`}
+                className="glass-card p-6 flex flex-col justify-between shadow-sm hover:scale-[1.02] transition-transform duration-300 border-white/20 bg-white/50 backdrop-blur-sm"
               >
                 <div>
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{cat.icon}</span>
-                    <h3 className="text-base font-black text-slate-950">{cat.title}</h3>
+                    <h3 className="text-base font-black text-slate-950 font-sora">{cat.title}</h3>
                   </div>
                   <p className="mt-4 text-xs font-semibold leading-relaxed text-slate-600">
                     {cat.description}
@@ -157,7 +157,7 @@ export default function AboutPage() {
       {/* Partner organizations section */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-24 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-black text-slate-950 tracking-tight">Partner Organizations</h2>
+          <h2 className="text-3xl font-black text-slate-950 tracking-tight font-sora">Partner Organizations</h2>
           <p className="mt-2 text-slate-500 font-medium max-w-xl mx-auto">
             This portal is supported by international partners and reflects global collaboration on environmental learning.
           </p>
@@ -167,7 +167,7 @@ export default function AboutPage() {
           {partners.map((partner) => (
             <div 
               key={partner.name}
-              className="group relative flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center hover:border-forest transition duration-200 cursor-pointer shadow-sm hover:shadow-md"
+              className="group relative flex flex-col items-center justify-center rounded-2xl border border-white/20 bg-white/50 backdrop-blur-sm p-6 text-center hover:border-forest/50 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md hover:scale-[1.02]"
             >
               <span className="text-lg font-black text-forest group-hover:scale-105 transition-transform duration-200">
                 {partner.name}
@@ -181,10 +181,10 @@ export default function AboutPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-forest py-16 lg:py-20 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.1),transparent)]" />
+      <section className="bg-forest py-16 lg:py-20 text-white relative overflow-hidden rounded-[32px] mx-auto max-w-7xl my-12 border border-white/10 shadow-xl shadow-forest/10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(176,240,214,0.15),transparent)]" />
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8 relative z-10">
-          <h2 className="text-3xl font-black sm:text-4xl tracking-tight">
+          <h2 className="text-3xl font-black sm:text-4xl tracking-tight font-sora">
             Start Learning Today
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base text-emerald-100 leading-relaxed font-semibold">
@@ -193,7 +193,7 @@ export default function AboutPage() {
           <div className="mt-8 flex justify-center">
             <Link 
               href="/"
-              className="rounded-md bg-white px-8 py-3 text-sm font-black text-forest hover:bg-emerald-50 transition-colors shadow-sm"
+              className="rounded-full bg-white px-8 py-3 text-sm font-black text-forest hover:bg-[#b0f0d6] hover:text-[#003527] transition-all duration-300 shadow-sm"
             >
               Browse Available Courses
             </Link>

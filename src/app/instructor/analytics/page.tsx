@@ -3,11 +3,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
 import { fetchManageableCourses } from "@/infrastructure/api/admin";
 import InstructorAnalyticsPanel from "@/features/admin/components/InstructorAnalyticsPanel";
+import { hasPermission, PERMISSIONS } from "@/shared/permissions";
 
 export default async function InstructorAnalyticsPage() {
   const session = await auth();
-  const role = session?.user?.role || "student";
-  if (!session?.apiAccessToken || !["admin", "instructor"].includes(role)) {
+  if (!session?.user || !session.apiAccessToken || !hasPermission(session.user, PERMISSIONS.VIEW_ANALYTICS)) {
     redirect("/dashboard");
   }
 

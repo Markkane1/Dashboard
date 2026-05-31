@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
 import AdminPanel from "@/features/admin/components/AdminPanel";
 import { fetchAdminUsers, fetchAnalyticsOverview, fetchManageableCourses } from "@/infrastructure/api/admin";
+import { hasPermission, PERMISSIONS } from "@/shared/permissions";
 
 export default async function AdminPage() {
   const session = await auth();
-  if (!session?.user?.email || session.user.role !== "admin" || !session.apiAccessToken) {
+  if (!session?.user?.email || !session.apiAccessToken || !hasPermission(session.user, PERMISSIONS.MANAGE_USERS)) {
     redirect("/dashboard");
   }
 

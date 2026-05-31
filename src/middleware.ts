@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { env } from "@/env";
+import { hasPermission, normalizePermissions, normalizeUserRole, PERMISSIONS } from "@/shared/permissions";
 
 const AUTH_SECRET = env.AUTH_SECRET;
 const LOCALES = ["en", "pak"];
 const AUTHENTICATED_ROUTES = ["/dashboard"];
-const ROLE_ROUTES = [
-  { prefix: "/instructor", roles: ["admin", "instructor"] },
-  { prefix: "/admin", roles: ["admin"] },
+// Map route prefixes to required permission for access
+const PERMISSION_ROUTES = [
+  { prefix: "/instructor", permission: PERMISSIONS.MANAGE_CONTENT },
+  { prefix: "/admin", permission: PERMISSIONS.MANAGE_USERS },
 ];
 
 function isRoute(pathname: string, prefix: string) {
@@ -60,15 +62,18 @@ export async function middleware(request: NextRequest) {
   // Check token for authentication
   const token = await getToken({ req: request, secret: AUTH_SECRET });
   const protectedByAuth = AUTHENTICATED_ROUTES.some((prefix) => isRoute(pathname, prefix));
-  const protectedByRole = ROLE_ROUTES.find((route) => isRoute(pathname, route.prefix));
+  const protectedByRole = PERMISSION_ROUTES.find((route) => isRoute(pathname, route.prefix));
 
   if ((protectedByAuth || protectedByRole) && !token) {
     return loginRedirect(request, hasLocalePrefix, locale);
   }
 
   if (protectedByRole && token) {
-    const role = typeof token.role === "string" ? token.role : "student";
-    if (!protectedByRole.roles.includes(role)) {
+    const user = {
+      role: normalizeUserRole(token.role),
+      permissions: normalizePermissions(token.permissions),
+    };
+    if (!hasPermission(user, protectedByRole.permission)) {
       return unauthorizedRedirect(request, hasLocalePrefix, locale);
     }
   }

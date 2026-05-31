@@ -7,8 +7,14 @@ const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/roles');
+const { requireAdmin, requirePermission } = require('../middleware/roles');
 const { logger } = require('../logger');
+const {
+  isAssignableUserRole,
+  hasPermission,
+  PERMISSIONS,
+  USER_ROLES,
+} = require('../../shared/permissions');
 import type { Request, Response } from 'express';
 import type { User as SharedUser } from '../../shared/types';
 
@@ -34,7 +40,7 @@ async function serializeUser(user: any): Promise<SharedUser & Record<string, unk
     id: String(userId),
     name: plain.name,
     email: plain.email,
-    role: plain.role || 'student',
+    role: plain.role || USER_ROLES.STUDENT,
     avatar: plain.avatar || '',
     enrolledCourses,
     completedCourses,
@@ -52,7 +58,7 @@ function getPopulatedCourseId(enrollment: any): string | null {
 }
 
 function isPrivileged(req: Request): boolean {
-  return ['admin', 'service'].includes(req.user?.role || '');
+  return hasPermission(req.user, PERMISSIONS.READ_USERS) || hasPermission(req.user, PERMISSIONS.MANAGE_USERS);
 }
 
 function canAccessUser(req: AuthenticatedRequest, user: any): boolean {
@@ -231,12 +237,8 @@ router.post('/verify-email', async (req: Request, res: Response) => {
 
 // POST /api/users/password-reset/request
 // Store a hashed reset token. The caller sends the email to avoid token leakage.
-router.post('/password-reset/request', auth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/password-reset/request', auth, requirePermission(PERMISSIONS.MANAGE_PASSWORD_RESETS), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!isPrivileged(req)) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-
     const email = String(req.body.email || '').toLowerCase().trim();
     const tokenHash = String(req.body.tokenHash || '');
     const expiresAt = req.body.expiresAt ? new Date(req.body.expiresAt) : null;
@@ -441,14 +443,10 @@ router.get('/:id', auth, async (req: AuthenticatedRequest, res: Response) => {
 
 // PATCH /api/users/:id/role
 // Admin-only role changes
-router.patch('/:id/role', auth, async (req: AuthenticatedRequest, res: Response) => {
+router.patch('/:id/role', auth, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (req.user?.role !== 'admin') {
-      return res.status(403).json({ error: "Admin access is required" });
-    }
-
     const { role } = req.body;
-    if (!['student', 'instructor', 'admin'].includes(role)) {
+    if (!isAssignableUserRole(role)) {
       return res.status(400).json({ error: "Invalid role" });
     }
 
@@ -516,7 +514,7 @@ router.post('/', async (req: Request, res: Response) => {
       name,
       email,
       password,
-      role: 'student',
+      role: USER_ROLES.STUDENT,
       avatar: avatar || '',
       emailVerified: emailVerified === true,
       emailVerificationTokenHash,

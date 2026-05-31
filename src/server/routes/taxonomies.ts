@@ -3,8 +3,9 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const Taxonomy = require('../models/Taxonomy');
 const auth = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/roles');
+const { requirePermission } = require('../middleware/roles');
 const { logger } = require('../logger');
+const { PERMISSIONS } = require('../../shared/permissions');
 import type { Request, Response } from 'express';
 
 type TaxonomyType = 'category' | 'sdg' | 'section' | 'topic';
@@ -51,7 +52,7 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/', auth, requireAdmin, async (req: Request<Record<string, string>, unknown, TaxonomyBody>, res: Response) => {
+router.post('/', auth, requirePermission(PERMISSIONS.MANAGE_TAXONOMIES), async (req: Request<Record<string, string>, unknown, TaxonomyBody>, res: Response) => {
   try {
     const type = sanitizeType(req.body?.type);
     const key = String(req.body?.key || '').trim();
@@ -76,7 +77,7 @@ router.post('/', auth, requireAdmin, async (req: Request<Record<string, string>,
   }
 });
 
-router.patch('/:id', auth, requireAdmin, async (req: Request<{ id: string }, unknown, TaxonomyBody>, res: Response) => {
+router.patch('/:id', auth, requirePermission(PERMISSIONS.MANAGE_TAXONOMIES), async (req: Request<{ id: string }, unknown, TaxonomyBody>, res: Response) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Invalid taxonomy id' });
@@ -104,7 +105,7 @@ router.patch('/:id', auth, requireAdmin, async (req: Request<{ id: string }, unk
   }
 });
 
-router.delete('/:id', auth, requireAdmin, async (req: Request<{ id: string }>, res: Response) => {
+router.delete('/:id', auth, requirePermission(PERMISSIONS.MANAGE_TAXONOMIES), async (req: Request<{ id: string }>, res: Response) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Invalid taxonomy id' });

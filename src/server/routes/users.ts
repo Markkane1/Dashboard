@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const User = require('../models/User');
+const Role = require('../models/Role');
 const Enrollment = require('../models/Enrollment');
 const Course = require('../models/Course');
 const Notification = require('../models/Notification');
@@ -14,6 +15,9 @@ const {
   hasPermission,
   PERMISSIONS,
   USER_ROLES,
+  normalizePermissions,
+  normalizeRoles,
+  getPermissionsForRoles,
 } = require('../../shared/permissions');
 import type { Request, Response } from 'express';
 import type { User as SharedUser } from '../../shared/types';
@@ -26,6 +30,9 @@ const ACCOUNT_LOCKOUT_MS = Number(process.env.ACCOUNT_LOCKOUT_MS || 15 * 60 * 10
 async function serializeUser(user: any): Promise<SharedUser & Record<string, unknown>> {
   const plain = typeof user.toObject === 'function' ? user.toObject() : user;
   const userId = plain._id || plain.id;
+  const roles = normalizeRoles(plain.roles, [plain.role || USER_ROLES.STUDENT]);
+  const directPermissions = normalizePermissions(plain.permissions);
+  const rolePermissions = await resolvePermissionsForRoles(roles, plain.role);
   
   const enrollments = await Enrollment.find({ userId }).populate('courseId', '_id');
   const enrolledCourses = enrollments
@@ -41,12 +48,24 @@ async function serializeUser(user: any): Promise<SharedUser & Record<string, unk
     name: plain.name,
     email: plain.email,
     role: plain.role || USER_ROLES.STUDENT,
+    roles,
+    permissions: [...new Set([...rolePermissions, ...directPermissions])],
+    directPermissions,
     avatar: plain.avatar || '',
     enrolledCourses,
     completedCourses,
     emailVerified: plain.emailVerified === true,
     createdAt: plain.createdAt
   };
+}
+
+async function resolvePermissionsForRoles(roles: string[], fallbackRole?: string) {
+  await Role.ensureDefaultRoles();
+  const roleDocs = await Role.find({ key: { $in: roles }, active: true }).select('key permissions');
+  const dynamicPermissions = roleDocs.flatMap((role: any) => normalizePermissions(role.permissions));
+  const fallbackPermissions = getPermissionsForRoles(roles, fallbackRole);
+
+  return [...new Set([...fallbackPermissions, ...dynamicPermissions])];
 }
 
 function getPopulatedCourseId(enrollment: any): string | null {
@@ -147,7 +166,7 @@ router.get('/', auth, requireAdmin, async (req: AuthenticatedRequest, res: Respo
     const [totalCount, users] = await Promise.all([
       User.countDocuments(filter),
       User.find(filter)
-        .select('name email role avatar emailVerified createdAt')
+        .select('name email role roles permissions avatar emailVerified createdAt')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -442,17 +461,42 @@ router.get('/:id', auth, async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // PATCH /api/users/:id/role
-// Admin-only role changes
+// Admin-only role and direct permission changes
 router.patch('/:id/role', auth, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { role } = req.body;
-    if (!isAssignableUserRole(role)) {
-      return res.status(400).json({ error: "Invalid role" });
+    const requestedRoles = Array.isArray(req.body.roles)
+      ? req.body.roles.map((role: unknown) => String(role || '').trim().toLowerCase()).filter(Boolean)
+      : req.body.role
+        ? [String(req.body.role).trim().toLowerCase()]
+        : [];
+
+    if (requestedRoles.length === 0) {
+      return res.status(400).json({ error: "At least one role is required" });
     }
+
+    await Role.ensureDefaultRoles();
+    const matchingRoles = await Role.find({ key: { $in: requestedRoles }, active: true }).select('key');
+    const validRoleKeys = matchingRoles.map((role: any) => role.key);
+    const unknownRoles = requestedRoles.filter((role: string) => !validRoleKeys.includes(role));
+    if (unknownRoles.length > 0) {
+      return res.status(400).json({ error: `Invalid role: ${unknownRoles[0]}` });
+    }
+
+    const directPermissions = normalizePermissions(req.body.permissions);
+    if (Array.isArray(req.body.permissions) && directPermissions.length !== req.body.permissions.length) {
+      return res.status(400).json({ error: "One or more permissions are invalid" });
+    }
+    const legacyRole = validRoleKeys.find(isAssignableUserRole) || USER_ROLES.STUDENT;
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { $set: { role } },
+      {
+        $set: {
+          role: legacyRole,
+          roles: validRoleKeys,
+          permissions: directPermissions,
+        }
+      },
       { new: true, runValidators: true }
     );
     if (!updatedUser) {
@@ -461,8 +505,8 @@ router.patch('/:id/role', auth, requireAdmin, async (req: AuthenticatedRequest, 
 
     res.json(await serializeUser(updatedUser));
   } catch (error) {
-    logger.error({ err: error }, 'Error updating user role');
-    res.status(500).json({ error: "Failed to update user role" });
+    logger.error({ err: error }, 'Error updating user roles');
+    res.status(500).json({ error: "Failed to update user roles" });
   }
 });
 
@@ -515,6 +559,8 @@ router.post('/', async (req: Request, res: Response) => {
       email,
       password,
       role: USER_ROLES.STUDENT,
+      roles: [USER_ROLES.STUDENT],
+      permissions: [],
       avatar: avatar || '',
       emailVerified: emailVerified === true,
       emailVerificationTokenHash,

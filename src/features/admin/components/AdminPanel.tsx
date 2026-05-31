@@ -2,9 +2,9 @@
 
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AuthoredQuizQuestion, Course, User } from "@/shared/types";
+import { AuthoredQuizQuestion, Course, Role, User } from "@/shared/types";
 import { AnalyticsOverview } from "@/infrastructure/api/admin";
-import { ASSIGNABLE_USER_ROLES } from "@/shared/permissions";
+import { Permission, PermissionCatalogItem } from "@/shared/permissions";
 import QuizAuthoringEditor from "./QuizAuthoringEditor";
 
 type AdminPanelProps = {
@@ -12,6 +12,8 @@ type AdminPanelProps = {
   courses: Course[];
   users: User[];
   analytics: AnalyticsOverview;
+  roles: Role[];
+  permissionCatalog: PermissionCatalogItem[];
 };
 
 async function apiRequest(path: string, token: string, init: RequestInit = {}) {
@@ -42,13 +44,24 @@ function cleanQuizQuestions(questions: AuthoredQuizQuestion[]) {
     .filter((question) => question.prompt || question.options.length > 0);
 }
 
-export default function AdminPanel({ token, courses, users, analytics }: AdminPanelProps) {
+const emptyRoleForm = {
+  id: "",
+  key: "",
+  name: "",
+  description: "",
+  permissions: [] as Permission[],
+  active: true,
+  system: false,
+};
+
+export default function AdminPanel({ token, courses, users, analytics, roles, permissionCatalog }: AdminPanelProps) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || "");
   const [quizQuestions, setQuizQuestions] = useState<AuthoredQuizQuestion[]>([]);
+  const [roleForm, setRoleForm] = useState(emptyRoleForm);
 
   const run = (action: () => Promise<void>) => {
     setMessage("");
@@ -99,13 +112,55 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
     setMessage("Lesson created.");
   });
 
-  const updateRole = (userId: string, role: string) => run(async () => {
+  const updateUserAccess = (userId: string, roles: string[], permissions: Permission[] = []) => run(async () => {
     await apiRequest(`/users/${userId}/role`, token, {
       method: "PATCH",
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ roles, permissions }),
     });
-    setMessage("User role updated.");
+    setMessage("User access updated.");
   });
+
+  const saveRole = (formData: FormData) => run(async () => {
+    const payload = {
+      key: formData.get("key"),
+      name: formData.get("name"),
+      description: formData.get("description"),
+      active: formData.get("active") === "on",
+      permissions: formData.getAll("permissions"),
+    };
+    const path = roleForm.id ? `/roles/${roleForm.id}` : "/roles";
+    await apiRequest(path, token, {
+      method: roleForm.id ? "PATCH" : "POST",
+      body: JSON.stringify(payload),
+    });
+    setRoleForm(emptyRoleForm);
+    setMessage(roleForm.id ? "Role updated." : "Role created.");
+  });
+
+  const deleteRole = () => run(async () => {
+    if (!roleForm.id || roleForm.system) return;
+    await apiRequest(`/roles/${roleForm.id}`, token, { method: "DELETE" });
+    setRoleForm(emptyRoleForm);
+    setMessage("Role deleted.");
+  });
+
+  const selectRole = (role: Role) => {
+    setRoleForm({
+      id: role.id,
+      key: role.key,
+      name: role.name,
+      description: role.description,
+      permissions: role.permissions,
+      active: role.active,
+      system: role.system,
+    });
+  };
+
+  const permissionsByModule = permissionCatalog.reduce<Record<string, PermissionCatalogItem[]>>((groups, permission) => {
+    groups[permission.module] = groups[permission.module] || [];
+    groups[permission.module].push(permission);
+    return groups;
+  }, {});
 
   const announce = (formData: FormData) => run(async () => {
     await apiRequest("/notifications/announce", token, {
@@ -127,7 +182,7 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Users", analytics.users],
           ["Courses", analytics.courses],
@@ -138,20 +193,20 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
           ["Avg. lesson completion", `${analytics.averageLessonCompletionRate}%`],
           ["Avg. watch rate", `${analytics.averageLessonWatchRate}%`],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div key={label} className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-black uppercase tracking-wider text-slate-500">{label}</p>
             <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
           </div>
         ))}
       </section>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-8">
         <form
           onSubmit={(event) => {
             event.preventDefault();
             createCourse(new FormData(event.currentTarget));
           }}
-          className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+          className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
         >
           <h2 className="text-xl font-black text-slate-950">Create course</h2>
           <input name="title" required placeholder="Title" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
@@ -175,7 +230,7 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
             event.preventDefault();
             createLesson(new FormData(event.currentTarget));
           }}
-          className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+          className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
         >
           <h2 className="text-xl font-black text-slate-950">Create lesson</h2>
           <select name="courseId" required value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
@@ -200,34 +255,210 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
         </form>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-black text-slate-950">User administration</h2>
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-8">
+        <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div>
+            <h2 className="text-xl font-black text-slate-950">User roles and permissions</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Assign one or more roles to each user. Direct permissions are reserved for exceptions and are merged with role permissions.
+            </p>
+          </div>
           <div className="mt-4 divide-y divide-slate-100">
             {users.map((user) => (
-              <div key={user.id} className="flex items-center justify-between gap-3 py-3">
-                <div>
+              <div key={user.id} className="grid min-w-0 gap-4 py-4 xl:grid-cols-[minmax(0,1fr)_minmax(260px,360px)]">
+                <div className="min-w-0">
                   <p className="font-bold text-slate-900">{user.name}</p>
                   <p className="text-xs text-slate-500">{user.email}</p>
+                  <p className="mt-2 text-xs font-bold text-slate-500">
+                    Effective permissions: <span className="text-forest">{user.permissions?.length || 0}</span>
+                  </p>
                 </div>
-                <select defaultValue={user.role || "student"} onChange={(event) => updateRole(user.id, event.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-sm">
-                  {ASSIGNABLE_USER_ROLES.map((role) => (
-                    <option key={role} value={role}>{role[0].toUpperCase() + role.slice(1)}</option>
-                  ))}
-                </select>
+                <form
+                  className="min-w-0 space-y-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const formData = new FormData(event.currentTarget);
+                    const selectedRoles = formData.getAll("roles").map(String);
+                    const selectedPermissions = formData.getAll("permissions").map(String) as Permission[];
+                    updateUserAccess(user.id, selectedRoles, selectedPermissions);
+                  }}
+                >
+                  <div className="grid gap-2 min-[420px]:grid-cols-2">
+                    {roles.filter((role) => role.active).map((role) => (
+                      <label key={role.key} className="flex min-w-0 items-center gap-2 rounded-full bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700">
+                        <input
+                          name="roles"
+                          type="checkbox"
+                          value={role.key}
+                          defaultChecked={(user.roles?.length ? user.roles : [user.role || "student"]).includes(role.key)}
+                          className="h-4 w-4 shrink-0 rounded border-slate-300 text-forest focus:ring-forest"
+                        />
+                        <span className="min-w-0">{role.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <details className="rounded-2xl bg-white/50 p-3 text-xs">
+                    <summary className="cursor-pointer font-black text-slate-600">Direct permission overrides</summary>
+                    <div className="mt-3 grid gap-2">
+                      {permissionCatalog.map((permission) => (
+                        <label key={permission.id} className="flex items-start gap-2 font-semibold text-slate-600">
+                          <input
+                            name="permissions"
+                            type="checkbox"
+                            value={permission.id}
+                            defaultChecked={user.directPermissions?.includes(permission.id) || false}
+                            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-forest focus:ring-forest"
+                          />
+                          <span>{permission.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                  <button type="submit" disabled={isPending} className="w-full rounded-full bg-forest px-4 py-2 text-sm font-black text-white disabled:opacity-60">
+                    Save access
+                  </button>
+                </form>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-xl font-black text-slate-950">Role CRUD</h2>
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                Roles are reusable permission bundles. Page, module, and action permissions are all controlled here.
+              </p>
+            </div>
+            <button type="button" onClick={() => setRoleForm(emptyRoleForm)} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-black text-slate-700">
+              New role
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+            <div className="space-y-2">
+              {roles.map((role) => (
+                <button
+                  key={role.id}
+                  type="button"
+                  onClick={() => selectRole(role)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                    roleForm.id === role.id ? "border-forest bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-forest"
+                  }`}
+                >
+                  <span className="block text-sm font-black text-slate-900">{role.name}</span>
+                  <span className="mt-1 block text-xs font-semibold text-slate-500">{role.key} · {role.permissions.length} permissions</span>
+                </button>
+              ))}
+            </div>
+
+            <form
+              className="min-w-0 space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveRole(new FormData(event.currentTarget));
+              }}
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Role key
+                  <input
+                    name="key"
+                    value={roleForm.key}
+                    onChange={(event) => setRoleForm({ ...roleForm, key: event.target.value })}
+                    readOnly={roleForm.system}
+                    required
+                    className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="content-reviewer"
+                  />
+                </label>
+                <label className="block text-sm font-semibold text-slate-700">
+                  Role name
+                  <input
+                    name="name"
+                    value={roleForm.name}
+                    onChange={(event) => setRoleForm({ ...roleForm, name: event.target.value })}
+                    required
+                    className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="Content reviewer"
+                  />
+                </label>
+              </div>
+              <label className="block text-sm font-semibold text-slate-700">
+                Description
+                <textarea
+                  name="description"
+                  value={roleForm.description}
+                  onChange={(event) => setRoleForm({ ...roleForm, description: event.target.value })}
+                  rows={2}
+                  className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                <input
+                  name="active"
+                  type="checkbox"
+                  checked={roleForm.active}
+                  onChange={(event) => setRoleForm({ ...roleForm, active: event.target.checked })}
+                  disabled={roleForm.system}
+                />
+                Active
+              </label>
+              <div className="space-y-4">
+                {Object.entries(permissionsByModule).map(([moduleName, permissions]) => (
+                  <div key={moduleName} className="rounded-2xl bg-white/60 p-3">
+                    <p className="text-xs font-black uppercase tracking-wider text-slate-500">{moduleName}</p>
+                    <div className="mt-3 grid gap-2">
+                      {permissions.map((permission) => (
+                        <label key={permission.id} className="flex items-start gap-2 text-sm font-semibold text-slate-700">
+                          <input
+                            name="permissions"
+                            type="checkbox"
+                            value={permission.id}
+                            checked={roleForm.permissions.includes(permission.id)}
+                            onChange={(event) => {
+                              const next = event.target.checked
+                                ? [...roleForm.permissions, permission.id]
+                                : roleForm.permissions.filter((item) => item !== permission.id);
+                              setRoleForm({ ...roleForm, permissions: next });
+                            }}
+                            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-forest focus:ring-forest"
+                          />
+                          <span>
+                            <span className="block">{permission.label} <span className="text-[10px] uppercase text-slate-400">({permission.scope})</span></span>
+                            <span className="block text-xs font-medium text-slate-500">{permission.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <button disabled={isPending} className="rounded-full bg-forest px-4 py-2 text-sm font-black text-white disabled:opacity-60">
+                  {roleForm.id ? "Save role" : "Create role"}
+                </button>
+                {roleForm.id && !roleForm.system && (
+                  <button type="button" onClick={deleteRole} disabled={isPending} className="rounded-full border border-red-200 px-4 py-2 text-sm font-black text-red-700 disabled:opacity-60">
+                    Delete role
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-8">
+        <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-xl font-black text-slate-950">Learning analytics</h2>
           <div className="mt-4 space-y-3">
             {analytics.topCourses.map((course) => (
-              <div key={course.courseId} className="rounded-md bg-slate-50 p-3">
-                <div className="flex items-center justify-between gap-3">
+              <div key={course.courseId} className="min-w-0 rounded-md bg-slate-50 p-3">
+                <div className="flex min-w-0 flex-col gap-1 min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between">
                   <p className="text-sm font-black text-slate-900">{course.title}</p>
-                  <p className="text-xs font-bold text-forest">{course.completionRate}% complete</p>
+                  <p className="shrink-0 text-xs font-bold text-forest">{course.completionRate}% complete</p>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">{course.enrollments} enrollments, {course.completions} completions</p>
               </div>
@@ -242,7 +473,7 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
           event.preventDefault();
           announce(new FormData(event.currentTarget));
         }}
-        className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+        className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
       >
         <h2 className="text-xl font-black text-slate-950">Send announcement</h2>
         <input name="title" required placeholder="Title" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />

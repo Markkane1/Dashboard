@@ -36,6 +36,7 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
       id?: string;
       email?: string;
       role?: string;
+      roles?: unknown;
       permissions?: unknown;
       name?: string;
       enrolledCourses?: unknown;
@@ -51,6 +52,9 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
       id: String(payload.id || payload.sub || ''),
       email: payload.email,
       role: normalizeUserRole(payload.role),
+      roles: Array.isArray(payload.roles)
+        ? payload.roles.map((role) => String(role))
+        : [normalizeUserRole(payload.role)],
       permissions: normalizePermissions(payload.permissions).length > 0
         ? normalizePermissions(payload.permissions)
         : getPermissionsForRole(payload.role),

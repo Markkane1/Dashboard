@@ -24,11 +24,11 @@ export default function LessonSidebar({ lessons, activeLesson, onSelect }: Lesso
   };
 
   return (
-    <div className="flex flex-col h-full select-none divide-y divide-slate-100">
+    <div className="flex h-full min-w-0 flex-col select-none divide-y divide-slate-100">
       
       {/* Dynamic Course Progress Bar Section */}
       <div className="p-5 bg-slate-50/50">
-        <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+        <div className="mb-2 flex min-w-0 flex-col gap-1 text-xs font-bold uppercase tracking-wider text-slate-500 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
           <span>Your Progress</span>
           <span className="text-slate-800">{completedCount} of {totalCount} lessons ({percentComplete}%)</span>
         </div>
@@ -43,7 +43,7 @@ export default function LessonSidebar({ lessons, activeLesson, onSelect }: Lesso
       </div>
 
       {/* Ordered Lesson List */}
-      <nav className="flex-1 overflow-y-auto max-h-[calc(100vh-14rem)] divide-y divide-slate-100">
+      <nav className="max-h-[60vh] flex-1 divide-y divide-slate-100 overflow-y-auto md:max-h-[calc(100vh-14rem)]">
         {lessons.map((lesson) => {
           const isActive = lesson._id === activeLesson._id;
           const isCompleted = lesson.progress.completed;
@@ -65,7 +65,7 @@ export default function LessonSidebar({ lessons, activeLesson, onSelect }: Lesso
             <button
               key={lesson._id}
               onClick={() => onSelect(lesson)}
-              className={`w-full text-left px-5 py-4 flex items-start gap-3.5 transition-all duration-150 border-l-4 focus:outline-none focus-visible:bg-slate-50 ${
+              className={`flex w-full min-w-0 items-start gap-3.5 border-l-4 px-4 py-4 text-left transition-all duration-150 focus:outline-none focus-visible:bg-slate-50 sm:px-5 ${
                 isActive
                   ? "bg-emerald-50/60 border-forest text-slate-900"
                   : "bg-white border-transparent text-slate-700 hover:bg-slate-50/80"
@@ -77,7 +77,7 @@ export default function LessonSidebar({ lessons, activeLesson, onSelect }: Lesso
               </span>
 
               {/* Title & Duration Details */}
-              <div className="flex-1 space-y-1">
+              <div className="min-w-0 flex-1 space-y-1">
                 <p className={`text-xs font-bold uppercase tracking-wide ${isActive ? "text-forest" : "text-slate-400"}`}>
                   Lesson {lesson.order + 1}
                 </p>

@@ -51,17 +51,20 @@ export default function ResetPasswordPage() {
 
   return (
     <section className="mx-auto max-w-md px-4 py-16">
-      <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+      <div className="glass-card p-8 border-white/20 bg-white/50 backdrop-blur-sm">
         <div className="text-center">
-          <h1 className="text-3xl font-black text-slate-950">Choose a new password</h1>
-          <p className="mt-2 text-sm font-semibold text-slate-500">
+          <span className="inline-grid h-12 w-12 place-items-center rounded-full bg-[#b0f0d6]/40 text-xl font-bold text-forest mb-4">
+            🔑
+          </span>
+          <h1 className="text-3xl font-black text-slate-950 font-sora">Choose a new password</h1>
+          <p className="mt-2 text-sm font-semibold text-slate-600">
             Reset links expire after one hour.
           </p>
         </div>
 
         {success ? (
           <div className="mt-8 text-center">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+            <div className="rounded-2xl border border-emerald-255/30 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
               Password updated. You can now sign in.
             </div>
             <Link href="/auth/login" className="mt-5 inline-flex text-sm font-bold text-forest hover:underline">
@@ -71,7 +74,7 @@ export default function ResetPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
             {error && (
-              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+              <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
                 {error}
               </div>
             )}
@@ -81,12 +84,12 @@ export default function ResetPasswordPage() {
               <input
                 {...register("password")}
                 type="password"
-                className={`mt-1.5 w-full rounded-md border px-3 py-2 text-sm text-slate-900 outline-none focus:border-forest focus:ring-1 focus:ring-forest ${
-                  errors.password ? "border-red-400" : "border-slate-300"
+                className={`mt-1.5 w-full rounded-full border px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-forest focus:ring-2 focus:ring-forest/20 transition-all ${
+                  errors.password ? "border-red-400 focus:border-red-400" : "border-white/30 bg-white/60"
                 }`}
               />
               {errors.password && (
-                <span className="mt-1 block text-xs font-bold text-red-600">{errors.password.message}</span>
+                <span className="mt-1 block text-xs font-bold text-red-600 px-2">{errors.password.message}</span>
               )}
             </label>
 
@@ -95,19 +98,19 @@ export default function ResetPasswordPage() {
               <input
                 {...register("confirmPassword")}
                 type="password"
-                className={`mt-1.5 w-full rounded-md border px-3 py-2 text-sm text-slate-900 outline-none focus:border-forest focus:ring-1 focus:ring-forest ${
-                  errors.confirmPassword ? "border-red-400" : "border-slate-300"
+                className={`mt-1.5 w-full rounded-full border px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-forest focus:ring-2 focus:ring-forest/20 transition-all ${
+                  errors.confirmPassword ? "border-red-400 focus:border-red-400" : "border-white/30 bg-white/60"
                 }`}
               />
               {errors.confirmPassword && (
-                <span className="mt-1 block text-xs font-bold text-red-600">{errors.confirmPassword.message}</span>
+                <span className="mt-1 block text-xs font-bold text-red-650 px-2">{errors.confirmPassword.message}</span>
               )}
             </label>
 
             <button
               type="submit"
               disabled={isLoading || !token}
-              className="w-full rounded-md bg-forest py-2.5 text-sm font-black text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-full bg-forest py-2.5 text-sm font-black text-white hover:bg-[#b0f0d6] hover:text-[#003527] disabled:cursor-not-allowed disabled:opacity-50 transition-all shadow-md shadow-forest/10 hover:scale-[1.01]"
             >
               {isLoading ? "Updating..." : "Reset password"}
             </button>

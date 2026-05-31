@@ -5,8 +5,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-inter)", "sans-serif"],
-        sora: ["var(--font-sora)", "sans-serif"],
+        sans: ["var(--font-sans)", "sans-serif"],
+        sora: ["var(--font-display)", "sans-serif"],
       },
       borderRadius: {
         sm: "0.5rem",       // 8px

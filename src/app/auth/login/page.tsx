@@ -60,13 +60,13 @@ function LoginForm() {
 
   return (
     <section className="mx-auto max-w-md px-4 py-16">
-      <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+      <div className="glass-card p-8 border-white/20 bg-white/50 backdrop-blur-sm">
         <div className="text-center">
-          <span className="inline-grid h-12 w-12 place-items-center rounded-xl bg-emerald-50 text-xl font-bold text-forest">
+          <span className="inline-grid h-12 w-12 place-items-center rounded-full bg-[#b0f0d6]/40 text-xl font-bold text-forest">
             🔑
           </span>
-          <h1 className="mt-4 text-3xl font-black text-slate-950">Log in</h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <h1 className="mt-4 text-3xl font-black text-slate-950 font-sora">Log in</h1>
+          <p className="mt-2 text-sm text-slate-600 font-semibold">
             Access your EPA environmental catalog courses
           </p>
         </div>
@@ -74,7 +74,7 @@ function LoginForm() {
         {globalError && (
           <div
             role="alert"
-            className="mt-6 rounded-lg bg-red-50 border border-red-200 p-4 text-sm font-semibold text-red-700"
+            className="mt-6 rounded-2xl bg-red-50 border border-red-200 p-4 text-sm font-semibold text-red-705"
           >
             ⚠️ {globalError}
           </div>
@@ -88,12 +88,12 @@ function LoginForm() {
               type="email"
               placeholder="you@example.com"
               aria-invalid={errors.email ? "true" : "false"}
-              className={`mt-1.5 w-full rounded-md border px-3 py-2 text-sm text-slate-900 focus:border-forest focus:ring-1 focus:ring-forest outline-none transition-colors ${
-                errors.email ? "border-red-400 focus:border-red-400 focus:ring-red-400" : "border-slate-300"
+              className={`mt-1.5 w-full rounded-full border px-4 py-2.5 text-sm text-slate-900 focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none transition-all ${
+                errors.email ? "border-red-400 focus:border-red-400 focus:ring-red-400" : "border-white/30 bg-white/60"
               }`}
             />
             {errors.email && (
-              <span className="mt-1 block text-xs font-bold text-red-600">{errors.email.message}</span>
+              <span className="mt-1 block text-xs font-bold text-red-650 px-2">{errors.email.message}</span>
             )}
           </label>
 
@@ -104,19 +104,19 @@ function LoginForm() {
               type="password"
               placeholder="••••••••"
               aria-invalid={errors.password ? "true" : "false"}
-              className={`mt-1.5 w-full rounded-md border px-3 py-2 text-sm text-slate-900 focus:border-forest focus:ring-1 focus:ring-forest outline-none transition-colors ${
-                errors.password ? "border-red-400 focus:border-red-400 focus:ring-red-400" : "border-slate-300"
+              className={`mt-1.5 w-full rounded-full border px-4 py-2.5 text-sm text-slate-900 focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none transition-all ${
+                errors.password ? "border-red-400 focus:border-red-400 focus:ring-red-400" : "border-white/30 bg-white/60"
               }`}
             />
             {errors.password && (
-              <span className="mt-1 block text-xs font-bold text-red-600">{errors.password.message}</span>
+              <span className="mt-1 block text-xs font-bold text-red-655 px-2">{errors.password.message}</span>
             )}
           </label>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-2 w-full rounded-md bg-forest py-2.5 text-sm font-black text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            className="mt-2 w-full rounded-full bg-forest py-2.5 text-sm font-black text-white hover:bg-[#b0f0d6] hover:text-[#003527] focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-forest/10 hover:scale-[1.01]"
           >
             {isLoading ? "Signing in..." : "Sign in"}
           </button>
@@ -125,14 +125,14 @@ function LoginForm() {
         {/* Divider */}
         <div className="relative my-6 flex items-center justify-center text-xs font-bold uppercase tracking-wider text-slate-400">
           <div className="absolute inset-0 border-t border-slate-200" />
-          <span className="relative bg-white px-3">or continue with</span>
+          <span className="relative bg-[#f7f9fb]/90 border border-white/20 px-3 py-1 rounded-full backdrop-blur-sm text-[10px]">or continue with</span>
         </div>
 
         {/* Google sign-in */}
         <button
           onClick={handleGoogleSignIn}
           type="button"
-          className="w-full flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+          className="w-full flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white/60 py-2.5 text-sm font-bold text-slate-705 hover:bg-white/80 transition-all hover:scale-[1.01] shadow-sm"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
@@ -158,7 +158,7 @@ function LoginForm() {
         {/* Links */}
         <div className="mt-8 space-y-3 text-center text-sm font-semibold">
           <div>
-            <span className="text-slate-500">New to the platform? </span>
+            <span className="text-slate-500 font-semibold">New to the platform? </span>
             <Link href="/auth/signup" className="text-forest hover:underline">
               Create your account
             </Link>

@@ -51,20 +51,20 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
   };
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[1600px] min-w-0 flex-col bg-white shadow-sm ring-1 ring-slate-100 md:flex-row">
+    <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[1600px] min-w-0 flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-100 md:flex-row">
       
       {/* Sidebar: Fixed 300px Left on Desktop, Accordion/Toggle Column below on Mobile */}
-      <aside className="w-full border-b border-slate-200 bg-white md:w-[320px] md:flex-shrink-0 md:border-b-0 md:border-r">
+      <aside className="w-full min-w-0 border-b border-slate-200 bg-white md:w-[320px] md:flex-shrink-0 md:border-b-0 md:border-r">
         
         {/* Mobile Accordion Toggle Header */}
-        <div className="flex md:hidden items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
-          <span className="text-sm font-black text-slate-800">Course Index</span>
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:hidden">
+          <span className="min-w-0 text-sm font-black text-slate-800">Course Index</span>
           <button
             onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
             aria-expanded={isMobileSidebarOpen}
             aria-controls="lesson-sidebar"
             aria-label={isMobileSidebarOpen ? "Hide course sidebar" : "Show course sidebar"}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 bg-white text-xs font-black text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-forest"
+            className="flex shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-forest"
           >
             <span>{isMobileSidebarOpen ? "Hide syllabus" : "Show syllabus"}</span>
             <span className="text-[10px]">{isMobileSidebarOpen ? "Up" : "Down"}</span>
@@ -82,10 +82,10 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
       </aside>
 
       {/* Main viewport: Video player + description resources layout */}
-      <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6 lg:p-8">
+      <main className="w-full min-w-0 flex-1 overflow-y-auto bg-slate-50/50 p-3 sm:p-6 lg:p-8">
         {allLessonsCompleted && (
-          <div className="mx-auto mb-6 flex max-w-4xl flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+          <div className="mx-auto mb-6 flex max-w-4xl min-w-0 flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="min-w-0">
               <p className="text-sm font-black text-emerald-950">All lessons completed</p>
               <p className="mt-1 text-sm font-semibold text-emerald-800">
                 Take the final quiz to complete this course.

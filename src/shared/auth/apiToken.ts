@@ -10,6 +10,7 @@ interface ApiTokenUser {
   id: string;
   email: string;
   role?: string;
+  roles?: string[];
   permissions?: string[];
   enrolledCourses?: string[];
   completedCourses?: string[];
@@ -27,6 +28,7 @@ export function signApiAccessToken(
       id: user.id,
       email: user.email,
       role,
+      roles: user.roles && user.roles.length > 0 ? user.roles : [role],
       permissions: permissions.length > 0 ? permissions : getPermissionsForRole(role),
       enrolledCourses: user.enrolledCourses || [],
       completedCourses: user.completedCourses || [],

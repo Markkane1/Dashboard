@@ -50,18 +50,18 @@ export default function EnrollButton({
 
   if (isEnrolled) {
     return (
-      <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-5 py-3 text-sm font-black text-forest">
+      <div className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-black text-forest sm:w-auto">
         <span>✓</span> Already enrolled
       </div>
     );
   }
 
   return (
-    <div className="inline-flex flex-col gap-2">
+    <div className="inline-flex w-full flex-col gap-2 sm:w-auto">
       <button
         onClick={handleEnroll}
         disabled={isLoading}
-        className="rounded-lg bg-forest px-6 py-3 text-sm font-black text-white hover:bg-emerald-800 transition-colors disabled:opacity-50"
+        className="w-full rounded-lg bg-forest px-6 py-3 text-sm font-black text-white transition-colors hover:bg-emerald-800 disabled:opacity-50 sm:w-auto"
       >
         {isLoading ? "Enrolling..." : "Enroll in this course"}
       </button>

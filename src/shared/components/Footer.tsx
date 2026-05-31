@@ -27,7 +27,9 @@ const treaties = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-slate-800 bg-slate-950 text-slate-400">
+    <footer className="relative mt-12 overflow-hidden border-t border-white/20 bg-brand-inverse-surface text-brand-inverse-on-surface">
+      <div className="organic-blob blob-mint left-[-8rem] top-[-12rem] h-80 w-80 opacity-10" />
+      <div className="organic-blob blob-emerald bottom-[-14rem] right-[-10rem] h-96 w-96 opacity-20" />
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         
         {/* Main 3-column Footer Grid */}
@@ -36,21 +38,21 @@ export default function Footer() {
           {/* Column 1: App Info (Sleek Branding) */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-forest text-xs font-black text-white">
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-inverse-primary text-xs font-black text-brand-on-primary-fixed">
                 EPA
               </span>
               <span className="text-lg font-black tracking-tight text-white">
                 EPA Elearning Platform
               </span>
             </div>
-            <p className="max-w-md text-sm leading-relaxed text-slate-400">
+            <p className="max-w-md text-sm leading-relaxed text-brand-inverse-on-surface/80">
               An interactive e-learning platform inspired by international environmental agreements, providing self-paced training resources to expand legal and environmental literacy globally.
             </p>
           </div>
 
           {/* Column 2: Organizations */}
           <div>
-            <h3 className="text-sm font-black uppercase tracking-wider text-emerald-400">
+            <h3 className="text-sm font-black uppercase tracking-wider text-brand-inverse-primary">
               Organizations
             </h3>
             <ul className="mt-4 grid grid-cols-1 gap-2 text-sm">
@@ -60,10 +62,10 @@ export default function Footer() {
                     href={org.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group flex items-center gap-1 transition-colors duration-200 hover:text-white"
+                    className="group flex items-center gap-1 text-brand-inverse-on-surface/80 transition-colors duration-200 hover:text-white"
                   >
                     <span>{org.name}</span>
-                    <span className="text-[10px] text-slate-600 transition-colors group-hover:text-emerald-400">External</span>
+                    <span className="text-[10px] text-brand-inverse-on-surface/45 transition-colors group-hover:text-brand-inverse-primary">External</span>
                   </a>
                 </li>
               ))}
@@ -72,7 +74,7 @@ export default function Footer() {
 
           {/* Column 3: Global Treaties */}
           <div>
-            <h3 className="text-sm font-black uppercase tracking-wider text-emerald-400">
+            <h3 className="text-sm font-black uppercase tracking-wider text-brand-inverse-primary">
               Global treaties
             </h3>
             <ul className="mt-4 grid grid-cols-1 gap-2 text-sm">
@@ -82,10 +84,10 @@ export default function Footer() {
                     href={treaty.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group flex items-center gap-1 transition-colors duration-200 hover:text-white"
+                    className="group flex items-center gap-1 text-brand-inverse-on-surface/80 transition-colors duration-200 hover:text-white"
                   >
                     <span>{treaty.name}</span>
-                    <span className="text-[10px] text-slate-600 transition-colors group-hover:text-emerald-400">External</span>
+                    <span className="text-[10px] text-brand-inverse-on-surface/45 transition-colors group-hover:text-brand-inverse-primary">External</span>
                   </a>
                 </li>
               ))}
@@ -95,17 +97,17 @@ export default function Footer() {
         </div>
 
         {/* Divider line */}
-        <div className="mt-12 border-t border-slate-800 pt-8" />
+        <div className="mt-12 border-t border-white/10 pt-8" />
 
         {/* Bottom Section: Copyrights & Data Retention */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-xs">
-          <p className="leading-relaxed max-w-2xl">
+          <p className="max-w-2xl leading-relaxed text-brand-inverse-on-surface/75">
             Terms and conditions. Portions copyright United Nations, FAO, UNEP, and UNESCO.
           </p>
           <div className="flex-shrink-0">
             <Link
               href="/data-retention"
-              className="font-semibold text-emerald-400 hover:text-emerald-300 hover:underline transition-all duration-200"
+              className="font-semibold text-brand-inverse-primary transition-all duration-200 hover:text-brand-primary-fixed hover:underline"
             >
               Data retention summary
             </Link>

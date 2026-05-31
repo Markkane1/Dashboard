@@ -1,6 +1,6 @@
 import { signApiAccessToken } from "@/shared/auth/apiToken";
 import { logger } from '@/shared/logger';
-import { USER_ROLES, type UserRole } from "@/shared/permissions";
+import { USER_ROLES, type Permission, type UserRole } from "@/shared/permissions";
 
 export interface StoredUser {
   id: string;
@@ -8,6 +8,8 @@ export interface StoredUser {
   email: string;
   password?: string;
   role: UserRole;
+  roles?: string[];
+  permissions?: Permission[];
   avatar?: string;
   enrolledCourses?: string[];
   completedCourses?: string[];

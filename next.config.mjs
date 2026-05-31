@@ -49,6 +49,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  optimizeFonts: false,
   async headers() {
     return [
       {

@@ -24,6 +24,21 @@ const userSchema = new mongoose.Schema(
       enum: ALL_USER_ROLES,
       default: USER_ROLES.STUDENT
     },
+    roles: {
+      type: [String],
+      default: [USER_ROLES.STUDENT],
+      set(value: unknown) {
+        if (!Array.isArray(value) || value.length === 0) {
+          return [USER_ROLES.STUDENT];
+        }
+
+        return [...new Set(value.map((role) => String(role || '').trim().toLowerCase()).filter(Boolean))];
+      }
+    },
+    permissions: {
+      type: [String],
+      default: []
+    },
     avatar: {
       type: String,
       default: ''

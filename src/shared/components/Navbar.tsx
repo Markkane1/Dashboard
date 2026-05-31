@@ -36,7 +36,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/25 bg-white/75 backdrop-blur-lg transition-all duration-200">
+    <header className="sticky top-0 z-40 w-full border-b border-white/35 bg-white/80 shadow-sm backdrop-blur-xl transition-all duration-200">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex min-h-16 items-center justify-between gap-3 py-2">
           
@@ -47,10 +47,10 @@ export default function Navbar() {
                 EPA
               </span>
               <div className="min-w-0 leading-none max-w-[10rem] sm:max-w-none">
-                <span className="block truncate text-base font-black tracking-tight text-slate-950 transition-colors duration-200 group-hover:text-forest">
+                <span className="block truncate text-base font-black tracking-tight text-brand-on-surface transition-colors duration-200 group-hover:text-forest">
                   EPA Elearning
                 </span>
-                <span className="hidden text-[10px] font-bold uppercase tracking-wider text-slate-400 sm:block">
+                <span className="hidden text-[10px] font-bold uppercase tracking-wider text-brand-on-surface-variant sm:block">
                   Environmental Learning Platform
                 </span>
               </div>
@@ -61,19 +61,19 @@ export default function Navbar() {
           <nav className="hidden items-center gap-1 lg:flex">
             <Link
               href="/courses"
-              className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+              className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
             >
               Courses
             </Link>
             <Link
               href="/about"
-              className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+              className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
             >
               About
             </Link>
             <Link
               href="/contact"
-              className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+              className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
             >
               Contact us
             </Link>
@@ -81,13 +81,13 @@ export default function Navbar() {
               <>
                 <Link
                   href="/dashboard"
-                  className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                  className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                 >
                   Dashboard
                 </Link>
                 <Link
                   href="/notifications"
-                  className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                  className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                 >
                   Notifications
                 </Link>
@@ -95,13 +95,13 @@ export default function Navbar() {
                   <>
                     <Link
                       href="/instructor/content"
-                      className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                      className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                     >
                       Instructor
                     </Link>
                     <Link
                       href="/instructor/analytics"
-                      className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                      className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                     >
                       Analytics
                     </Link>
@@ -110,7 +110,7 @@ export default function Navbar() {
                 {isAdmin && (
                   <Link
                     href="/admin"
-                    className="rounded-full px-3.5 py-2 text-sm font-bold text-slate-700 transition-colors duration-200 hover:bg-white/60 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
+                    className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
                   >
                     Admin
                   </Link>
@@ -127,12 +127,12 @@ export default function Navbar() {
               <div className="h-8 w-16 animate-pulse rounded bg-slate-100" />
             ) : isAuthenticated ? (
               <div className="flex items-center gap-3">
-                <span className="hidden max-w-40 truncate text-sm font-semibold text-slate-600 xl:block">
-                  Hi, <span className="font-bold text-slate-800">{session?.user?.name}</span>
+                <span className="hidden max-w-40 truncate text-sm font-semibold text-brand-on-surface-variant xl:block">
+                  Hi, <span className="font-bold text-brand-on-surface">{session?.user?.name}</span>
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="rounded-full border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 transition-all duration-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
+                  className="rounded-full border border-white/40 bg-white/45 px-4 py-2 text-sm font-bold text-brand-on-surface-variant transition-all duration-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
                 >
                   Log out
                 </button>
@@ -141,7 +141,7 @@ export default function Navbar() {
               <div className="flex items-center gap-3">
                 <Link
                   href="/auth/login"
-                  className="text-sm font-bold text-forest hover:text-brand-secondary focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 rounded px-4 py-2 transition-colors duration-200"
+                className="rounded-full px-4 py-2 text-sm font-bold text-forest transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-brand-secondary focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
                 >
                   Log in
                 </Link>
@@ -164,7 +164,7 @@ export default function Navbar() {
               aria-label="Toggle menu"
               aria-expanded={isMobileMenuOpen}
               aria-controls="mobile-navigation"
-              className="inline-flex items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-forest"
+              className="inline-flex items-center justify-center rounded-full bg-white/45 p-2 text-brand-on-surface-variant hover:bg-brand-secondary-container/50 hover:text-forest focus:outline-none focus:ring-2 focus:ring-inset focus:ring-forest"
             >
               {isMobileMenuOpen ? (
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -188,7 +188,7 @@ export default function Navbar() {
           ref={mobileMenuRef}
           role="navigation"
           aria-label="Mobile menu"
-          className="lg:hidden border-t border-white/20 bg-white/90 backdrop-blur-md shadow-lg animate-in slide-in-from-top duration-200"
+          className="border-t border-white/30 bg-white/90 shadow-lg backdrop-blur-xl animate-in slide-in-from-top duration-200 lg:hidden"
         >
           <div className="space-y-1 px-4 py-4 pb-6">
             <Link

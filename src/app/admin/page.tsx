@@ -2,7 +2,7 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
 import AdminPanel from "@/features/admin/components/AdminPanel";
-import { fetchAdminUsers, fetchAnalyticsOverview, fetchManageableCourses } from "@/infrastructure/api/admin";
+import { fetchAdminUsers, fetchAnalyticsOverview, fetchManageableCourses, fetchPermissionCatalog, fetchRoles } from "@/infrastructure/api/admin";
 import { hasPermission, PERMISSIONS } from "@/shared/permissions";
 
 export default async function AdminPage() {
@@ -11,10 +11,12 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  const [courses, users, analytics] = await Promise.all([
+  const [courses, users, analytics, roles, permissionCatalog] = await Promise.all([
     fetchManageableCourses(session.apiAccessToken),
     fetchAdminUsers(session.apiAccessToken),
     fetchAnalyticsOverview(session.apiAccessToken),
+    fetchRoles(session.apiAccessToken),
+    fetchPermissionCatalog(session.apiAccessToken),
   ]);
 
   return (
@@ -26,7 +28,7 @@ export default async function AdminPage() {
           Manage courses, lessons, roles, announcements, and learning analytics without touching MongoDB directly.
         </p>
       </div>
-      <AdminPanel token={session.apiAccessToken} courses={courses} users={users} analytics={analytics} />
+      <AdminPanel token={session.apiAccessToken} courses={courses} users={users} analytics={analytics} roles={roles} permissionCatalog={permissionCatalog} />
     </main>
   );
 }

@@ -116,6 +116,7 @@ export async function registerUser(input: SignupInput) {
       email: email.toLowerCase().trim(),
       password: hashedPassword,
       role: USER_ROLES.STUDENT,
+      roles: [USER_ROLES.STUDENT],
       avatar: "",
       enrolledCourses: [],
       emailVerified: false,

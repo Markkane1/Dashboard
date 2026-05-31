@@ -108,9 +108,9 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
   };
 
   return (
-    <article className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <article className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
       {/* 1. Breadcrumb */}
-      <nav className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-8">
+      <nav className="mb-6 flex min-w-0 flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 sm:mb-8">
         <Link href="/" className="hover:text-forest transition-colors">
           Home
         </Link>
@@ -123,7 +123,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
           <span>{categoryLabel}</span>
         )}
         <span>&gt;</span>
-        <span className="text-slate-800 line-clamp-1 max-w-md">{course.title}</span>
+        <span className="min-w-0 max-w-full text-slate-800 sm:max-w-md">{course.title}</span>
       </nav>
 
       {searchParams?.error === "not-enrolled" && (
@@ -133,7 +133,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
       )}
 
       {/* Course Detail Card */}
-      <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200 lg:p-10">
+      <div className="min-w-0 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8 lg:p-10">
         
         {/* Category badge, SDG goals, MEA tags */}
         <div className="flex flex-wrap items-center gap-3">
@@ -185,7 +185,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
         </div>
 
         {/* 4. Action Buttons */}
-        <div className="mt-10 flex flex-wrap items-center gap-4 pt-8 border-t border-slate-100">
+        <div className="mt-8 flex min-w-0 flex-col gap-3 border-t border-slate-100 pt-6 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:pt-8">
           
           {/* Enroll in this course */}
           <EnrollButton
@@ -197,7 +197,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
           {initialEnrolled && !course.isExternal && (
             <Link
               href={`/courses/${course.id}/learn`}
-              className="inline-flex items-center justify-center rounded-lg bg-forest px-6 py-3 text-sm font-black text-white hover:bg-[#0d4f3a] transition-colors shadow-sm"
+              className="inline-flex w-full items-center justify-center rounded-lg bg-forest px-6 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#0d4f3a] sm:w-auto"
             >
               Continue Learning &rarr;
             </Link>
@@ -209,7 +209,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
               href={course.syllabusUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-black text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:w-auto"
             >
               View Syllabus (PDF)
             </a>
@@ -221,7 +221,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
               href={course.externalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-lg bg-ocean px-6 py-3 text-sm font-black text-white hover:bg-[#0b5366] transition-colors shadow-sm"
+              className="inline-flex w-full items-center justify-center rounded-lg bg-ocean px-6 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#0b5366] sm:w-auto"
             >
               Take Course
             </a>

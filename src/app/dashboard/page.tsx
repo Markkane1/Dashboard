@@ -60,48 +60,48 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 space-y-12">
+    <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:space-y-12">
       
       {/* 1. Welcome Header */}
-      <div className="rounded-2xl bg-gradient-to-r from-forest to-emerald-800 p-8 text-white shadow-sm lg:p-10 relative overflow-hidden">
-        <div className="absolute right-0 bottom-0 opacity-10 text-9xl font-bold select-none translate-y-12 translate-x-4">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-forest to-emerald-800 p-5 text-white shadow-sm sm:p-8 lg:p-10">
+        <div className="pointer-events-none absolute bottom-0 right-0 select-none text-7xl font-bold opacity-10 translate-x-4 translate-y-8 sm:text-9xl sm:translate-y-12">
           EPA
         </div>
         <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
           Your Learning Journey
         </span>
-        <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+        <h1 className="relative mt-2 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
           Welcome back, {session.user.name}
         </h1>
-        <p className="mt-3 max-w-xl text-emerald-100 text-sm leading-relaxed font-semibold">
+        <p className="relative mt-3 max-w-xl text-sm font-semibold leading-relaxed text-emerald-100">
           Expand your environmental law literacy at your own pace. Monitor your enrollment targets and download certifications once paths are complete.
         </p>
       </div>
 
       {/* 2. Stats Row */}
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-3 sm:gap-5">
         {stats.map((stat) => (
           <div
             key={stat.name}
-            className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200 flex items-center justify-between gap-4"
+            className="flex min-w-0 flex-col gap-3 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between sm:p-6"
           >
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-bold uppercase tracking-wider text-slate-500">{stat.name}</p>
               <p className="mt-2 text-3xl font-black text-slate-900">{stat.value}</p>
             </div>
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-forest">{stat.label}</span>
+            <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-forest">{stat.label}</span>
           </div>
         ))}
       </div>
 
       {/* 3. In Progress Section */}
       <div>
-        <h2 className="text-2xl font-black tracking-tight text-slate-950 flex items-center gap-2">
+        <h2 className="flex items-center gap-2 text-2xl font-black tracking-tight text-slate-950">
           Continue learning
         </h2>
         
         {inProgressCourses.length === 0 ? (
-          <div className="mt-6 rounded-xl bg-slate-50 border border-slate-200 p-10 text-center">
+          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-6 text-center sm:p-10">
             <span className="text-4xl">🌱</span>
             <h3 className="mt-3 text-lg font-bold text-slate-800">You have not enrolled in any courses yet.</h3>
             <p className="mt-1 text-sm text-slate-500">Explore the course catalog to enroll in our free environmental legal programs.</p>
@@ -128,7 +128,7 @@ export default async function DashboardPage() {
                     </Link>
                   )}
                   
-                  <div className="mt-5 border-t border-slate-100 pt-4 space-y-2">
+                  <div className="mt-5 space-y-2 border-t border-slate-100 pt-4">
                     <div className="flex justify-between text-xs font-bold text-slate-500">
                       <span>Course Progress</span>
                       <span className="text-forest">{percentComplete}% Complete</span>
@@ -153,12 +153,12 @@ export default async function DashboardPage() {
 
       {/* 4. Completed Section */}
       <div>
-        <h2 className="text-2xl font-black tracking-tight text-slate-950 flex items-center gap-2">
+        <h2 className="flex items-center gap-2 text-2xl font-black tracking-tight text-slate-950">
           Completed courses
         </h2>
 
         {completedCourses.length === 0 ? (
-          <div className="mt-6 rounded-xl bg-slate-50 border border-slate-100 p-8 text-center text-sm font-semibold text-slate-500">
+          <div className="mt-6 rounded-xl border border-slate-100 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 sm:p-8">
             Completed courses and earned certificates will be displayed here.
           </div>
         ) : (
@@ -181,9 +181,9 @@ export default async function DashboardPage() {
       </div>
 
       {/* Diploma Pathways */}
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm sm:p-6">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <h2 className="text-xl font-black text-slate-950">Specialist diploma pathways</h2>
             <p className="mt-1 text-sm font-semibold text-slate-600">
               Track multi-course requirements and download eligible diploma PDFs.
@@ -199,7 +199,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* 5. Browse CTA Banner */}
-      <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-8 text-center space-y-4">
+      <div className="space-y-4 rounded-xl border border-emerald-100 bg-emerald-50/50 p-5 text-center sm:p-8">
         <span className="text-3xl">🌏</span>
         <h3 className="text-xl font-black text-slate-950">Discover more courses</h3>
         <p className="mx-auto max-w-xl text-sm leading-relaxed text-slate-600 font-semibold">

@@ -16,51 +16,17 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
   const currentTimeRef = useRef(0);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
-  const [videoSource, setVideoSource] = useState("");
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState("");
   const apiToken = session?.apiAccessToken;
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const videoSource = apiToken ? `/api/video/${encodeURIComponent(lesson._id)}` : "";
 
   useEffect(() => {
-    let objectUrl = "";
-    const abortController = new AbortController();
-
-    async function loadVideo() {
-      if (!apiToken) {
-        setVideoSource("");
-        return;
-      }
-
-      try {
-        const res = await fetch(`${apiBase}/api/video/${lesson._id}`, {
-          headers: {
-            Authorization: `Bearer ${apiToken}`,
-          },
-          signal: abortController.signal,
-        });
-        if (!res.ok) {
-          throw new Error(`Failed to load video. Status: ${res.status}`);
-        }
-        const blob = await res.blob();
-        objectUrl = URL.createObjectURL(blob);
-        setVideoSource(objectUrl);
-        } catch (error) {
-        if (!abortController.signal.aborted) {
-          logger.error("Failed to load authenticated video:", error);
-          setVideoSource("");
-        }
-      }
-    }
-
-    loadVideo();
-
-    return () => {
-      abortController.abort();
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [apiBase, apiToken, lesson._id]);
+    setIsVideoReady(false);
+    setVideoError("");
+  }, [lesson._id, apiToken]);
 
   // 1. Sync progress coordinates to backend Express API
   const syncProgress = useCallback(async (watched: number, total: number) => {
@@ -113,6 +79,27 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
     };
   }, [lesson._id, lesson.duration, lesson.progress?.watchedSeconds]);
 
+  const handleVideoReady = () => {
+    setIsVideoReady(true);
+    setVideoError("");
+  };
+
+  const handleVideoError = () => {
+    const video = videoRef.current;
+    const mediaError = video?.error;
+    const errorMessage = mediaError
+      ? `Video could not be played (media error ${mediaError.code}).`
+      : "Video could not be played.";
+
+    logger.error("Video playback error:", {
+      lessonId: lesson._id,
+      code: mediaError?.code,
+      message: mediaError?.message,
+    });
+    setIsVideoReady(false);
+    setVideoError(errorMessage);
+  };
+
   // 3. Periodic synchronization (sync progress every 10 seconds)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -158,6 +145,10 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
         <video
           ref={videoRef}
           src={videoSource}
+          key={lesson._id}
+          onLoadedMetadata={handleVideoReady}
+          onCanPlay={handleVideoReady}
+          onError={handleVideoError}
           onTimeUpdate={handleTimeUpdate}
           onEnded={handleVideoEnded}
           controls
@@ -167,7 +158,22 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
         />
         {!videoSource && (
           <div className="absolute inset-0 grid place-items-center bg-black text-sm font-bold text-white">
+            Sign in to load this secure video.
+          </div>
+        )}
+        {videoSource && !isVideoReady && !videoError && (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/70 text-sm font-bold text-white">
             Loading secure video...
+          </div>
+        )}
+        {videoError && (
+          <div className="absolute inset-0 grid place-items-center bg-black p-6 text-center text-sm font-bold text-white">
+            <div>
+              <p>{videoError}</p>
+              <p className="mt-2 text-xs font-semibold text-white/70">
+                Check that this lesson has a valid MP4 file and that you are enrolled in the course.
+              </p>
+            </div>
           </div>
         )}
       </div>

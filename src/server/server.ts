@@ -81,6 +81,7 @@ app.use('/api/users', (req: Request, res: Response, next: NextFunction) => {
 app.use('/api/courses', require('./routes/courses'));
 app.use('/api/taxonomies', require('./routes/taxonomies'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/roles', require('./routes/roles'));
 app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/video', require('./routes/video'));
 app.use('/api/progress', require('./routes/progress'));

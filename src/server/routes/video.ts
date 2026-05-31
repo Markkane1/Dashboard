@@ -18,6 +18,10 @@ let activeVideoStreams = 0;
 const videoStreamQueue: Array<() => void> = [];
 
 function parseByteRange(rangeHeader: string | undefined, fileSize: number) {
+  if (fileSize <= 0) {
+    return null;
+  }
+
   if (!rangeHeader) {
     return { start: 0, end: Math.min(DEFAULT_VIDEO_CHUNK_BYTES - 1, fileSize - 1) };
   }
@@ -28,8 +32,20 @@ function parseByteRange(rangeHeader: string | undefined, fileSize: number) {
   }
 
   const [, rawStart, rawEnd] = match;
-  let start = rawStart ? Number(rawStart) : 0;
-  let end = rawEnd ? Number(rawEnd) : Math.min(start + DEFAULT_VIDEO_CHUNK_BYTES - 1, fileSize - 1);
+  let start;
+  let end;
+
+  if (!rawStart && rawEnd) {
+    const suffixLength = Number(rawEnd);
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) {
+      return null;
+    }
+    start = Math.max(fileSize - suffixLength, 0);
+    end = fileSize - 1;
+  } else {
+    start = rawStart ? Number(rawStart) : 0;
+    end = rawEnd ? Number(rawEnd) : Math.min(start + DEFAULT_VIDEO_CHUNK_BYTES - 1, fileSize - 1);
+  }
 
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || start >= fileSize) {
     return null;
@@ -113,7 +129,37 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
     const stat = fs.statSync(filePath);
     const fileSize = stat.size;
 
-    // B. Parse Range Header parameter, defaulting to a bounded first chunk.
+    if (!req.headers.range) {
+      const headers = {
+        'Accept-Ranges': 'bytes',
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4'
+      };
+
+      res.writeHead(200, headers);
+      const releaseStreamSlot = await acquireVideoStreamSlot();
+      const fileStream = fs.createReadStream(filePath);
+      let released = false;
+      const releaseOnce = () => {
+        if (released) return;
+        released = true;
+        releaseStreamSlot();
+      };
+
+      fileStream.on('error', (streamErr: Error) => {
+        logger.error({ err: streamErr }, 'ReadStream error occurred during full video piping');
+        releaseOnce();
+        if (!res.headersSent) {
+          res.status(500).end();
+        }
+      });
+      fileStream.on('close', releaseOnce);
+      res.on('close', releaseOnce);
+
+      return fileStream.pipe(res);
+    }
+
+    // B. Parse Range Header parameter.
     const parsedRange = parseByteRange(req.headers.range, fileSize);
 
     // Validate boundaries

@@ -3,6 +3,7 @@ const Lesson = require('./Lesson');
 const Progress = require('./Progress');
 const QuizSubmission = require('./QuizSubmission');
 const User = require('./User');
+const Role = require('./Role');
 const Enrollment = require('./Enrollment');
 const CertificateIssuance = require('./CertificateIssuance');
 const Notification = require('./Notification');
@@ -13,6 +14,7 @@ module.exports = {
   Progress,
   QuizSubmission,
   User,
+  Role,
   Enrollment,
   CertificateIssuance,
   Notification
@@ -26,6 +28,7 @@ export {
   Notification,
   Progress,
   QuizSubmission,
+  Role,
   User
 };
 
@@ -37,5 +40,6 @@ export default {
   Notification,
   Progress,
   QuizSubmission,
+  Role,
   User
 };

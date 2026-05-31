@@ -337,9 +337,9 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
         <form
-          className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+          className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
           onSubmit={(event) => {
             event.preventDefault();
             createCourse(new FormData(event.currentTarget));
@@ -423,7 +423,7 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
         </form>
 
         <form
-          className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+          className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
           onSubmit={(event) => {
             event.preventDefault();
             createLesson(new FormData(event.currentTarget));
@@ -448,13 +448,13 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
         </form>
       </div>
 
-      <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+      <section className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
             <h2 className="text-xl font-black text-slate-950">Edit course</h2>
             <p className="text-sm font-semibold text-slate-500">{selectedCourse?.title || "Select a course to edit metadata and quiz questions."}</p>
           </div>
-          <select value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <select value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm md:w-auto md:max-w-sm">
             {courses.map((course) => (
               <option key={course.id} value={course.id}>{course.title}</option>
             ))}
@@ -539,13 +539,13 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
         </div>
       </section>
 
-      <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+      <section className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
             <h2 className="text-xl font-black text-slate-950">Edit lessons</h2>
             <p className="text-sm font-semibold text-slate-500">{lessons.length} lessons in this course</p>
           </div>
-          <select value={selectedLessonId} onChange={(event) => setSelectedLessonId(event.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <select value={selectedLessonId} onChange={(event) => setSelectedLessonId(event.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm md:w-auto md:max-w-sm">
             {lessons.length === 0 ? (
               <option value="">No lessons yet</option>
             ) : lessons.map((lesson) => (

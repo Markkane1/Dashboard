@@ -1,4 +1,4 @@
-import type { UserRole } from "./permissions";
+import type { Permission, UserRole } from "./permissions";
 
 export type Category = string;
 
@@ -35,11 +35,26 @@ export type User = {
   name: string;
   email: string;
   role?: UserRole;
+  roles?: string[];
+  permissions?: Permission[];
+  directPermissions?: Permission[];
   avatar?: string;
   enrolledCourses: string[];
   completedCourses: string[];
   emailVerified?: boolean;
   createdAt?: string;
+};
+
+export type Role = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  permissions: Permission[];
+  system: boolean;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type LessonResource = {

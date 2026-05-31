@@ -129,13 +129,13 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
   };
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-black uppercase tracking-wide text-slate-500">Taxonomy manager</p>
           <h2 className="mt-1 text-2xl font-black text-slate-950">Categories, SDGs, Sections, Topics</h2>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex min-w-0 flex-wrap gap-3">
           {taxonomyTypes.map((taxonomy) => (
             <button
               key={taxonomy.id}
@@ -156,7 +156,7 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
       )}
 
       <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
-        <form onSubmit={submit} className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+        <form onSubmit={submit} className="min-w-0 space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-slate-700">
               Key
@@ -202,7 +202,7 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
               placeholder="Optional description for administrative use"
             />
           </label>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button type="submit" disabled={isPending} className="rounded-full bg-forest px-4 py-2 text-sm font-black text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60">
               {selectedId ? 'Update item' : 'Create item'}
             </button>
@@ -218,7 +218,7 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
         </form>
 
         <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center justify-between gap-4">
             <p className="text-sm font-black uppercase tracking-wide text-slate-500">{taxonomyTypes.find((item) => item.id === type)?.label}</p>
             <button type="button" onClick={refresh} className="text-sm font-semibold text-forest hover:underline">
               Refresh
@@ -233,14 +233,14 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
                   key={item.id}
                   type="button"
                   onClick={() => selectItem(item)}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-900 hover:border-forest hover:bg-emerald-50 transition"
+                  className="w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:border-forest hover:bg-emerald-50"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
+                  <div className="flex min-w-0 flex-col gap-2 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between">
+                    <div className="min-w-0">
                       <p>{item.label}</p>
                       <p className="text-xs text-slate-500">{item.key} / order {item.order}</p>
                     </div>
-                    <span className={`rounded-full px-2 py-1 text-[11px] font-black ${item.active ? 'bg-emerald-100 text-forest' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`w-fit shrink-0 rounded-full px-2 py-1 text-[11px] font-black ${item.active ? 'bg-emerald-100 text-forest' : 'bg-slate-100 text-slate-600'}`}>
                       {item.active ? 'Active' : 'Inactive'}
                     </span>
                   </div>

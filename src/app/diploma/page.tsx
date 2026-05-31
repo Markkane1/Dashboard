@@ -30,8 +30,8 @@ export default async function DiplomaPage() {
   const diplomaTracks = courses.filter((course) => course.isDiploma);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="rounded-2xl bg-amber-50 p-8 ring-1 ring-amber-200">
+    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
+      <div className="rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200 sm:p-8">
         <p className="text-xs font-black uppercase tracking-wider text-amber-700">Specialist Diplomas</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
           Complete multi-course pathways
@@ -42,11 +42,11 @@ export default async function DiplomaPage() {
       </div>
 
       {diplomaTracks.length === 0 ? (
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-600">
+        <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-600 sm:p-8">
           No diploma tracks are currently configured.
         </div>
       ) : (
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="mt-8 grid min-w-0 gap-6 lg:grid-cols-2">
           {diplomaTracks.map((diploma) => {
             const requiredCourses = getRequiredCourses(diploma, courses);
             const completedRequired = requiredCourses.filter((course) => completedCourseIds.includes(course.id));
@@ -56,9 +56,9 @@ export default async function DiplomaPage() {
               : 0;
 
             return (
-              <section key={diploma.id} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+              <section key={diploma.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
                     <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">
                       Diploma Track
                     </span>
@@ -90,9 +90,9 @@ export default async function DiplomaPage() {
                         return (
                           <li
                             key={course.id}
-                            className="flex items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                            className="flex min-w-0 flex-col gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between"
                           >
-                            <Link href={`/courses/${course.id}`} className="font-bold text-slate-800 hover:text-forest">
+                            <Link href={`/courses/${course.id}`} className="min-w-0 font-bold text-slate-800 hover:text-forest">
                               {course.title}
                             </Link>
                             <span className={`shrink-0 rounded px-2 py-1 text-xs font-black ${
@@ -109,7 +109,7 @@ export default async function DiplomaPage() {
                   )}
                 </div>
 
-                <div className="mt-6 flex flex-wrap gap-3">
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   {isEligible ? (
                     <AuthenticatedDownloadButton
                       downloadUrl={`${apiUrl}/api/docs/diploma?diplomaId=${diploma.id}`}
@@ -120,7 +120,7 @@ export default async function DiplomaPage() {
                   ) : (
                     <Link
                       href="/courses"
-                      className="inline-flex rounded-lg bg-forest px-5 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-emerald-800"
+                      className="inline-flex items-center justify-center rounded-lg bg-forest px-5 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-emerald-800"
                     >
                       Continue pathway
                     </Link>

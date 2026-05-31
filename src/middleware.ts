@@ -2,15 +2,16 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { env } from "@/env";
-import { hasPermission, normalizePermissions, normalizeUserRole, PERMISSIONS } from "@/shared/permissions";
+import { hasAnyPermission, normalizePermissions, normalizeRoles, normalizeUserRole, PERMISSIONS, type Permission } from "@/shared/permissions";
 
 const AUTH_SECRET = env.AUTH_SECRET;
 const LOCALES = ["en", "pak"];
 const AUTHENTICATED_ROUTES = ["/dashboard"];
 // Map route prefixes to required permission for access
 const PERMISSION_ROUTES = [
-  { prefix: "/instructor", permission: PERMISSIONS.MANAGE_CONTENT },
-  { prefix: "/admin", permission: PERMISSIONS.MANAGE_USERS },
+  { prefix: "/dashboard", permissions: [PERMISSIONS.ACCESS_DASHBOARD] },
+  { prefix: "/instructor", permissions: [PERMISSIONS.ACCESS_INSTRUCTOR, PERMISSIONS.MANAGE_CONTENT] },
+  { prefix: "/admin", permissions: [PERMISSIONS.ACCESS_ADMIN, PERMISSIONS.MANAGE_USERS] },
 ];
 
 function isRoute(pathname: string, prefix: string) {
@@ -71,9 +72,10 @@ export async function middleware(request: NextRequest) {
   if (protectedByRole && token) {
     const user = {
       role: normalizeUserRole(token.role),
+      roles: normalizeRoles(token.roles, [normalizeUserRole(token.role)]),
       permissions: normalizePermissions(token.permissions),
     };
-    if (!hasPermission(user, protectedByRole.permission)) {
+    if (!hasAnyPermission(user, protectedByRole.permissions as Permission[])) {
       return unauthorizedRedirect(request, hasLocalePrefix, locale);
     }
   }

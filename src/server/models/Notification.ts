@@ -29,6 +29,10 @@ const notificationSchema = new mongoose.Schema(
     },
     readAt: {
       type: Date
+    },
+    demoKey: {
+      type: String,
+      index: true
     }
   },
   {

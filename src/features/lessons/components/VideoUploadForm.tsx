@@ -41,8 +41,7 @@ export default function VideoUploadForm({ courses, lessonsByCourse }: {
       const body = new FormData();
       body.append("video", file);
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiBase}/api/lessons/${lessonId}/upload`, {
+      const res = await fetch(`/api/admin/lessons/${lessonId}/upload`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.apiAccessToken}`,

@@ -32,9 +32,7 @@ export default function CourseInfiniteGrid({
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !nextCursor || isPending) {
-      return;
-    }
+    if (!sentinel || !nextCursor || isPending) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -60,9 +58,8 @@ export default function CourseInfiniteGrid({
 
   if (courses.length === 0) {
     return (
-      <div className="mt-16 rounded-xl border border-slate-200 bg-slate-50 py-12 text-center">
-        <span className="text-4xl">ðŸƒ</span>
-        <h3 className="mt-3 text-lg font-bold text-slate-800">No courses match your filters</h3>
+      <div className="mt-12 rounded-xl border border-slate-200 bg-slate-50 px-4 py-12 text-center">
+        <h3 className="text-lg font-bold text-slate-800">No courses match your filters</h3>
         <p className="mt-1 text-sm text-slate-500">Try adjusting your search or catalog filters.</p>
       </div>
     );

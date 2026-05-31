@@ -51,10 +51,10 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
   };
 
   return (
-    <div className="mx-auto max-w-[1600px] bg-white min-h-[calc(100vh-4rem)] flex flex-col md:flex-row shadow-sm ring-1 ring-slate-100">
+    <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[1600px] min-w-0 flex-col bg-white shadow-sm ring-1 ring-slate-100 md:flex-row">
       
       {/* Sidebar: Fixed 300px Left on Desktop, Accordion/Toggle Column below on Mobile */}
-      <aside className="w-full md:w-[320px] md:flex-shrink-0 border-b md:border-b-0 md:border-r border-slate-200 bg-white">
+      <aside className="w-full border-b border-slate-200 bg-white md:w-[320px] md:flex-shrink-0 md:border-b-0 md:border-r">
         
         {/* Mobile Accordion Toggle Header */}
         <div className="flex md:hidden items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
@@ -67,7 +67,7 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-300 bg-white text-xs font-black text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-forest"
           >
             <span>{isMobileSidebarOpen ? "Hide syllabus" : "Show syllabus"}</span>
-            <span className="text-[10px]">{isMobileSidebarOpen ? "▲" : "▼"}</span>
+            <span className="text-[10px]">{isMobileSidebarOpen ? "Up" : "Down"}</span>
           </button>
         </div>
 
@@ -82,7 +82,7 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
       </aside>
 
       {/* Main viewport: Video player + description resources layout */}
-      <main className="flex-1 bg-slate-50/50 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+      <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6 lg:p-8">
         {allLessonsCompleted && (
           <div className="mx-auto mb-6 flex max-w-4xl flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -102,7 +102,6 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
 
         <VideoPlayer
           lesson={activeLesson}
-          courseId={courseId}
           onComplete={handleLessonComplete}
         />
       </main>

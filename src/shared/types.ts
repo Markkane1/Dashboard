@@ -1,18 +1,13 @@
-export type Category =
-  | "biological-diversity"
-  | "chemicals-waste"
-  | "climate-atmosphere"
-  | "environmental-governance"
-  | "land-agriculture"
-  | "marine-freshwater";
+export type Category = string;
 
 export type Course = {
   id: string;
   title: string;
-  category: Category;
+  category: string;
   sdgGoals: number[];
-  topics: ("mea-introductory" | "human-rights" | "gender")[];
-  mea: string[];
+  sections?: string[];
+  topics: string[];
+  mea?: string[];
   syllabusUrl?: string;
   courseUrl: string;
   isDiploma: boolean;

@@ -31,6 +31,10 @@ const quizSubmissionSchema = new mongoose.Schema(
     passed: {
       type: Boolean,
       required: true
+    },
+    demoKey: {
+      type: String,
+      index: true
     }
   },
   {

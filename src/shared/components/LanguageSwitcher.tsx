@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname } from "@/shared/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function LanguageSwitcher() {
@@ -21,17 +21,21 @@ export default function LanguageSwitcher() {
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const nextLocale = e.target.value;
+    const pathWithoutLocale = pathname.replace(/^\/(en|pak)(?=\/|$)/, "") || "/";
+    const nextPath = nextLocale === "en" ? pathWithoutLocale : `/pak${pathWithoutLocale === "/" ? "" : pathWithoutLocale}`;
+    const search = typeof window !== "undefined" ? window.location.search : "";
+
     setCurrentLocale(nextLocale);
-    router.replace(pathname, { locale: nextLocale });
+    router.replace(`${nextPath}${search}`);
   };
 
   return (
-    <div className="relative inline-block text-left">
+    <div className="relative inline-block min-w-0 text-left">
       <select
         aria-label={`Select language, current language is ${currentLocale === "en" ? "English" : "Urdu"}`}
         value={currentLocale}
         onChange={handleChange}
-        className="block w-full rounded-md border border-slate-300 bg-white py-1.5 pl-3 pr-8 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-1 cursor-pointer appearance-none"
+        className="block w-full max-w-[8.5rem] truncate rounded-md border border-slate-300 bg-white py-1.5 pl-3 pr-8 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-1 cursor-pointer appearance-none sm:max-w-none"
         style={{
           backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M7 9l3 3 3-3' stroke='%25234a5568' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
           backgroundPosition: "right 0.5rem center",

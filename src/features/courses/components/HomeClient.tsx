@@ -3,7 +3,7 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import CourseCard from "./CourseCard";
-import { categories } from "../data/categories";
+import { categories as fallbackCategories } from "../data/categories";
 import { Link } from "@/shared/navigation";
 import { Course } from "@/shared/types";
 
@@ -28,19 +28,61 @@ const sdgGoals = [
   { number: 17, name: "Partnerships for the Goals", color: "#19486A" },
 ];
 
-export default function HomeClient({ courses }: { courses: Course[] }) {
+type TaxonomyOption = {
+  key: string;
+  label: string;
+};
+
+type CategoryOption = {
+  id: string;
+  label: string;
+};
+
+export default function HomeClient({
+  courses,
+  categories,
+  topics,
+  sections,
+  sdgGoals: taxonomySdgGoals,
+}: {
+  courses: Course[];
+  categories?: CategoryOption[];
+  topics?: TaxonomyOption[];
+  sections?: TaxonomyOption[];
+  sdgGoals?: number[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const categoryOptions = categories?.length ? categories : fallbackCategories;
+  const topicOptions = topics?.length
+    ? topics
+    : [
+        { key: "mea-introductory", label: "MEA Introductory" },
+        { key: "human-rights", label: "Human Rights" },
+        { key: "gender", label: "Gender" },
+      ];
+  const sectionOptions = sections?.length
+    ? sections
+    : [
+        { key: "CBD", label: "Convention on Biological Diversity (CBD)" },
+        { key: "UNFCCC", label: "United Nations Framework Convention on Climate Change (UNFCCC)" },
+        { key: "BRS", label: "Basel, Rotterdam, and Stockholm Conventions (BRS)" },
+      ];
+  const visibleSdgGoals = taxonomySdgGoals?.length
+    ? taxonomySdgGoals
+    : sdgGoals.map((goal) => goal.number);
 
   // Read URL search params
   const activeCategory = searchParams.get("category") || "";
   const activeSdg = searchParams.get("sdg") || "";
   const activeTopic = searchParams.get("topic") || "";
-  const activeMea = searchParams.get("mea") || "";
+  const activeSection = searchParams.get("section") || searchParams.get("mea") || "";
+  const activeSearch = searchParams.get("q") || "";
 
   // Update URL search parameters smoothly
   const updateParams = (newParams: Record<string, string>) => {
     const current = new URLSearchParams(Array.from(searchParams.entries()));
+    current.delete("cursor");
 
     Object.entries(newParams).forEach(([key, value]) => {
       if (value) {
@@ -58,7 +100,7 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
   const filteredCourses = courses;
 
   // Filter out categories that don't have matching courses
-  const displayCategories = categories.filter((cat) => {
+  const displayCategories = categoryOptions.filter((cat) => {
     if (activeCategory && cat.id !== activeCategory) {
       return false;
     }
@@ -72,44 +114,44 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
   return (
     <div>
       {/* Premium Hero section */}
-      <section className="bg-sand relative overflow-hidden py-14 lg:py-20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
+      <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-br from-white via-emerald-50/40 to-slate-50 py-12 sm:py-16 lg:py-20">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:px-8">
           <div className="flex flex-col justify-center">
-            <p className="text-sm font-black uppercase tracking-wider text-forest">
+            <p className="max-w-3xl text-xs font-black uppercase tracking-[0.18em] text-forest sm:text-sm">
               United Nations Information Portal on Multilateral Environmental Agreements
             </p>
-            <h1 className="mt-4 text-4xl font-black leading-tight text-slate-950 sm:text-5xl">
+            <h1 className="mt-4 max-w-4xl text-4xl font-black leading-[1.06] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
               Free, self-paced environmental law courses
             </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-700">
-              Browse a course catalog inspired by InforMEA eLearning, featuring SDG goals tracking, MEA thematic paths, and professional certifications.
+            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
+              Browse a course catalog with SDG goals tracking, MEA thematic paths, and professional certifications.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <a
                 href="#catalog"
-                className="rounded-md bg-forest px-5 py-3 text-sm font-black text-white hover:bg-emerald-800 transition-colors shadow-sm"
+                className="inline-flex justify-center rounded-lg bg-forest px-5 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-emerald-800"
               >
                 Browse catalog
               </a>
               <Link
                 href="/auth/signup"
-                className="rounded-md bg-white px-5 py-3 text-sm font-black text-forest ring-1 ring-emerald-200 hover:bg-emerald-50 transition-colors shadow-sm"
+                className="inline-flex justify-center rounded-lg bg-white px-5 py-3 text-sm font-black text-forest shadow-sm ring-1 ring-emerald-200 transition-colors hover:bg-emerald-50"
               >
                 Create free account
               </Link>
             </div>
           </div>
-          <div className="hidden lg:block rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 relative">
-            <div className="grid grid-cols-2 gap-4 h-full align-middle justify-center">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm sm:p-5 lg:p-6">
+            <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4">
               {[
                 ["30+", "catalog entries"],
                 ["6", "thematic areas"],
                 ["17", "SDG goal filters"],
                 ["100%", "self-paced"],
               ].map(([value, label]) => (
-                <div key={label} className="rounded-xl bg-slate-50 p-6 flex flex-col justify-center">
-                  <p className="text-3xl font-black text-ocean">{value}</p>
-                  <p className="mt-1 text-sm font-bold text-slate-500 uppercase tracking-wide">{label}</p>
+                <div key={label} className="min-h-28 rounded-xl bg-slate-50 p-4 sm:p-5">
+                  <p className="text-3xl font-black tracking-tight text-ocean">{value}</p>
+                  <p className="mt-2 text-xs font-black uppercase tracking-wider text-slate-500">{label}</p>
                 </div>
               ))}
             </div>
@@ -118,12 +160,28 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
       </section>
 
       {/* Main Course Catalog Section */}
-      <section id="catalog" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-black tracking-tight text-slate-950">Explore Course Catalog</h2>
-        <p className="mt-2 text-slate-600">Filter courses by theme, SDG target, topic, or specific MEA convention.</p>
+      <section id="catalog" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <h2 className="text-3xl font-black tracking-tight text-slate-950">Explore courses</h2>
+        <p className="mt-2 max-w-2xl text-slate-600">Filter by theme, SDG target, topic, or treaty section.</p>
+
+        <form className="mt-6 flex max-w-xl flex-col gap-2 sm:flex-row">
+          {activeCategory && <input type="hidden" name="category" value={activeCategory} />}
+          {activeSdg && <input type="hidden" name="sdg" value={activeSdg} />}
+          {activeTopic && <input type="hidden" name="topic" value={activeTopic} />}
+          {activeSection && <input type="hidden" name="section" value={activeSection} />}
+          <input
+            name="q"
+            defaultValue={activeSearch}
+            placeholder="Search courses, treaties, topics"
+            className="control min-w-0 flex-1"
+          />
+          <button className="rounded-lg bg-forest px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-800">
+            Search
+          </button>
+        </form>
 
         {/* Unified Filter Controls Panel */}
-        <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-6">
+        <div className="mt-8 space-y-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           
           {/* 1. Category Tabs */}
           <div>
@@ -132,6 +190,7 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
             </span>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
               <button
+                type="button"
                 onClick={() => updateParams({ category: "" })}
                 className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-black transition-all duration-200 ${
                   !activeCategory
@@ -141,9 +200,10 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
               >
                 All Categories
               </button>
-              {categories.map((category) => (
+              {categoryOptions.map((category) => (
                 <button
                   key={category.id}
+                  type="button"
                   onClick={() => updateParams({ category: category.id })}
                   className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-black transition-all duration-200 ${
                     activeCategory === category.id
@@ -164,6 +224,7 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
             </span>
             <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-thin">
               <button
+                type="button"
                 onClick={() => updateParams({ sdg: "" })}
                 aria-label="All SDG Goals"
                 className={`flex-shrink-0 flex flex-col items-center justify-center h-12 w-12 rounded-lg border transition-all duration-200 ${
@@ -175,11 +236,17 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
                 <span className="text-xs font-black leading-tight text-center">ALL</span>
                 <span className="text-[8px] font-bold uppercase tracking-tighter">Goals</span>
               </button>
-              {sdgGoals.map((goal) => {
+              {visibleSdgGoals.map((goalNumber) => {
+                const goal = sdgGoals.find((item) => item.number === goalNumber) || {
+                  number: goalNumber,
+                  name: `SDG ${goalNumber}`,
+                  color: "#64748b",
+                };
                 const isSelected = activeSdg === String(goal.number);
                 return (
                   <button
                     key={goal.number}
+                    type="button"
                     onClick={() => updateParams({ sdg: String(goal.number) })}
                     title={`Goal ${goal.number}: ${goal.name}`}
                     aria-label={`Goal ${goal.number}: ${goal.name}`}
@@ -192,7 +259,7 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
                   >
                     {goal.number}
                     {isSelected && (
-                      <span className="absolute -top-1.5 -right-1.5 bg-forest text-white h-4.5 w-4.5 rounded-full text-[9px] font-black border border-white flex items-center justify-center">
+                      <span className="absolute -top-1.5 -right-1.5 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-white bg-forest text-[9px] font-black text-white">
                         ✓
                       </span>
                     )}
@@ -213,24 +280,24 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
                 className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest cursor-pointer"
               >
                 <option value="">All Topics</option>
-                <option value="mea-introductory">MEA Introductory</option>
-                <option value="human-rights">Human Rights</option>
-                <option value="gender">Gender</option>
+                {topicOptions.map((topic) => (
+                  <option key={topic.key} value={topic.key}>{topic.label}</option>
+                ))}
               </select>
             </label>
 
             {/* MEA Dropdown */}
             <label className="block text-sm font-bold text-slate-700">
-              Visit MEA dedicated section:
+              Filter by section
               <select
-                value={activeMea}
-                onChange={(e) => updateParams({ mea: e.target.value })}
+                value={activeSection}
+                onChange={(e) => updateParams({ section: e.target.value, mea: "" })}
                 className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest cursor-pointer"
               >
-                <option value="">Select MEA</option>
-                <option value="CBD">Convention on Biological Diversity (CBD)</option>
-                <option value="UNFCCC">United Nations Framework Convention on Climate Change (UNFCCC)</option>
-                <option value="BRS">Basel, Rotterdam, and Stockholm Conventions (BRS)</option>
+                <option value="">All sections</option>
+                {sectionOptions.map((section) => (
+                  <option key={section.key} value={section.key}>{section.label}</option>
+                ))}
               </select>
             </label>
           </div>
@@ -238,11 +305,11 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
 
         {/* Filter Count & Clear */}
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-          <p className="text-base text-slate-800">
+          <p className="text-sm font-semibold text-slate-700">
             Showing <span className="font-black text-forest">{filteredCourses.length}</span>{" "}
             {filteredCourses.length === 1 ? "course" : "courses"}
           </p>
-          {(activeCategory || activeSdg || activeTopic || activeMea) && (
+          {(activeCategory || activeSdg || activeTopic || activeSection || activeSearch) && (
             <button
               onClick={clearAllFilters}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
@@ -255,7 +322,7 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
         {/* Grouped Course List */}
         {filteredCourses.length === 0 ? (
           <div className="mt-16 text-center py-12 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-4xl">🍃</span>
+              <span className="text-4xl" aria-hidden="true">No results</span>
             <h3 className="mt-3 text-lg font-bold text-slate-800">No courses match your filters</h3>
             <p className="mt-1 text-sm text-slate-500">
               Try adjusting your thematic, SDG, topic, or MEA controls.
@@ -268,7 +335,7 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
             </button>
           </div>
         ) : (
-          <div className="space-y-12 mt-4">
+          <div className="mt-4 space-y-10">
             {displayCategories.map((category) => {
               const categoryCourses = filteredCourses.filter(
                 (course) => course.category === category.id
@@ -289,7 +356,7 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
 
                   {/* Regular Courses Grid */}
                   {regularCourses.length > 0 && (
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                       {regularCourses.map((course) => (
                         <CourseCard key={course.id} course={course} />
                       ))}
@@ -304,7 +371,7 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
                           key={course.id}
                           className="flex h-full flex-col rounded-xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ring-1 ring-amber-100"
                         >
-                          <div className="flex items-start justify-between">
+                          <div className="flex items-start justify-between gap-3">
                             <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-800 border border-amber-200 shadow-sm animate-pulse">
                               Specialist Diploma
                             </span>
@@ -330,7 +397,7 @@ export default function HomeClient({ courses }: { courses: Course[] }) {
                             ))}
                           </div>
 
-                          <div className="mt-6 flex items-center gap-2 text-sm font-bold w-full">
+                          <div className="mt-6 flex w-full flex-col gap-2 text-sm font-bold min-[420px]:flex-row min-[420px]:items-center">
                             <Link
                                href={`/courses/${course.id}`}
                               className="flex-1 text-center rounded-md bg-amber-600 px-3 py-2 text-white hover:bg-amber-700 transition-colors shadow-sm"

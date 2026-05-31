@@ -5,8 +5,8 @@ export default function Loading() {
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 space-y-8 min-h-screen">
       {/* Skeleton Header */}
       <div className="space-y-3 animate-pulse">
-        <div className="h-8 w-64 bg-slate-200 rounded-lg" />
-        <div className="h-4 w-96 bg-slate-200 rounded-md" />
+        <div className="h-8 w-full max-w-64 rounded-lg bg-slate-200" />
+        <div className="h-4 w-full max-w-96 rounded-md bg-slate-200" />
       </div>
 
       {/* Grid: 3 columns, 4 rows of gray pulsing rounded rectangles */}

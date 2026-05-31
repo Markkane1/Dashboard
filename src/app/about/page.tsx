@@ -3,8 +3,8 @@ import { Link } from "@/shared/navigation";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "About Us | InforMEA Learning",
-  description: "About the United Nations Information Portal on Multilateral Environmental Agreements (InforMEA) learning portal.",
+  title: "About Us | EPA Elearning",
+  description: "About the environmental learning portal for multilateral environmental agreements.",
 };
 
 const features = [
@@ -85,11 +85,10 @@ export default function AboutPage() {
             About the Learning Portal
           </p>
           <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-            About InforMEA Learning
+            About EPA Elearning
           </h1>
           <p className="mt-6 mx-auto max-w-3xl text-lg sm:text-xl leading-relaxed text-slate-700 font-medium">
-            InforMEA is the United Nations Information Portal on Multilateral Environmental Agreements (MEAs). 
-            Our e-learning platform serves to build capacity, education, and knowledge around international environmental law.
+            This portal supports environmental governance education and capacity building for learners interested in multilateral environmental agreements.
           </p>
         </div>
       </section>
@@ -160,7 +159,7 @@ export default function AboutPage() {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-black text-slate-950 tracking-tight">Partner Organizations</h2>
           <p className="mt-2 text-slate-500 font-medium max-w-xl mx-auto">
-            InforMEA is facilitated by the United Nations Environment Programme (UNEP) and powered by cooperative partnerships.
+            This portal is supported by international partners and reflects global collaboration on environmental learning.
           </p>
         </div>
 

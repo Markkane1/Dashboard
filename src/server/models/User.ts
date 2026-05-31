@@ -48,6 +48,10 @@ const userSchema = new mongoose.Schema(
     },
     lockUntil: {
       type: Date
+    },
+    demoKey: {
+      type: String,
+      index: true
     }
   },
   {

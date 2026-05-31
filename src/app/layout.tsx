@@ -4,17 +4,12 @@ import Footer from "@/shared/components/Footer";
 import { SessionProvider } from "next-auth/react";
 import { NextIntlClientProvider } from "next-intl";
 import { headers } from "next/headers";
-import { Inter } from "next/font/google";
+import "@fontsource-variable/inter";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "InforMEA Learning",
-  description: "United Nations Information Portal on Multilateral Environmental Agreements",
+  title: "EPA Elearning",
+  description: "Environmental learning and training for multilateral environmental agreements",
 };
 
 async function loadMessages(locale: string) {
@@ -32,9 +27,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} dir={direction}>
-      <body className={`${inter.className} min-h-screen bg-gray-50 antialiased`}>
+      <body className="min-h-screen antialiased">
         <SessionProvider>
-          <NextIntlClientProvider locale={locale} messages={messages}>
+          <NextIntlClientProvider
+            formats={{}}
+            locale={locale}
+            messages={messages}
+            now={new Date()}
+            timeZone="UTC"
+          >
             <a href="#main-content" className="skip-link">Skip to main content</a>
             <Navbar />
             <main id="main-content" tabIndex={-1}>{children}</main>

@@ -72,7 +72,7 @@ async function buildCertificate(input: CertificateInput): Promise<Uint8Array> {
     font: bodyFont,
     color: rgb(0.35, 0.39, 0.45)
   });
-  page.drawText('InforMEA Learning', {
+  page.drawText('EPA Elearning', {
     x: 332,
     y: 115,
     size: 18,
@@ -166,7 +166,7 @@ async function buildDiploma(input: DiplomaInput): Promise<Uint8Array> {
     font: bodyFont,
     color: rgb(0.35, 0.39, 0.45)
   });
-  page.drawText('InforMEA Learning', {
+  page.drawText('EPA Elearning', {
     x: 332,
     y: 110,
     size: 18,

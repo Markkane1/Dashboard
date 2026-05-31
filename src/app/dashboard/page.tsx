@@ -30,7 +30,6 @@ export default async function DashboardPage() {
 
   const dashboardCourseIds = [...new Set([...inProgressIds, ...completedIds])];
   const courses = await fetchCoursesByIds(dashboardCourseIds);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
   const inProgressCourses = courses.filter((c) => inProgressIds.includes(c.id));
   const completedCourses = courses.filter((c) => completedIds.includes(c.id));
   const progressSummaries = token
@@ -47,11 +46,16 @@ export default async function DashboardPage() {
       )
     : [];
   const progressByCourseId = new Map(progressSummaries);
+  const averageProgress = inProgressIds.length > 0
+    ? Math.round(progressSummaries.reduce((total, [, percent]) => total + percent, 0) / inProgressIds.length)
+    : completedIds.length > 0
+      ? 100
+      : 0;
 
   const stats = [
-    { name: "Courses enrolled", value: enrolledIds.length, icon: "📚" },
-    { name: "Courses completed", value: completedIds.length, icon: "🎓" },
-    { name: "Certificates earned", value: completedIds.length, icon: "🏆" },
+    { name: "Active courses", value: inProgressIds.length, label: "In progress" },
+    { name: "Courses completed", value: completedIds.length, label: "Completed" },
+    { name: "Average progress", value: `${averageProgress}%`, label: "Current pace" },
   ];
 
   return (
@@ -84,7 +88,7 @@ export default async function DashboardPage() {
               <p className="text-sm font-bold uppercase tracking-wider text-slate-500">{stat.name}</p>
               <p className="mt-2 text-3xl font-black text-slate-900">{stat.value}</p>
             </div>
-            <span className="text-4xl">{stat.icon}</span>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-forest">{stat.label}</span>
           </div>
         ))}
       </div>
@@ -92,13 +96,13 @@ export default async function DashboardPage() {
       {/* 3. In Progress Section */}
       <div>
         <h2 className="text-2xl font-black tracking-tight text-slate-950 flex items-center gap-2">
-          <span>⏳</span> Continue learning
+          Continue learning
         </h2>
         
         {inProgressCourses.length === 0 ? (
           <div className="mt-6 rounded-xl bg-slate-50 border border-slate-200 p-10 text-center">
             <span className="text-4xl">🌱</span>
-            <h3 className="mt-3 text-lg font-bold text-slate-800">You haven't enrolled in any courses yet.</h3>
+            <h3 className="mt-3 text-lg font-bold text-slate-800">You have not enrolled in any courses yet.</h3>
             <p className="mt-1 text-sm text-slate-500">Explore the course catalog to enroll in our free environmental legal programs.</p>
             <Link
               href="/"
@@ -134,7 +138,7 @@ export default async function DashboardPage() {
                   </div>
 
                   {/* Dashboard Action buttons */}
-                  <div className="mt-4 flex gap-2 w-full pt-1">
+                  <div className="mt-4 flex w-full flex-col gap-2 pt-1 sm:flex-row">
                     <MarkCompleteButton courseId={course.id} />
                     <UnenrollButton courseId={course.id} />
                   </div>
@@ -149,7 +153,7 @@ export default async function DashboardPage() {
       {/* 4. Completed Section */}
       <div>
         <h2 className="text-2xl font-black tracking-tight text-slate-950 flex items-center gap-2">
-          <span>✅</span> Completed courses
+          Completed courses
         </h2>
 
         {completedCourses.length === 0 ? (
@@ -166,7 +170,7 @@ export default async function DashboardPage() {
                     <span>✓</span> Completed
                   </div>
                   
-                  <DownloadCertificateButton downloadUrl={`${apiUrl}/api/certificates/${course.id}/download`} />
+                  <DownloadCertificateButton downloadUrl={`/api/certificates/${course.id}/download`} />
                 </div>
 
               </CourseCard>

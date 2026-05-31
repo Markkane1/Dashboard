@@ -1,16 +1,15 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Lesson } from "@/shared/types";
 
 interface VideoPlayerProps {
   lesson: Lesson;
-  courseId: string;
   onComplete: () => void;
 }
 
-export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlayerProps) {
+export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
   const { data: session } = useSession();
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentTimeRef = useRef(0);
@@ -63,7 +62,7 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
   }, [apiBase, apiToken, lesson._id]);
 
   // 1. Sync progress coordinates to backend Express API
-  const syncProgress = async (watched: number, total: number) => {
+  const syncProgress = useCallback(async (watched: number, total: number) => {
     if (!watched || !total || isNaN(watched) || isNaN(total)) return;
     if (!apiToken) return;
 
@@ -83,7 +82,7 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
     } catch (err) {
       console.error("Failed to sync video playback progress to database:", err);
     }
-  };
+  }, [apiBase, apiToken, lesson._id]);
 
   // 2. Resume playback and reset state on lesson switch
   useEffect(() => {
@@ -111,7 +110,7 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
-  }, [lesson._id]);
+  }, [lesson._id, lesson.duration, lesson.progress?.watchedSeconds]);
 
   // 3. Periodic synchronization (sync progress every 10 seconds)
   useEffect(() => {
@@ -125,7 +124,7 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
     return () => {
       clearInterval(interval);
     };
-  }, [lesson._id]);
+  }, [lesson._id, syncProgress]);
 
   useEffect(() => {
     if (isTranscriptOpen) {
@@ -151,7 +150,7 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto select-none">
+    <div className="mx-auto max-w-4xl min-w-0 space-y-6 select-none">
       
       {/* Premium Video Frame Container */}
       <div className="relative overflow-hidden rounded-2xl bg-black shadow-lg ring-1 ring-slate-900/10 aspect-video">
@@ -196,14 +195,14 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
             <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 mb-3 flex items-center gap-1.5">
               <span>📎</span> Downloadable Resources
             </h3>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">
               {lesson.resources.map((res, index) => (
                 <a
                   key={index}
                   href={res.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 rounded-lg border border-slate-200/80 bg-slate-50/50 p-3 hover:bg-slate-50 hover:border-forest transition duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-forest"
+                  className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200/80 bg-slate-50/50 p-3 hover:bg-slate-50 hover:border-forest transition duration-150 shadow-sm focus:outline-none focus:ring-2 focus:ring-forest"
                 >
                   <span className="text-2xl" role="img" aria-label="File icon">📄</span>
                   <div className="flex-1 overflow-hidden">
@@ -224,13 +223,13 @@ export default function VideoPlayer({ lesson, courseId, onComplete }: VideoPlaye
               aria-expanded={isTranscriptOpen}
               aria-controls="lesson-transcript"
               aria-label={`${isTranscriptOpen ? "Collapse" : "Expand"} lesson transcript`}
-              className="flex items-center justify-between w-full text-left text-sm font-black uppercase tracking-wider text-slate-800 hover:text-forest transition-colors focus:outline-none focus:ring-2 focus:ring-forest rounded p-1"
+              className="flex w-full flex-col gap-2 rounded p-1 text-left text-sm font-black uppercase tracking-wider text-slate-800 transition-colors hover:text-forest focus:outline-none focus:ring-2 focus:ring-forest min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between"
             >
               <span className="flex items-center gap-1.5">
                 <span>💬</span> Accessibility Transcript
               </span>
               <span className="text-xs font-black text-slate-500">
-                {isTranscriptOpen ? "COLLAPSE ▲" : "EXPAND ▼"}
+                {isTranscriptOpen ? "Collapse" : "Expand"}
               </span>
             </button>
             

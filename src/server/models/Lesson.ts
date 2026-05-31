@@ -23,7 +23,7 @@ const lessonSchema = new mongoose.Schema(
     },
     videoUrl: {
       type: String,
-      required: true
+      default: ''
     },
     duration: {
       type: Number
@@ -40,6 +40,10 @@ const lessonSchema = new mongoose.Schema(
     isPublished: {
       type: Boolean,
       default: false
+    },
+    demoKey: {
+      type: String,
+      index: true
     }
   },
   {

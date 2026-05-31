@@ -3,7 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const Course = require('../models/Course');
 const auth = require('../middleware/auth');
-const { requireContentManager, requireAdmin } = require('../middleware/roles');
+const { requireContentManager } = require('../middleware/roles');
 import type { Request, Response } from 'express';
 import type { AuthoredQuizQuestion, Course as SharedCourse } from '../../shared/types';
 
@@ -15,6 +15,7 @@ const COURSE_CARD_FIELDS = [
   'category',
   'sdgGoals',
   'topics',
+  'sections',
   'mea',
   'syllabusUrl',
   'courseUrl',
@@ -40,6 +41,7 @@ const COURSE_WRITE_FIELDS = [
   'category',
   'sdgGoals',
   'topics',
+  'sections',
   'mea',
   'syllabusUrl',
   'courseUrl',
@@ -69,6 +71,7 @@ function serializeCourse(course: any): SharedCourse {
     category: plain.category,
     sdgGoals: plain.sdgGoals || [],
     topics: plain.topics || [],
+    sections: plain.sections || plain.mea || [],
     mea: plain.mea || [],
     syllabusUrl: plain.syllabusUrl,
     courseUrl: plain.courseUrl || `/courses/${id}`,
@@ -172,6 +175,7 @@ function buildCourseFilter(query: Request['query']) {
   const filters: Array<Record<string, unknown>> = [];
   const category = typeof query.category === 'string' ? query.category : '';
   const topic = typeof query.topic === 'string' ? query.topic : '';
+  const section = typeof query.section === 'string' ? query.section.trim() : '';
   const mea = typeof query.mea === 'string' ? query.mea.trim() : '';
   const q = typeof query.q === 'string' ? query.q.trim() : '';
   const sdg = typeof query.sdg === 'string' ? Number(query.sdg) : undefined;
@@ -185,33 +189,47 @@ function buildCourseFilter(query: Request['query']) {
   if (topic) {
     filters.push({ topics: topic });
   }
-  if (mea) {
-    const normalizedMea = mea.toUpperCase();
-    if (normalizedMea === 'CBD') {
+  const filterSection = section || mea;
+  if (filterSection) {
+    const normalizedSection = filterSection.toUpperCase();
+    if (normalizedSection === 'CBD') {
       filters.push({
         $or: [
+          { sections: /CBD/i },
+          { sections: /Nagoya/i },
+          { sections: /Cartagena/i },
           { mea: /CBD/i },
           { mea: /Nagoya/i },
           { mea: /Cartagena/i }
         ]
       });
-    } else if (normalizedMea === 'UNFCCC') {
+    } else if (normalizedSection === 'UNFCCC') {
       filters.push({
         $or: [
+          { sections: /UNFCCC/i },
+          { sections: /Paris/i },
           { mea: /UNFCCC/i },
           { mea: /Paris/i }
         ]
       });
-    } else if (normalizedMea === 'BRS') {
+    } else if (normalizedSection === 'BRS') {
       filters.push({
         $or: [
+          { sections: /Basel/i },
+          { sections: /Rotterdam/i },
+          { sections: /Stockholm/i },
           { mea: /Basel/i },
           { mea: /Rotterdam/i },
           { mea: /Stockholm/i }
         ]
       });
     } else {
-      filters.push({ mea });
+      filters.push({
+        $or: [
+          { sections: filterSection },
+          { mea: filterSection }
+        ]
+      });
     }
   }
   if (q) {
@@ -248,6 +266,13 @@ function validateCoursePayload(payload: Record<string, unknown>, partial = false
       return 'quizPassingScore must be between 0 and 100';
     }
     payload.quizPassingScore = score;
+  }
+
+  if (payload.sections !== undefined) {
+    if (!Array.isArray(payload.sections)) {
+      return 'sections must be an array';
+    }
+    payload.sections = payload.sections.map((section) => String(section || '').trim()).filter(Boolean);
   }
 
   if (payload.quizQuestions !== undefined) {
@@ -426,8 +451,8 @@ router.patch('/:id', auth, requireContentManager, async (req: Request, res: Resp
 });
 
 // DELETE /api/courses/:id
-// Admin-only deletion with model-level cleanup of related records.
-router.delete('/:id', auth, requireAdmin, async (req: Request, res: Response) => {
+// Content-manager deletion with model-level cleanup of related records.
+router.delete('/:id', auth, requireContentManager, async (req: Request, res: Response) => {
   try {
     const deleted = await Course.findOneAndDelete({ _id: req.params.id });
     if (!deleted) {

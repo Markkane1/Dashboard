@@ -33,22 +33,22 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
     course = await fetchCourseById(params.id);
   } catch (error) {
     return {
-      title: "Course Not Found | InforMEA Learning",
+      title: "Course Not Found | EPA Elearning",
     };
   }
   return {
-    title: `${course.title} | InforMEA Learning`,
-    description: course.description || "United Nations Information Portal on Multilateral Environmental Agreements",
+    title: `${course.title} | EPA Elearning`,
+    description: course.description || "Environmental learning for multilateral environmental agreements",
     openGraph: {
-      title: `${course.title} | InforMEA Learning`,
-      description: course.description || "United Nations Information Portal on Multilateral Environmental Agreements",
+      title: `${course.title} | EPA Elearning`,
+      description: course.description || "Environmental learning for multilateral environmental agreements",
       type: "article",
-      siteName: "InforMEA Learning",
+      siteName: "EPA Elearning",
     },
     twitter: {
       card: "summary_large_image",
-      title: `${course.title} | InforMEA Learning`,
-      description: course.description || "United Nations Information Portal on Multilateral Environmental Agreements",
+      title: `${course.title} | EPA Elearning`,
+      description: course.description || "Environmental learning for multilateral environmental agreements",
     },
   };
 }
@@ -158,7 +158,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
             </span>
           ))}
 
-          {course.mea.map((m) => (
+          {(course.mea || course.sections || []).map((m) => (
             <span
               key={m}
               className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 border border-slate-200"
@@ -179,7 +179,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
             <p>{course.description}</p>
           ) : (
             <p className="italic text-slate-500 bg-slate-50 rounded-xl p-5 border border-slate-200">
-              This course is part of the InforMEA e-learning platform. Please enroll to view the full course content.
+              This course is part of the EPA Elearning platform. Please enroll to view the full course content.
             </p>
           )}
         </div>

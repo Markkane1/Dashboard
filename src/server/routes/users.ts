@@ -324,13 +324,13 @@ router.post('/enroll', auth, async (req: AuthenticatedRequest, res: Response) =>
     if (!result.lastErrorObject?.updatedExisting) {
       await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
     }
-    if (!existingEnrollment?.completed) {
+    if (!existingEnrollment) {
       await Notification.create({
         userId,
         type: 'course',
-        title: 'Course completed',
-        message: `You completed ${course.title}. Your certificate is ready to download.`,
-        linkUrl: '/dashboard'
+        title: 'Course enrollment confirmed',
+        message: `You enrolled in ${course.title}.`,
+        linkUrl: `/courses/${course._id}`
       });
     }
 
@@ -403,6 +403,14 @@ router.post('/complete', auth, async (req: AuthenticatedRequest, res: Response) 
     if (!result.lastErrorObject?.updatedExisting) {
       await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
     }
+
+    await Notification.create({
+      userId,
+      type: 'certificate',
+      title: 'Course completed',
+      message: `You completed ${course.title}. Your certificate is ready to download.`,
+      linkUrl: '/dashboard'
+    });
 
     const user = await User.findById(userId);
     res.json(await serializeUser(user));

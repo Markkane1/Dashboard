@@ -4,43 +4,171 @@
 
 :root {
   color-scheme: light;
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --text-primary: #0f172a;
+  --text-muted: #526071;
+  --border-muted: #dbe3ee;
+  --accent: #0f5132;
+  --accent-soft: #ecf7f1;
+  --surface-muted: #f1f5f9;
 }
 
 html {
   scroll-behavior: smooth;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   margin: 0;
-  background: #f8fafc;
-  color: #0f172a;
+  min-height: 100vh;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+::selection {
+  background: rgba(15, 81, 50, 0.12);
+  color: var(--text-primary);
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+  letter-spacing: -0.018em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2rem, 8vw, 4rem);
+}
+
+h2 {
+  font-size: clamp(1.55rem, 6vw, 2.5rem);
+}
+
+h3 {
+  font-size: clamp(1.18rem, 4vw, 1.6rem);
+}
+
+p,
+li,
+label {
+  color: var(--text-muted);
 }
 
 a {
+  color: inherit;
   text-decoration: none;
 }
 
-.skip-link {
-  position: absolute;
-  left: -999px;
-  top: auto;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
+button,
+input,
+textarea,
+select,
+fieldset {
+  margin: 0;
 }
 
-.skip-link:focus,
-.skip-link:active {
-  position: fixed;
-  left: 1rem;
-  top: 1rem;
-  width: auto;
-  height: auto;
-  padding: 0.75rem 1rem;
-  background: #0f766e;
-  color: #ffffff;
-  border-radius: 0.5rem;
-  z-index: 50;
-  text-decoration: none;
+button {
+  cursor: pointer;
 }
 
+input,
+textarea,
+select {
+  border-radius: 0.625rem;
+}
+
+section {
+  position: relative;
+}
+
+@layer base {
+  main {
+    min-width: 0;
+  }
+
+  body {
+    @apply font-sans;
+  }
+
+  strong,
+  b {
+    font-weight: 700;
+  }
+}
+
+@layer utilities {
+  .font-black {
+    font-weight: 800;
+  }
+
+  .tracking-tight {
+    letter-spacing: -0.018em;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .surface {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .control {
+    @apply rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition focus:border-forest focus:outline-none focus:ring-2 focus:ring-emerald-100;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

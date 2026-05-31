@@ -2,8 +2,9 @@
 
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Course, User } from "@/shared/types";
+import { AuthoredQuizQuestion, Course, User } from "@/shared/types";
 import { AnalyticsOverview } from "@/infrastructure/api/admin";
+import QuizAuthoringEditor from "./QuizAuthoringEditor";
 
 type AdminPanelProps = {
   token: string;
@@ -12,10 +13,8 @@ type AdminPanelProps = {
   analytics: AnalyticsOverview;
 };
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
 async function apiRequest(path: string, token: string, init: RequestInit = {}) {
-  const res = await fetch(`${apiUrl}${path}`, {
+  const res = await fetch(`/api/admin${path}`, {
     ...init,
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -30,12 +29,25 @@ async function apiRequest(path: string, token: string, init: RequestInit = {}) {
   return res.status === 204 ? null : res.json();
 }
 
+function cleanQuizQuestions(questions: AuthoredQuizQuestion[]) {
+  return questions
+    .map((question, index) => ({
+      id: question.id || `question-${index + 1}`,
+      prompt: question.prompt.trim(),
+      options: question.options.map((option) => option.trim()).filter(Boolean),
+      correctAnswerIndex: question.correctAnswerIndex,
+      explanation: question.explanation?.trim() || "",
+    }))
+    .filter((question) => question.prompt || question.options.length > 0);
+}
+
 export default function AdminPanel({ token, courses, users, analytics }: AdminPanelProps) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || "");
+  const [quizQuestions, setQuizQuestions] = useState<AuthoredQuizQuestion[]>([]);
 
   const run = (action: () => Promise<void>) => {
     setMessage("");
@@ -51,8 +63,7 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
   };
 
   const createCourse = (formData: FormData) => run(async () => {
-    const quizJson = String(formData.get("quizQuestions") || "").trim();
-    await apiRequest("/api/courses", token, {
+    await apiRequest("/courses", token, {
       method: "POST",
       body: JSON.stringify({
         title: formData.get("title"),
@@ -63,14 +74,15 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
         duration: formData.get("duration"),
         price: Number(formData.get("price") || 0),
         quizPassingScore: Number(formData.get("quizPassingScore") || 70),
-        quizQuestions: quizJson ? JSON.parse(quizJson) : [],
+        quizQuestions: cleanQuizQuestions(quizQuestions),
       }),
     });
+    setQuizQuestions([]);
     setMessage("Course created.");
   });
 
   const createLesson = (formData: FormData) => run(async () => {
-    await apiRequest("/api/lessons", token, {
+    await apiRequest("/lessons", token, {
       method: "POST",
       body: JSON.stringify({
         courseId: formData.get("courseId"),
@@ -87,7 +99,7 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
   });
 
   const updateRole = (userId: string, role: string) => run(async () => {
-    await apiRequest(`/api/users/${userId}/role`, token, {
+    await apiRequest(`/users/${userId}/role`, token, {
       method: "PATCH",
       body: JSON.stringify({ role }),
     });
@@ -95,7 +107,7 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
   });
 
   const announce = (formData: FormData) => run(async () => {
-    await apiRequest("/api/notifications/announce", token, {
+    await apiRequest("/notifications/announce", token, {
       method: "POST",
       body: JSON.stringify({
         title: formData.get("title"),
@@ -151,7 +163,7 @@ export default function AdminPanel({ token, courses, users, analytics }: AdminPa
             <input name="quizPassingScore" type="number" min="0" max="100" defaultValue="70" className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
             <input name="thumbnail" placeholder="Thumbnail URL" className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
           </div>
-          <textarea name="quizQuestions" placeholder='Quiz JSON, e.g. [{"id":"q1","prompt":"...","options":["A","B"],"correctAnswerIndex":0}]' rows={4} className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs" />
+          <QuizAuthoringEditor questions={quizQuestions} onChange={setQuizQuestions} disabled={isPending} />
           <button disabled={isPending} className="rounded-md bg-forest px-4 py-2 text-sm font-black text-white disabled:opacity-60">
             Create course
           </button>

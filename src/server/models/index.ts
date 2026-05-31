@@ -18,4 +18,24 @@ module.exports = {
   Notification
 };
 
-export {};
+export {
+  CertificateIssuance,
+  Course,
+  Enrollment,
+  Lesson,
+  Notification,
+  Progress,
+  QuizSubmission,
+  User
+};
+
+export default {
+  CertificateIssuance,
+  Course,
+  Enrollment,
+  Lesson,
+  Notification,
+  Progress,
+  QuizSubmission,
+  User
+};

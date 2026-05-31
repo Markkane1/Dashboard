@@ -8,12 +8,15 @@
     "build": "next build",
     "start": "next start",
     "server": "tsx src/server/server.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts seed",
+    "seed:demo:remove": "tsx scripts/seed-demo.ts remove",
     "test": "node --import tsx --test",
     "test:a11y": "node --import tsx --test test/a11y.test.tsx",
     "lint": "eslint",
     "audit:lock": "npm audit --audit-level=high"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
     "@hookform/resolvers": "^5.4.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",

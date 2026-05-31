@@ -3,10 +3,24 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { markComplete, unenrollCourse } from "@/features/enrollments/actions";
 
 interface ActionProps {
   courseId: string;
+}
+
+async function enrollmentAction(action: "complete" | "unenroll", courseId: string) {
+  const res = await fetch(`/api/enrollments/${action}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ courseId }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || `Request failed with status ${res.status}`);
+  }
+  return body;
 }
 
 export function MarkCompleteButton({ courseId }: ActionProps) {
@@ -16,14 +30,11 @@ export function MarkCompleteButton({ courseId }: ActionProps) {
   const handleComplete = async () => {
     setIsLoading(true);
     try {
-      const response = await markComplete(courseId);
-      if (response.success) {
-        router.refresh();
-      } else {
-        alert(response.error || "Failed to mark course as completed.");
-      }
+      await enrollmentAction("complete", courseId);
+      router.refresh();
     } catch (error) {
       console.error("Complete course error:", error);
+      alert(error instanceof Error ? error.message : "Failed to mark course as completed.");
     } finally {
       setIsLoading(false);
     }
@@ -50,14 +61,11 @@ export function UnenrollButton({ courseId }: ActionProps) {
     }
     setIsLoading(true);
     try {
-      const response = await unenrollCourse(courseId);
-      if (response.success) {
-        router.refresh();
-      } else {
-        alert(response.error || "Failed to unenroll.");
-      }
+      await enrollmentAction("unenroll", courseId);
+      router.refresh();
     } catch (error) {
       console.error("Unenroll course error:", error);
+      alert(error instanceof Error ? error.message : "Failed to unenroll.");
     } finally {
       setIsLoading(false);
     }

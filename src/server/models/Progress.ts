@@ -35,6 +35,10 @@ const progressSchema = new mongoose.Schema(
     lastWatchedAt: {
       type: Date,
       default: Date.now
+    },
+    demoKey: {
+      type: String,
+      index: true
     }
   },
   {

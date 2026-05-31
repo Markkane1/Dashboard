@@ -6,6 +6,7 @@ export type CoursePageParams = {
   cursor?: string;
   category?: string;
   sdg?: string | number;
+  section?: string;
   topic?: string;
   mea?: string;
   q?: string;

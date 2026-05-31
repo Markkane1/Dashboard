@@ -47,6 +47,11 @@ const courseSchema = new mongoose.Schema(
         type: String
       }
     ],
+    sections: [
+      {
+        type: String
+      }
+    ],
     mea: [
       {
         type: String
@@ -103,6 +108,10 @@ const courseSchema = new mongoose.Schema(
     quizPassingScore: {
       type: Number,
       default: 70
+    },
+    demoKey: {
+      type: String,
+      index: true
     }
   },
   {
@@ -117,6 +126,7 @@ const courseSchema = new mongoose.Schema(
 courseSchema.index({ createdAt: -1 });
 courseSchema.index({ category: 1, createdAt: -1 });
 courseSchema.index({ sdgGoals: 1 });
+courseSchema.index({ sections: 1 });
 courseSchema.index({ mea: 1 });
 courseSchema.index({ title: 'text', description: 'text' });
 

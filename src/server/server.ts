@@ -77,6 +77,7 @@ app.use('/api/users', (req: Request, res: Response, next: NextFunction) => {
 
 // 2. API Routers Mount
 app.use('/api/courses', require('./routes/courses'));
+app.use('/api/taxonomies', require('./routes/taxonomies'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/video', require('./routes/video'));

@@ -28,7 +28,7 @@ const treaties = [
 export default function Footer() {
   return (
     <footer className="border-t border-slate-800 bg-slate-950 text-slate-400">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         
         {/* Main 3-column Footer Grid */}
         <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -44,7 +44,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="max-w-md text-sm leading-relaxed text-slate-400">
-              An interactive e-learning platform clone inspired by the United Nations Information Portal on Multilateral Environmental Agreements (InforMEA). Providing self-paced training resources to expand legal and environmental literacy globally.
+              An interactive e-learning platform inspired by international environmental agreements, providing self-paced training resources to expand legal and environmental literacy globally.
             </p>
           </div>
 
@@ -60,10 +60,10 @@ export default function Footer() {
                     href={org.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-white transition-colors duration-200 flex items-center gap-1 group"
+                    className="group flex items-center gap-1 transition-colors duration-200 hover:text-white"
                   >
                     <span>{org.name}</span>
-                    <span className="text-[10px] text-slate-600 group-hover:text-emerald-400 transition-colors">↗</span>
+                    <span className="text-[10px] text-slate-600 transition-colors group-hover:text-emerald-400">External</span>
                   </a>
                 </li>
               ))}
@@ -82,10 +82,10 @@ export default function Footer() {
                     href={treaty.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-white transition-colors duration-200 flex items-center gap-1 group"
+                    className="group flex items-center gap-1 transition-colors duration-200 hover:text-white"
                   >
                     <span>{treaty.name}</span>
-                    <span className="text-[10px] text-slate-600 group-hover:text-emerald-400 transition-colors">↗</span>
+                    <span className="text-[10px] text-slate-600 transition-colors group-hover:text-emerald-400">External</span>
                   </a>
                 </li>
               ))}
@@ -100,7 +100,7 @@ export default function Footer() {
         {/* Bottom Section: Copyrights & Data Retention */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-xs">
           <p className="leading-relaxed max-w-2xl">
-            Terms and conditions — Portions Copyright © United Nations, FAO, UNEP, UNESCO
+            Terms and conditions. Portions copyright United Nations, FAO, UNEP, and UNESCO.
           </p>
           <div className="flex-shrink-0">
             <Link

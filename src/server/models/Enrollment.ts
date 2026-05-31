@@ -20,6 +20,10 @@ const enrollmentSchema = new mongoose.Schema(
     },
     completedAt: {
       type: Date
+    },
+    demoKey: {
+      type: String,
+      index: true
     }
   },
   {

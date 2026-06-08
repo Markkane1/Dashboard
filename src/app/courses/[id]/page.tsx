@@ -3,20 +3,20 @@ import { Link } from "@/shared/navigation";
 import CourseCard from "@/features/courses/components/CourseCard";
 import EnrollButton from "@/features/enrollments/components/EnrollButton";
 import { categories } from "@/features/courses/data/categories";
-import { fetchCourseById, fetchCourses } from "@/infrastructure/api/courses";
+import { fetchCourseById, fetchCoursePage, fetchCourses } from "@/infrastructure/api/courses";
 import { auth } from "@/../auth";
 import { findUserByEmail } from "@/features/users/data/userDb";
 import { Metadata } from "next";
 import { Course } from "@/shared/types";
+import {
+  DashboardCard,
+  EmptyState,
+  PageHeader,
+  PageShell,
+  StatusBanner,
+} from "@/shared/components/ui/DesignSystem";
 
-export async function generateStaticParams() {
-  try {
-    const courses = await fetchCourses();
-    return courses.map((course) => ({ id: course.id }));
-  } catch (error) {
-    return [];
-  }
-}
+export const dynamicParams = true;
 
 interface CourseDetailPageProps {
   params: {
@@ -77,171 +77,172 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
   // Category details
   const categoryObj = categories.find((item) => item.id === course.category);
   const categoryLabel = categoryObj?.label || course.category;
+  const sectionLabels = course.mea || course.sections || [];
+  const topics = course.topics || [];
+  const quickFacts = [
+    { label: "Instructor", value: course.instructorName || "EPA Punjab" },
+    { label: "Duration", value: course.duration || "Self-paced" },
+    { label: "Lessons", value: `${course.lessonsCount || 0} lessons` },
+    { label: "Format", value: course.isExternal ? "External course" : course.isDiploma ? "Diploma pathway" : "Online course" },
+  ];
 
-  // Related courses (up to 4, same category, excluding current)
   let related: Course[] = [];
   try {
-    const allCourses = await fetchCourses();
-    related = allCourses
+    const relatedPage = await fetchCoursePage({ category: course.category, limit: 5 });
+    related = relatedPage.courses
       .filter((c) => c.category === course.category && c.id !== course.id)
       .slice(0, 4);
   } catch (error) {}
 
-  const sdgColors: Record<number, string> = {
-    1: "#E5243B",
-    2: "#DDA63A",
-    3: "#4C9F38",
-    4: "#C5192D",
-    5: "#FF3A21",
-    6: "#26BDE2",
-    7: "#FCC30B",
-    8: "#A21942",
-    9: "#FD6925",
-    10: "#DD1367",
-    11: "#FD9D24",
-    12: "#BF8B2E",
-    13: "#3F7E44",
-    14: "#0A97D9",
-    15: "#56C02B",
-    16: "#00689D",
-    17: "#19486A",
-  };
-
   return (
-    <article className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-      {/* 1. Breadcrumb */}
-      <nav className="mb-6 flex min-w-0 flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 sm:mb-8">
-        <Link href="/" className="hover:text-forest transition-colors">
-          Home
+    <PageShell>
+      <nav className="mb-4 flex flex-wrap items-center gap-2 text-xs font-bold text-text-muted">
+        <Link href="/courses" className="text-sm font-semibold text-secondary hover:text-primary">
+          Courses
         </Link>
-        <span>&gt;</span>
+        <span>{" > "}</span>
         {categoryObj ? (
-          <Link href={`/?category=${categoryObj.id}`} className="hover:text-forest transition-colors">
+          <Link href={`/courses?category=${categoryObj.id}`} className="text-sm font-semibold text-secondary hover:text-primary">
             {categoryLabel}
           </Link>
         ) : (
-          <span>{categoryLabel}</span>
+          <span className="text-sm font-semibold text-text-primary">{categoryLabel}</span>
         )}
-        <span>&gt;</span>
-        <span className="min-w-0 max-w-full text-slate-800 sm:max-w-md">{course.title}</span>
+        <span>{" > "}</span>
+        <span className="min-w-0 max-w-full truncate text-sm text-text-primary sm:max-w-md">{course.title}</span>
       </nav>
 
       {searchParams?.error === "not-enrolled" && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-900">
-          Enroll in this course to access the video lessons.
-        </div>
+        <StatusBanner
+          variant="warning"
+          title="Enroll to access the course lessons"
+          description="You must enroll in this course before you can view the learning content."
+        />
       )}
 
-      {/* Course Detail Card */}
-      <div className="min-w-0 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8 lg:p-10">
-        
-        {/* Category badge, SDG goals, MEA tags */}
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-black text-forest border border-emerald-100">
-            {categoryLabel}
-          </span>
-          
-          {course.isDiploma && (
-            <span className="rounded-full bg-amber-100 px-3.5 py-1 text-xs font-black text-amber-800 border border-amber-200 shadow-sm animate-pulse">
-              Diploma
-            </span>
-          )}
+      <PageHeader
+        title={course.title}
+        description={course.description || "Preview the course summary, syllabus, and enrollment options below."}
+        actions={(
+          <div className="flex flex-wrap gap-3">
+            <EnrollButton courseId={course.id} isAuthenticated={isAuthenticated} initialEnrolled={initialEnrolled} />
+            {initialEnrolled && !course.isExternal && (
+              <Link href={`/courses/${course.id}/learn`} className="btn-primary">
+                Continue learning
+              </Link>
+            )}
+            {course.syllabusUrl && (
+              <a href={course.syllabusUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+                View syllabus
+              </a>
+            )}
+            {course.isExternal && course.externalUrl && (
+              <a href={course.externalUrl} target="_blank" rel="noopener noreferrer" className="btn-primary">
+                Open external course
+              </a>
+            )}
+          </div>
+        )}
+      />
 
-          {course.sdgGoals.map((goal) => (
-            <span
-              key={goal}
-              style={{ backgroundColor: sdgColors[goal] || "#475569" }}
-              className="rounded-md px-2 py-0.5 text-[10px] font-black text-white shadow-sm"
-              title={`SDG Target Goal ${goal}`}
-            >
-              SDG {goal}
-            </span>
-          ))}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <DashboardCard className="p-6">
+          <div className="grid gap-5">
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-muted">{categoryLabel}</span>
+              {course.isDiploma && (
+                <span className="rounded-full bg-mint/20 px-3 py-1 text-xs font-semibold text-secondary">Diploma</span>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-text-muted">SDGs</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {course.sdgGoals.map((goal) => (
+                    <span key={goal} className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-primary">SDG {goal}</span>
+                  ))}
+                </div>
+              </div>
+              {topics.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-text-muted">Topics</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {topics.map((item) => (
+                      <span key={item} className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-primary">{item.replace(/-/g, " ")}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sectionLabels.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-text-muted">Sections</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {sectionLabels.map((item) => (
+                      <span key={item} className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-primary">{item}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </DashboardCard>
 
-          {(course.mea || course.sections || []).map((m) => (
-            <span
-              key={m}
-              className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 border border-slate-200"
-            >
-              {m}
-            </span>
-          ))}
-        </div>
-
-        {/* 2. Course Title */}
-        <h1 className="mt-6 text-3xl font-black leading-tight text-slate-950 sm:text-4xl lg:text-5xl">
-          {course.title}
-        </h1>
-
-        {/* 3. Course Description */}
-        <div className="mt-8 prose prose-slate max-w-none text-base leading-relaxed text-slate-700">
-          {course.description ? (
-            <p>{course.description}</p>
-          ) : (
-            <p className="italic text-slate-500 bg-slate-50 rounded-xl p-5 border border-slate-200">
-              This course is part of the EPA Elearning platform. Please enroll to view the full course content.
-            </p>
-          )}
-        </div>
-
-        {/* 4. Action Buttons */}
-        <div className="mt-8 flex min-w-0 flex-col gap-3 border-t border-slate-100 pt-6 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:pt-8">
-          
-          {/* Enroll in this course */}
-          <EnrollButton
-            courseId={course.id}
-            isAuthenticated={isAuthenticated}
-            initialEnrolled={initialEnrolled}
-          />
-
-          {initialEnrolled && !course.isExternal && (
-            <Link
-              href={`/courses/${course.id}/learn`}
-              className="inline-flex w-full items-center justify-center rounded-lg bg-forest px-6 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#0d4f3a] sm:w-auto"
-            >
-              Continue Learning &rarr;
-            </Link>
-          )}
-
-          {/* View Syllabus (PDF) */}
-          {course.syllabusUrl && (
-            <a
-              href={course.syllabusUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-black text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:w-auto"
-            >
-              View Syllabus (PDF)
-            </a>
-          )}
-
-          {/* Take Course (only for isExternal) */}
-          {course.isExternal && course.externalUrl && (
-            <a
-              href={course.externalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center rounded-lg bg-ocean px-6 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#0b5366] sm:w-auto"
-            >
-              Take Course
-            </a>
-          )}
-
-        </div>
-
+        <DashboardCard className="p-6">
+          <div className="grid gap-4">
+            <div>
+              <h2 className="text-lg font-black text-text-primary">Course quick facts</h2>
+              <p className="mt-1 text-sm text-text-muted">Use this summary before enrolling.</p>
+            </div>
+            <dl className="grid gap-3">
+              {quickFacts.map((fact) => (
+                <div key={fact.label} className="rounded-lg border border-border bg-surface px-3 py-2">
+                  <dt className="text-xs font-black uppercase tracking-[0.18em] text-text-muted">{fact.label}</dt>
+                  <dd className="mt-1 text-sm font-semibold text-text-primary">{fact.value}</dd>
+                </div>
+              ))}
+            </dl>
+            {course.syllabusUrl ? (
+              <a href={course.syllabusUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full">
+                View syllabus
+              </a>
+            ) : (
+              <p className="rounded-lg bg-surface px-3 py-2 text-sm font-semibold text-text-muted">
+                Syllabus details will be provided inside the course.
+              </p>
+            )}
+          </div>
+        </DashboardCard>
       </div>
 
-      {/* 5. Related Courses */}
-      {related.length > 0 && (
-        <section className="mt-16">
-          <h2 className="text-2xl font-black text-slate-950 mb-6">Related Courses</h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {related.length > 0 ? (
+        <section className="mt-6">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-text-primary">Related courses</h2>
+              <p className="mt-1 text-sm text-text-muted">Explore other courses from the same category.</p>
+            </div>
+            <Link href={`/courses?category=${course.category}`} className="btn-secondary">
+              View category
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {related.map((rc) => (
               <CourseCard key={rc.id} course={rc} />
             ))}
           </div>
         </section>
+      ) : (
+        <EmptyState
+          title="No related courses available"
+          description="This course is uniquely scoped in the catalog right now. Explore the catalog to find similar content."
+          actions={(
+            <Link href="/courses" className="btn-secondary">
+              Explore courses
+            </Link>
+          )}
+          className="mt-6"
+        />
       )}
-    </article>
+    </PageShell>
   );
 }

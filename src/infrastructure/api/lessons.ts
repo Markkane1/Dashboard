@@ -17,7 +17,7 @@ export class ApiError extends Error {
  */
 export async function fetchCourseLessons(courseId: string, token: string): Promise<Lesson[]> {
   const baseUrl = process.env.API_URL || "http://localhost:5000";
-  const res = await fetch(`${baseUrl}/api/lessons/course/${courseId}`, {
+  const res = await fetch(`${baseUrl}/api/lessons/course/${encodeURIComponent(courseId)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -49,7 +49,7 @@ export async function fetchCourseLessons(courseId: string, token: string): Promi
  */
 export async function fetchLesson(lessonId: string, token: string): Promise<Lesson> {
   const baseUrl = process.env.API_URL || "http://localhost:5000";
-  const res = await fetch(`${baseUrl}/api/lessons/${lessonId}`, {
+  const res = await fetch(`${baseUrl}/api/lessons/${encodeURIComponent(lessonId)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

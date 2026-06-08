@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { logger } from '@/shared/logger';
+import { logger } from "@/shared/logger";
 import { useRouter } from "next/navigation";
 import { enrollInCourse } from "@/features/auth/actions";
 
@@ -11,11 +11,7 @@ interface EnrollButtonProps {
   initialEnrolled: boolean;
 }
 
-export default function EnrollButton({
-  courseId,
-  isAuthenticated,
-  initialEnrolled,
-}: EnrollButtonProps) {
+export default function EnrollButton({ courseId, isAuthenticated, initialEnrolled }: EnrollButtonProps) {
   const router = useRouter();
   const [isEnrolled, setIsEnrolled] = useState(initialEnrolled);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,8 +19,7 @@ export default function EnrollButton({
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
-      // Redirect to login with returnUrl param as requested
-      const returnUrl = `/courses/${courseId}`;
+      const returnUrl = `/courses/${encodeURIComponent(courseId)}`;
       router.push(`/auth/login?callbackUrl=${encodeURIComponent(returnUrl)}&returnUrl=${encodeURIComponent(returnUrl)}`);
       return;
     }
@@ -36,7 +31,7 @@ export default function EnrollButton({
       const response = await enrollInCourse(courseId);
       if (response.success) {
         setIsEnrolled(true);
-        router.refresh(); // Refresh session/page data on server
+        router.refresh();
       } else {
         setError(response.error || "Enrollment failed.");
       }
@@ -50,22 +45,18 @@ export default function EnrollButton({
 
   if (isEnrolled) {
     return (
-      <div className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-black text-forest sm:w-auto">
-        <span>✓</span> Already enrolled
+      <div className="inline-flex w-full items-center justify-center rounded-md border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-black text-teal-700 sm:w-auto">
+        Already enrolled
       </div>
     );
   }
 
   return (
     <div className="inline-flex w-full flex-col gap-2 sm:w-auto">
-      <button
-        onClick={handleEnroll}
-        disabled={isLoading}
-        className="w-full rounded-lg bg-forest px-6 py-3 text-sm font-black text-white transition-colors hover:bg-emerald-800 disabled:opacity-50 sm:w-auto"
-      >
+      <button onClick={handleEnroll} disabled={isLoading} className="btn-primary w-full sm:w-auto">
         {isLoading ? "Enrolling..." : "Enroll in this course"}
       </button>
-      {error && <span className="text-xs font-bold text-red-600">⚠️ {error}</span>}
+      {error && <span className="text-xs font-bold text-red-600">{error}</span>}
     </div>
   );
 }

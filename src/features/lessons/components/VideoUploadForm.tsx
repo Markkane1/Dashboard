@@ -1,30 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useSession } from "next-auth/react";
 import { Course, Lesson } from "@/shared/types";
+import { DashboardCard, StatusBanner } from "@/shared/components/ui/DesignSystem";
 
-export default function VideoUploadForm({ courses, lessonsByCourse }: {
-  courses: Course[];
-  lessonsByCourse: Record<string, Lesson[]>;
-}) {
+export default function VideoUploadForm({ courses }: { courses: Course[] }) {
   const { data: session } = useSession();
   const firstCourseId = courses[0]?.id || "";
   const [courseId, setCourseId] = useState(firstCourseId);
-  const [lessonId, setLessonId] = useState(lessonsByCourse[firstCourseId]?.[0]?._id || "");
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [lessonId, setLessonId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const lessons = lessonsByCourse[courseId] || [];
+  useEffect(() => {
+    if (!courseId || !session?.apiAccessToken) {
+      setLessons([]);
+      setLessonId("");
+      return;
+    }
 
-  const handleCourseChange = (nextCourseId: string) => {
-    setCourseId(nextCourseId);
-    setLessonId(lessonsByCourse[nextCourseId]?.[0]?._id || "");
     setMessage("");
     setError("");
-  };
+    startTransition(async () => {
+      try {
+        const response = await fetch(`/api/admin/lessons/manage/course/${encodeURIComponent(courseId)}`, {
+          headers: {
+            Authorization: `Bearer ${session.apiAccessToken}`,
+          },
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || `Failed to load lessons (${response.status})`);
+        }
+
+        const courseLessons: Lesson[] = await response.json();
+        setLessons(courseLessons);
+        setLessonId(courseLessons[0]?._id || "");
+      } catch (loadError) {
+        setLessons([]);
+        setLessonId("");
+        setError(loadError instanceof Error ? loadError.message : "Unable to load lessons.");
+      }
+    });
+  }, [courseId, session?.apiAccessToken]);
 
   const handleUpload = async () => {
     if (!lessonId || !file || isUploading) return;
@@ -41,12 +64,12 @@ export default function VideoUploadForm({ courses, lessonsByCourse }: {
       const body = new FormData();
       body.append("video", file);
 
-      const res = await fetch(`/api/admin/lessons/${lessonId}/upload`, {
+      const res = await fetch(`/api/admin/lessons/${encodeURIComponent(lessonId)}/upload`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.apiAccessToken}`,
         },
-        body
+        body,
       });
 
       const responseBody = await res.json().catch(() => ({}));
@@ -54,7 +77,7 @@ export default function VideoUploadForm({ courses, lessonsByCourse }: {
         throw new Error(responseBody.error || "Video upload failed.");
       }
 
-      setMessage("Video uploaded and lesson metadata updated.");
+      setMessage("Video uploaded and lesson updated.");
       setFile(null);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Video upload failed.");
@@ -64,15 +87,11 @@ export default function VideoUploadForm({ courses, lessonsByCourse }: {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="grid gap-5 md:grid-cols-2">
+    <DashboardCard className="p-4 sm:p-5">
+      <div className="grid gap-4 md:grid-cols-2">
         <label className="block text-sm font-bold text-slate-700">
-          Select course
-          <select
-            value={courseId}
-            onChange={(event) => handleCourseChange(event.target.value)}
-            className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest"
-          >
+          Course
+          <select value={courseId} onChange={(event) => setCourseId(event.target.value)} className="control mt-2 w-full">
             {courses.map((course) => (
               <option key={course.id} value={course.id}>{course.title}</option>
             ))}
@@ -80,13 +99,16 @@ export default function VideoUploadForm({ courses, lessonsByCourse }: {
         </label>
 
         <label className="block text-sm font-bold text-slate-700">
-          Select lesson
+          Lesson
           <select
             value={lessonId}
             onChange={(event) => setLessonId(event.target.value)}
-            className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-forest focus:outline-none focus:ring-1 focus:ring-forest"
+            disabled={isPending || lessons.length === 0}
+            className="control mt-2 w-full"
           >
-            {lessons.length === 0 ? (
+            {isPending ? (
+              <option value="">Loading lessons...</option>
+            ) : lessons.length === 0 ? (
               <option value="">No lessons found</option>
             ) : lessons.map((lesson) => (
               <option key={lesson._id} value={lesson._id}>
@@ -97,27 +119,27 @@ export default function VideoUploadForm({ courses, lessonsByCourse }: {
         </label>
       </div>
 
-      <label className="mt-5 block text-sm font-bold text-slate-700">
+      <label className="mt-4 block text-sm font-bold text-slate-700">
         MP4 video file
         <input
           type="file"
           accept="video/mp4"
           onChange={(event) => setFile(event.target.files?.[0] || null)}
-          className="mt-2 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+          className="control mt-2 block w-full"
         />
       </label>
 
-      {message && <p className="mt-4 rounded-md bg-emerald-50 px-4 py-3 text-sm font-bold text-forest">{message}</p>}
-      {error && <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p>}
+      {message && <StatusBanner variant="success" title={message} className="mt-4" />}
+      {error && <StatusBanner variant="error" title={error} className="mt-4" />}
 
       <button
         type="button"
-        disabled={!lessonId || !file || isUploading}
+        disabled={!lessonId || !file || isUploading || isPending}
         onClick={handleUpload}
-        className="mt-5 rounded-lg bg-forest px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+        className="btn-primary mt-4"
       >
         {isUploading ? "Uploading..." : "Upload video"}
       </button>
-    </div>
+    </DashboardCard>
   );
 }

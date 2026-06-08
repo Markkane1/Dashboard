@@ -34,8 +34,7 @@ export default function QuizForm({ quiz }: { quiz: CourseQuiz }) {
         throw new Error("Your session expired. Please sign in again.");
       }
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const res = await fetch(`${apiBase}/api/quiz/${quiz.courseId}/submit`, {
+      const res = await fetch(`/api/admin/quiz/${encodeURIComponent(quiz.courseId)}/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

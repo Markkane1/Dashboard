@@ -110,7 +110,7 @@ export async function fetchManageableCourses(token: string): Promise<Course[]> {
 }
 
 export async function fetchCourseAnalytics(courseId: string, token: string): Promise<CourseAnalytics> {
-  const res = await fetch(`${getBaseUrl()}/api/analytics/courses/${courseId}`, {
+  const res = await fetch(`${getBaseUrl()}/api/analytics/courses/${encodeURIComponent(courseId)}`, {
     headers: authHeaders(token),
     cache: "no-store",
   });

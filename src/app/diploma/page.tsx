@@ -2,10 +2,11 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
 import { findUserByEmail } from "@/features/users/data/userDb";
-import { fetchCourses } from "@/infrastructure/api/courses";
+import { fetchCoursePage } from "@/infrastructure/api/courses";
 import { Course } from "@/shared/types";
 import { Link } from "@/shared/navigation";
 import { AuthenticatedDownloadButton } from "@/features/users/components/DashboardActions";
+import { DashboardCard, EmptyState, PageHeader, PageShell } from "@/shared/components/ui/DesignSystem";
 
 function getRequiredCourses(diploma: Course, courses: Course[]) {
   if (diploma.diplomaRequiredCourseIds && diploma.diplomaRequiredCourseIds.length > 0) {
@@ -25,28 +26,29 @@ export default async function DiplomaPage() {
 
   const user = await findUserByEmail(session.user.email);
   const completedCourseIds = user?.completedCourses || [];
-  const courses = await fetchCourses();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
+  const { courses } = await fetchCoursePage({ limit: 100 });
   const diplomaTracks = courses.filter((course) => course.isDiploma);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-      <div className="rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200 sm:p-8">
-        <p className="text-xs font-black uppercase tracking-wider text-amber-700">Specialist Diplomas</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-          Complete multi-course pathways
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-slate-700">
-          Finish every required course in a diploma track, then download your diploma PDF from this page.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Diploma pathways"
+        description="Finish required courses in a diploma track, then download the diploma PDF."
+      />
 
       {diplomaTracks.length === 0 ? (
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-600 sm:p-8">
-          No diploma tracks are currently configured.
-        </div>
+        <EmptyState
+          title="No diploma tracks are currently configured"
+          description="Check back later or browse the course catalog for additional learning pathways."
+          actions={(
+            <Link href="/courses" className="btn-primary">
+              Browse courses
+            </Link>
+          )}
+          className="mt-6"
+        />
       ) : (
-        <div className="mt-8 grid min-w-0 gap-6 lg:grid-cols-2">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
           {diplomaTracks.map((diploma) => {
             const requiredCourses = getRequiredCourses(diploma, courses);
             const completedRequired = requiredCourses.filter((course) => completedCourseIds.includes(course.id));
@@ -56,18 +58,18 @@ export default async function DiplomaPage() {
               : 0;
 
             return (
-              <section key={diploma.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <section key={diploma.id} className="dashboard-card min-w-0 p-4 sm:p-5">
                 <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">
+                    <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-black text-amber-800">
                       Diploma Track
                     </span>
-                    <h2 className="mt-4 text-xl font-black text-slate-950">{diploma.title}</h2>
+                    <h2 className="mt-3 text-lg font-black text-slate-950">{diploma.title}</h2>
                   </div>
                   <span className="text-sm font-black text-forest">{percent}% complete</span>
                 </div>
 
-                <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-600">
+                <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
                   {diploma.description || "Complete all required courses to unlock this specialist diploma."}
                 </p>
 
@@ -112,15 +114,15 @@ export default async function DiplomaPage() {
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   {isEligible ? (
                     <AuthenticatedDownloadButton
-                      downloadUrl={`${apiUrl}/api/docs/diploma?diplomaId=${diploma.id}`}
+                      downloadUrl={`/api/admin/docs/diploma?diplomaId=${encodeURIComponent(diploma.id)}`}
                       label="Download Diploma"
                       fallbackFilename="diploma.pdf"
-                      className="inline-flex rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-amber-700"
+                      className="btn-primary bg-amber-600 hover:bg-amber-700"
                     />
                   ) : (
                     <Link
                       href="/courses"
-                      className="inline-flex items-center justify-center rounded-lg bg-forest px-5 py-2.5 text-sm font-black text-white shadow-sm transition-colors hover:bg-emerald-800"
+                      className="btn-primary"
                     >
                       Continue pathway
                     </Link>
@@ -131,6 +133,7 @@ export default async function DiplomaPage() {
           })}
         </div>
       )}
-    </main>
+    </PageShell>
   );
 }
+

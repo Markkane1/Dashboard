@@ -15,7 +15,13 @@ const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:30
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const isDev = process.env.NODE_ENV !== 'production';
 const cspConnectSources = ["'self'", ...allowedOrigins, 'https://challenges.cloudflare.com'];
+const cspScriptSources = [
+  "'self'",
+  ...(isDev ? ["'unsafe-eval'"] : []),
+  'https://challenges.cloudflare.com'
+];
 const apiLimiter = rateLimit({
   windowMs: Number(process.env.API_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
   limit: Number(process.env.API_RATE_LIMIT_MAX || 300),
@@ -39,13 +45,14 @@ app.use(helmet({
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
       formAction: ["'self'"],
-      scriptSrc: ["'self'", 'https://challenges.cloudflare.com'],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: cspScriptSources,
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      styleSrcElem: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc: ["'self'", 'data:', 'blob:'],
-      fontSrc: ["'self'", 'data:'],
+      fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
       connectSrc: cspConnectSources,
       mediaSrc: ["'self'", ...allowedOrigins, 'blob:'],
-      frameSrc: ['https://challenges.cloudflare.com'],
+      frameSrc: ['https://challenges.cloudflare.com', 'https://www.youtube.com', 'https://www.youtube-nocookie.com'],
       workerSrc: ["'self'", 'blob:']
     }
   },

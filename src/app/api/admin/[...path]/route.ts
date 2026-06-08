@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/../auth";
 
 export const runtime = "nodejs";
 
@@ -10,19 +11,27 @@ function getBackendUrl(path: string[], search: string) {
   return `${baseUrl}/api/${backendPath}${search}`;
 }
 
-function getForwardedHeaders(req: NextRequest) {
+async function getForwardedHeaders(req: NextRequest) {
   const headers = new Headers();
   for (const [key, value] of req.headers.entries()) {
     if (["host", "connection", "content-length"].includes(key)) continue;
     headers.set(key, value);
   }
+
+  if (!headers.has("authorization")) {
+    const session = await auth();
+    if (session?.apiAccessToken) {
+      headers.set("authorization", `Bearer ${session.apiAccessToken}`);
+    }
+  }
+
   return headers;
 }
 
 async function proxy(req: NextRequest, { params }: { params: { path: string[] } }) {
   const response = await fetch(getBackendUrl(params.path, req.nextUrl.search), {
     method: req.method,
-    headers: getForwardedHeaders(req),
+    headers: await getForwardedHeaders(req),
     body: ["GET", "HEAD"].includes(req.method) ? undefined : req.body,
     redirect: "manual",
     // Required when forwarding a streamed request body from an App Router route.

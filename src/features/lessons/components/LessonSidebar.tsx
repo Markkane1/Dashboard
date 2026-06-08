@@ -9,85 +9,60 @@ interface LessonSidebarProps {
   onSelect: (lesson: Lesson) => void;
 }
 
+function formatDuration(totalSeconds: number) {
+  if (!totalSeconds || Number.isNaN(totalSeconds)) return "0:00";
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
 export default function LessonSidebar({ lessons, activeLesson, onSelect }: LessonSidebarProps) {
-  // 1. Calculate progress percentages
-  const completedCount = lessons.filter((l) => l.progress.completed).length;
+  const completedCount = lessons.filter((lesson) => lesson.progress.completed).length;
   const totalCount = lessons.length;
   const percentComplete = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  // 2. Format duration from seconds to MM:SS
-  const formatDuration = (totalSeconds: number) => {
-    if (!totalSeconds || isNaN(totalSeconds)) return "0:00";
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
-
   return (
-    <div className="flex h-full min-w-0 flex-col select-none divide-y divide-slate-100">
-      
-      {/* Dynamic Course Progress Bar Section */}
-      <div className="p-5 bg-slate-50/50">
-        <div className="mb-2 flex min-w-0 flex-col gap-1 text-xs font-bold uppercase tracking-wider text-slate-500 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
-          <span>Your Progress</span>
-          <span className="text-slate-800">{completedCount} of {totalCount} lessons ({percentComplete}%)</span>
+    <div className="flex h-full min-w-0 flex-col divide-y divide-slate-200">
+      <div className="bg-slate-50 p-4">
+        <div className="mb-2 flex items-center justify-between gap-3 text-xs font-bold text-slate-600">
+          <span>Progress</span>
+          <span>{completedCount}/{totalCount} lessons</span>
         </div>
-        
-        {/* Full-width progress track */}
-        <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden shadow-inner">
-          <div
-            style={{ width: `${percentComplete}%` }}
-            className="h-full bg-forest rounded-full transition-all duration-300 shadow-sm"
-          />
+        <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+          <div style={{ width: `${percentComplete}%` }} className="h-full rounded-full bg-teal-700" />
         </div>
       </div>
 
-      {/* Ordered Lesson List */}
       <nav className="max-h-[60vh] flex-1 divide-y divide-slate-100 overflow-y-auto md:max-h-[calc(100vh-14rem)]">
         {lessons.map((lesson) => {
           const isActive = lesson._id === activeLesson._id;
           const isCompleted = lesson.progress.completed;
           const isStarted = lesson.progress.watchedSeconds > 0;
-
-          // Determine status symbol & text colors
-          let statusSymbol = "○";
-          let symbolColor = "text-slate-400";
-          
-          if (isCompleted) {
-            statusSymbol = "✓";
-            symbolColor = "text-emerald-600 bg-emerald-50 border-emerald-200";
-          } else if (isStarted) {
-            statusSymbol = "◑";
-            symbolColor = "text-amber-600 bg-amber-50 border-amber-200";
-          }
+          const status = isCompleted ? "Done" : isStarted ? "Started" : "New";
 
           return (
             <button
               key={lesson._id}
               onClick={() => onSelect(lesson)}
-              className={`flex w-full min-w-0 items-start gap-3.5 border-l-4 px-4 py-4 text-left transition-all duration-150 focus:outline-none focus-visible:bg-slate-50 sm:px-5 ${
+              className={`flex w-full min-w-0 items-start gap-3 border-l-4 px-4 py-3 text-left ${
                 isActive
-                  ? "bg-emerald-50/60 border-forest text-slate-900"
-                  : "bg-white border-transparent text-slate-700 hover:bg-slate-50/80"
+                  ? "border-teal-700 bg-teal-50 text-slate-950"
+                  : "border-transparent bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              {/* Status Circle Indicator */}
-              <span className={`flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full text-xs font-black border ${symbolColor} transition-all duration-150`}>
-                {statusSymbol}
+              <span className={`mt-0.5 rounded-md px-2 py-1 text-[11px] font-black ${
+                isCompleted
+                  ? "bg-teal-100 text-teal-700"
+                  : isStarted
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-slate-100 text-slate-600"
+              }`}>
+                {status}
               </span>
-
-              {/* Title & Duration Details */}
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className={`text-xs font-bold uppercase tracking-wide ${isActive ? "text-forest" : "text-slate-400"}`}>
-                  Lesson {lesson.order + 1}
-                </p>
-                <h4 className={`text-sm font-black leading-snug ${isActive ? "text-slate-900" : "text-slate-800"}`}>
-                  {lesson.title}
-                </h4>
-                <div className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
-                  <span>⏱️</span>
-                  <span>{formatDuration(lesson.duration)}</span>
-                </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Lesson {lesson.order + 1}</p>
+                <h4 className="mt-1 text-sm font-black leading-snug text-slate-900">{lesson.title}</h4>
+                <p className="mt-1 text-xs font-semibold text-slate-500">{formatDuration(lesson.duration)}</p>
               </div>
             </button>
           );

@@ -1,10 +1,16 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@/shared/navigation";
-import { useSession, signOut } from "next-auth/react";
-import { hasPermission, PERMISSIONS } from '@/shared/permissions';
+import { signOut, useSession } from "next-auth/react";
+import { hasPermission, PERMISSIONS } from "@/shared/permissions";
 import LanguageSwitcher from "./LanguageSwitcher";
+
+type NavItem = {
+  href: string;
+  label: string;
+  show: boolean;
+};
 
 export default function Navbar() {
   const { data: session, status } = useSession();
@@ -14,6 +20,17 @@ export default function Navbar() {
   const isAuthenticated = status === "authenticated";
   const canManageContent = hasPermission(session?.user, PERMISSIONS.MANAGE_CONTENT);
   const isAdmin = hasPermission(session?.user, PERMISSIONS.MANAGE_USERS);
+
+  const navItems = useMemo<NavItem[]>(() => [
+    { href: "/dashboard", label: "Dashboard", show: isAuthenticated },
+    { href: "/courses", label: "Courses", show: true },
+    { href: "/notifications", label: "Notifications", show: isAuthenticated },
+    { href: "/instructor/content", label: "Content", show: isAuthenticated && canManageContent },
+    { href: "/instructor/analytics", label: "Analytics", show: isAuthenticated && canManageContent },
+    { href: "/admin", label: "Admin", show: isAuthenticated && isAdmin },
+  ], [canManageContent, isAdmin, isAuthenticated]);
+
+  const visibleNavItems = navItems.filter((item) => item.show);
 
   useEffect(() => {
     if (!isMobileMenuOpen) return;
@@ -36,264 +53,118 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/35 bg-white/80 shadow-sm backdrop-blur-xl transition-all duration-200">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex min-h-16 items-center justify-between gap-3 py-2">
-          
-          {/* Left Logo section */}
-          <div className="flex-shrink-0">
-            <Link href="/" className="group flex min-w-0 items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-forest text-sm font-black text-white shadow-sm transition-transform duration-200 group-hover:scale-105">
-                EPA
-              </span>
-              <div className="min-w-0 leading-none max-w-[10rem] sm:max-w-none">
-                <span className="block truncate text-base font-black tracking-tight text-brand-on-surface transition-colors duration-200 group-hover:text-forest">
-                  EPA Elearning
-                </span>
-                <span className="hidden text-[10px] font-bold uppercase tracking-wider text-brand-on-surface-variant sm:block">
-                  Environmental Learning Platform
-                </span>
-              </div>
-            </Link>
-          </div>
+    <header className="app-topbar">
+      <div className="app-shell">
+        <div className="flex min-h-14 items-center justify-between gap-4">
+          <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex min-w-0 items-center gap-2">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-teal-700 text-xs font-black text-white">
+              EPA
+            </span>
+            <span className="truncate text-sm font-black text-slate-950 sm:text-base">EPA Elearning</span>
+          </Link>
 
-          {/* Desktop Right Links */}
-          <nav className="hidden items-center gap-1 lg:flex">
-            <Link
-              href="/courses"
-              className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
-            >
-              Courses
-            </Link>
-            <Link
-              href="/about"
-              className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
-            >
-              About
-            </Link>
-            <Link
-              href="/contact"
-              className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
-            >
-              Contact us
-            </Link>
-            {isAuthenticated && (
-              <>
-                <Link
-                  href="/dashboard"
-                  className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  href="/notifications"
-                  className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
-                >
-                  Notifications
-                </Link>
-                {canManageContent && (
-                  <>
-                    <Link
-                      href="/instructor/content"
-                      className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
-                    >
-                      Instructor
-                    </Link>
-                    <Link
-                      href="/instructor/analytics"
-                      className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
-                    >
-                      Analytics
-                    </Link>
-                  </>
-                )}
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    className="rounded-full px-3.5 py-2 text-sm font-bold text-brand-on-surface-variant transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2"
-                  >
-                    Admin
-                  </Link>
-                )}
-              </>
-            )}
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary navigation">
+            {visibleNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-md px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
-          {/* Right Action buttons */}
-          <div className="hidden items-center gap-3 md:flex">
+          <div className="hidden items-center gap-3 lg:flex">
             <LanguageSwitcher />
-
             {status === "loading" ? (
-              <div className="h-8 w-16 animate-pulse rounded bg-slate-100" />
+              <div className="h-8 w-24 animate-pulse rounded-md bg-slate-100" />
             ) : isAuthenticated ? (
-              <div className="flex items-center gap-3">
-                <span className="hidden max-w-40 truncate text-sm font-semibold text-brand-on-surface-variant xl:block">
-                  Hi, <span className="font-bold text-brand-on-surface">{session?.user?.name}</span>
+              <>
+                <span className="max-w-36 truncate text-sm font-semibold text-slate-600">
+                  {session?.user?.name}
                 </span>
-                <button
-                  onClick={handleLogout}
-                  className="rounded-full border border-white/40 bg-white/45 px-4 py-2 text-sm font-bold text-brand-on-surface-variant transition-all duration-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
-                >
+                <button onClick={handleLogout} className="btn-secondary py-1.5">
                   Log out
                 </button>
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/auth/login"
-                className="rounded-full px-4 py-2 text-sm font-bold text-forest transition-colors duration-200 hover:bg-brand-secondary-container/50 hover:text-brand-secondary focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
-                >
+              <>
+                <Link href="/auth/login" className="btn-secondary py-1.5">
                   Log in
                 </Link>
-                <Link
-                  href="/auth/signup"
-                  className="rounded-full bg-forest px-5 py-2 text-sm font-black text-white shadow-sm transition-all duration-200 hover:bg-[#b0f0d6] hover:text-[#003527] hover:shadow focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
-                >
+                <Link href="/auth/signup" className="btn-primary py-1.5">
                   Sign up
                 </Link>
-              </div>
+              </>
             )}
           </div>
 
-          {/* Mobile Hamburger Button */}
-          <div className="min-w-0 flex items-center gap-2 lg:hidden">
+          <div className="flex items-center gap-2 lg:hidden">
             <LanguageSwitcher />
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              onClick={() => setIsMobileMenuOpen((current) => !current)}
               type="button"
               aria-label="Toggle menu"
               aria-expanded={isMobileMenuOpen}
               aria-controls="mobile-navigation"
-              className="inline-flex items-center justify-center rounded-full bg-white/45 p-2 text-brand-on-surface-variant hover:bg-brand-secondary-container/50 hover:text-forest focus:outline-none focus:ring-2 focus:ring-inset focus:ring-forest"
+              className="rounded-md border border-slate-300 bg-white px-2.5 py-2 text-sm font-bold text-slate-700"
             >
-              {isMobileMenuOpen ? (
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
+              Menu
             </button>
           </div>
-
         </div>
       </div>
 
-      {/* Mobile Slide-down Panel */}
       {isMobileMenuOpen && (
         <div
           id="mobile-navigation"
           ref={mobileMenuRef}
           role="navigation"
           aria-label="Mobile menu"
-          className="border-t border-white/30 bg-white/90 shadow-lg backdrop-blur-xl animate-in slide-in-from-top duration-200 lg:hidden"
+          className="border-t border-slate-200 bg-white lg:hidden"
         >
-          <div className="space-y-1 px-4 py-4 pb-6">
-            <Link
-              href="/courses"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
-            >
-              Courses
-            </Link>
-            <Link
-              href="/about"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
-            >
-              About
-            </Link>
-            <Link
-              href="/contact"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
-            >
-              Contact us
-            </Link>
-            {isAuthenticated && (
-              <>
+          <div className="app-shell py-3">
+            <div className="grid gap-1">
+              {visibleNavItems.map((item) => (
                 <Link
-                  href="/dashboard"
+                  key={item.href}
+                  href={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
+                  className="rounded-md px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
                 >
-                  Dashboard
+                  {item.label}
                 </Link>
-                <Link
-                  href="/notifications"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
-                >
-                  Notifications
-                </Link>
-                {canManageContent && (
-                  <>
-                    <Link
-                      href="/instructor/content"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
-                    >
-                      Instructor
-                    </Link>
-                    <Link
-                      href="/instructor/analytics"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
-                    >
-                      Analytics
-                    </Link>
-                  </>
-                )}
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="block rounded-full px-4 py-2.5 text-base font-bold text-slate-700 hover:bg-white/60 hover:text-forest"
-                  >
-                    Admin
-                  </Link>
-                )}
-              </>
-            )}
+              ))}
+            </div>
 
-            <div className="border-t border-slate-100 my-4 pt-4">
+            <div className="mt-3 border-t border-slate-200 pt-3">
               {isAuthenticated ? (
-                <div className="space-y-3 px-3">
-                  <p className="text-sm font-semibold text-slate-500">
-                    Signed in as <span className="font-bold text-slate-800">{session?.user?.name}</span>
+                <div className="flex flex-col gap-2">
+                  <p className="px-3 text-sm font-semibold text-slate-600">
+                    Signed in as <span className="font-bold text-slate-950">{session?.user?.name}</span>
                   </p>
                   <button
                     onClick={() => {
                       setIsMobileMenuOpen(false);
                       handleLogout();
                     }}
-                    className="w-full rounded-full border border-slate-300 py-2.5 text-sm font-bold text-slate-700 hover:bg-white/60 hover:text-red-600 hover:border-red-200 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 transition-colors"
+                    className="btn-secondary w-full"
                   >
                     Log out
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3 px-2 min-[420px]:grid-cols-2">
-                  <Link
-                    href="/auth/login"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex justify-center items-center rounded-full border border-slate-300 py-2.5 text-sm font-bold text-forest hover:bg-white/60 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
-                  >
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)} className="btn-secondary">
                     Log in
                   </Link>
-                  <Link
-                    href="/auth/signup"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex justify-center items-center rounded-full bg-forest py-2.5 text-sm font-black text-white hover:bg-[#b0f0d6] hover:text-[#003527] shadow-sm focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2"
-                  >
+                  <Link href="/auth/signup" onClick={() => setIsMobileMenuOpen(false)} className="btn-primary">
                     Sign up
                   </Link>
                 </div>
               )}
             </div>
-
           </div>
         </div>
       )}

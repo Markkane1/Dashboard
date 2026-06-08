@@ -2,6 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { TaxonomyItem, createTaxonomyItem, deleteTaxonomyItem, fetchTaxonomies, updateTaxonomyItem } from "@/infrastructure/api/taxonomies";
+import {
+  ConfirmDialog,
+  DashboardCard,
+  EmptyState,
+  FormPanel,
+  StatusBanner,
+} from "@/shared/components/ui/DesignSystem";
 
 const taxonomyTypes = [
   { id: "category", label: "Categories" },
@@ -26,6 +33,7 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -122,6 +130,7 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
         setMessage("Taxonomy item deleted.");
         refresh();
         clearForm();
+        setIsDeleteOpen(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Delete failed.");
       }
@@ -129,7 +138,7 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
   };
 
   return (
-    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section className="min-w-0">
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-black uppercase tracking-wide text-slate-500">Taxonomy manager</p>
@@ -150,13 +159,12 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
       </div>
 
       {(message || error) && (
-        <div className={`mt-6 rounded-lg border px-4 py-3 text-sm font-bold ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-forest'}`}>
-          {error || message}
-        </div>
+        <StatusBanner variant={error ? "error" : "success"} title={error || message} className="mt-6" />
       )}
 
       <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)]">
-        <form onSubmit={submit} className="min-w-0 space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+        <FormPanel className="min-w-0 bg-slate-50 p-5">
+        <form onSubmit={submit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-slate-700">
               Key
@@ -207,7 +215,7 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
               {selectedId ? 'Update item' : 'Create item'}
             </button>
             {selectedId && (
-              <button type="button" onClick={remove} disabled={isPending} className="rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-black text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" onClick={() => setIsDeleteOpen(true)} disabled={isPending} className="rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-black text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60">
                 Delete
               </button>
             )}
@@ -216,8 +224,9 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
             </button>
           </div>
         </form>
+        </FormPanel>
 
-        <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-5">
+        <DashboardCard className="min-w-0 p-5">
           <div className="flex min-w-0 items-center justify-between gap-4">
             <p className="text-sm font-black uppercase tracking-wide text-slate-500">{taxonomyTypes.find((item) => item.id === type)?.label}</p>
             <button type="button" onClick={refresh} className="text-sm font-semibold text-forest hover:underline">
@@ -226,14 +235,18 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
           </div>
           <div className="mt-4 space-y-2 max-h-[420px] overflow-y-auto pr-1">
             {items.length === 0 ? (
-              <p className="text-sm text-slate-500">No items found for this type.</p>
+              <EmptyState
+                title="No items found"
+                description="Create the first item for this taxonomy type."
+                className="p-6"
+              />
             ) : (
               items.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => selectItem(item)}
-                  className="w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:border-forest hover:bg-emerald-50"
+                  className="w-full min-w-0 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:border-forest hover:bg-emerald-50"
                 >
                   <div className="flex min-w-0 flex-col gap-2 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between">
                     <div className="min-w-0">
@@ -248,8 +261,17 @@ export default function TaxonomyManager({ token }: TaxonomyManagerProps) {
               ))
             )}
           </div>
-        </section>
+        </DashboardCard>
       </div>
+      <ConfirmDialog
+        open={isDeleteOpen}
+        title="Delete taxonomy item?"
+        description="This removes the item from course filters and management selectors."
+        confirmLabel={isPending ? "Deleting..." : "Delete item"}
+        cancelLabel="Cancel"
+        onConfirm={remove}
+        onCancel={() => setIsDeleteOpen(false)}
+      />
     </section>
   );
 }

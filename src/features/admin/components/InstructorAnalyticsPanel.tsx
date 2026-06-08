@@ -23,7 +23,7 @@ export default function InstructorAnalyticsPanel({ courses }: InstructorAnalytic
     startTransition(async () => {
       setError("");
       try {
-        const response = await fetch(`/api/analytics/courses/${selectedCourseId}`);
+        const response = await fetch(`/api/admin/analytics/courses/${encodeURIComponent(selectedCourseId)}`);
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
           throw new Error(payload.error || `Failed to fetch analytics (${response.status})`);

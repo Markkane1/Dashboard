@@ -12,7 +12,7 @@ export class QuizApiError extends Error {
 
 export async function fetchCourseQuiz(courseId: string, token: string): Promise<CourseQuiz> {
   const baseUrl = process.env.API_URL || "http://localhost:5000";
-  const res = await fetch(`${baseUrl}/api/quiz/${courseId}`, {
+  const res = await fetch(`${baseUrl}/api/quiz/${encodeURIComponent(courseId)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

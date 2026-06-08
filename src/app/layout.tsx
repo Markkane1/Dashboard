@@ -26,12 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} dir={direction}>
-      <body className="min-h-screen antialiased bg-brand-background relative overflow-x-hidden">
-        {/* Background Organic Blobs for Fluid Institutional Aesthetic */}
-        <div className="absolute top-[-10vw] left-[-10vw] w-[50vw] h-[50vw] organic-blob blob-emerald" />
-        <div className="absolute top-[35vh] right-[-15vw] w-[45vw] h-[45vw] organic-blob blob-mint" />
-        <div className="absolute bottom-[-10vh] left-[15vw] w-[40vw] h-[40vw] organic-blob blob-emerald" />
-
+      <body className="min-h-screen antialiased">
         <Providers locale={locale} messages={messages}>
           <a href="#main-content" className="skip-link">Skip to main content</a>
           <Navbar />

@@ -9,7 +9,7 @@ export async function fetchCourseProgressSummary(
   token: string
 ): Promise<CourseProgressSummary> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
-  const res = await fetch(`${baseUrl}/api/progress/course/${courseId}`, {
+  const res = await fetch(`${baseUrl}/api/progress/course/${encodeURIComponent(courseId)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

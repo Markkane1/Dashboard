@@ -4,7 +4,9 @@ import { auth } from "@/../auth";
 import { fetchCourseLessons } from "@/infrastructure/api/lessons";
 import CoursePlayer from "@/features/lessons/components/CoursePlayer";
 import { findUserByEmail } from "@/features/users/data/userDb";
+import { Link } from "@/shared/navigation";
 import { logger } from '@/shared/logger';
+import { PageShell } from "@/shared/components/ui/DesignSystem";
 
 interface LearnPageProps {
   params: {
@@ -65,12 +67,19 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <PageShell className="px-0">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-surface px-4 py-3 sm:px-6">
+        <Link href={`/courses/${courseId}`} className="btn-secondary">
+          Back to course
+        </Link>
+        <p className="text-sm font-semibold text-text-muted">Learning path</p>
+      </div>
+
       <CoursePlayer
         courseId={courseId}
         lessons={lessons}
         initialLesson={activeLesson}
       />
-    </div>
+    </PageShell>
   );
 }

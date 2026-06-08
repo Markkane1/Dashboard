@@ -36,7 +36,7 @@ export default async function HomePage({ searchParams }: { searchParams: Record<
     topic: typeof searchParams.topic === 'string' ? searchParams.topic : undefined,
     section: activeSection,
     q: typeof searchParams.q === 'string' ? searchParams.q : undefined,
-    limit: 60,
+    limit: 24,
   };
   const [coursePage, taxonomyCategories, taxonomyTopics, taxonomySections, taxonomySdgs] = await Promise.all([
     fetchCoursePage(filters),

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { logger } from '@/shared/logger';
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { ConfirmDialog, StatusBanner } from "@/shared/components/ui/DesignSystem";
 
 interface ActionProps {
   courseId: string;
@@ -27,59 +28,81 @@ async function enrollmentAction(action: "complete" | "unenroll", courseId: strin
 export function MarkCompleteButton({ courseId }: ActionProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleComplete = async () => {
     setIsLoading(true);
+    setErrorMessage("");
     try {
       await enrollmentAction("complete", courseId);
       router.refresh();
     } catch (error) {
       logger.error("Complete course error:", error);
-      alert(error instanceof Error ? error.message : "Failed to mark course as completed.");
+      setErrorMessage(error instanceof Error ? error.message : "Failed to mark course as completed.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <button
-      onClick={handleComplete}
-      disabled={isLoading}
-      className="flex-1 rounded-md bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
-    >
-      {isLoading ? "Completing..." : "Mark Complete ✓"}
-    </button>
+    <>
+      {errorMessage ? (
+        <StatusBanner variant="error" title={errorMessage} className="col-span-full py-2 text-xs" />
+      ) : null}
+      <button
+        onClick={handleComplete}
+        disabled={isLoading}
+        className="btn-primary flex-1 px-3 py-2 text-xs"
+      >
+        {isLoading ? "Completing..." : "Mark complete"}
+      </button>
+    </>
   );
 }
 
 export function UnenrollButton({ courseId }: ActionProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleUnenroll = async () => {
-    if (!confirm("Are you sure you want to unenroll from this course?")) {
-      return;
-    }
     setIsLoading(true);
+    setErrorMessage("");
     try {
       await enrollmentAction("unenroll", courseId);
+      setIsConfirmOpen(false);
       router.refresh();
     } catch (error) {
       logger.error("Unenroll course error:", error);
-      alert(error instanceof Error ? error.message : "Failed to unenroll.");
+      setErrorMessage(error instanceof Error ? error.message : "Failed to unenroll.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <button
-      onClick={handleUnenroll}
-      disabled={isLoading}
-      className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
-    >
-      {isLoading ? "Unenrolling..." : "Unenroll"}
-    </button>
+    <>
+      {errorMessage ? (
+        <StatusBanner variant="error" title={errorMessage} className="col-span-full py-2 text-xs" />
+      ) : null}
+      <button
+        onClick={() => setIsConfirmOpen(true)}
+        disabled={isLoading}
+        className="btn-secondary flex-1 px-3 py-2 text-xs"
+      >
+        {isLoading ? "Unenrolling..." : "Unenroll"}
+      </button>
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="Unenroll from course?"
+        description="Your enrollment and course progress will be removed from your dashboard."
+        confirmLabel={isLoading ? "Unenrolling..." : "Unenroll"}
+        cancelLabel="Keep course"
+        onConfirm={handleUnenroll}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
+    </>
   );
 }
 
@@ -102,11 +125,13 @@ export function AuthenticatedDownloadButton({
 }) {
   const { data: session } = useSession();
   const [isDownloading, setIsDownloading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleDownload = async () => {
     if (!session?.apiAccessToken || isDownloading) return;
 
     setIsDownloading(true);
+    setErrorMessage("");
     try {
       const res = await fetch(downloadUrl, {
         headers: {
@@ -128,21 +153,24 @@ export function AuthenticatedDownloadButton({
       URL.revokeObjectURL(objectUrl);
     } catch (error) {
       logger.error("Authenticated download failed:", error);
-      alert("Download failed. Please try again.");
+      setErrorMessage("Download failed. Please try again.");
     } finally {
       setIsDownloading(false);
     }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleDownload}
-      disabled={isDownloading || !session?.apiAccessToken}
-      className={className || "mt-3 block w-full rounded-md bg-forest py-2 text-center text-xs font-bold text-white hover:bg-emerald-800 transition-colors disabled:cursor-not-allowed disabled:opacity-50"}
-    >
-      {isDownloading ? "Downloading..." : label}
-    </button>
+    <>
+      {errorMessage ? <StatusBanner variant="error" title={errorMessage} className="mt-3 py-2 text-xs" /> : null}
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={isDownloading || !session?.apiAccessToken}
+        className={className || "btn-primary mt-3 w-full py-2 text-xs"}
+      >
+        {isDownloading ? "Downloading..." : label}
+      </button>
+    </>
   );
 }
 

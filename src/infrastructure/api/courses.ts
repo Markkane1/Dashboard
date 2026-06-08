@@ -28,6 +28,22 @@ export class ApiError extends Error {
   }
 }
 
+function getApiPath(path: string) {
+  if (typeof window !== "undefined") {
+    return `/api/admin${path}`;
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
+  return `${baseUrl.replace(/\/$/, "")}/api${path}`;
+}
+
+function buildApiUrl(path: string) {
+  const apiPath = getApiPath(path);
+  return typeof window !== "undefined"
+    ? new URL(apiPath, window.location.origin)
+    : new URL(apiPath);
+}
+
 /**
  * Fetch all courses from the backend.
  */
@@ -40,8 +56,7 @@ export async function fetchCourses(): Promise<Course[]> {
  * Fetch a paginated course catalog page from the backend.
  */
 export async function fetchCoursePage(params: CoursePageParams = {}): Promise<CoursePage> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
-  const url = new URL(`${baseUrl}/api/courses`);
+  const url = buildApiUrl("/courses");
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== "") {
       url.searchParams.set(key, String(value));
@@ -75,8 +90,7 @@ export async function fetchCoursesByIds(courseIds: string[]): Promise<Course[]> 
     return [];
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
-  const res = await fetch(`${baseUrl}/api/courses/batch`, {
+  const res = await fetch(getApiPath("/courses/batch"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -96,8 +110,7 @@ export async function fetchCoursesByIds(courseIds: string[]): Promise<Course[]> 
  * Fetch a specific course by ID.
  */
 export async function fetchCourseById(courseId: string): Promise<Course> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
-  const res = await fetch(`${baseUrl}/api/courses/${courseId}`, {
+  const res = await fetch(getApiPath(`/courses/${encodeURIComponent(courseId)}`), {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

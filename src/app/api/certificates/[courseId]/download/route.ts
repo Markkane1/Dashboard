@@ -8,17 +8,20 @@ function buildBackendUrl(path: string) {
   return `${BACKEND_URL.replace(/\/$/, "")}${path}`;
 }
 
-export async function GET(req: NextRequest, { params }: { params: { courseId: string } }) {
-  const backendUrl = buildBackendUrl(`/api/certificates/${params.courseId}/download`);
+function getForwardedHeaders(req: NextRequest) {
   const headers = new Headers();
-
   for (const [key, value] of req.headers.entries()) {
-    if (key === "host") continue;
-    if (value) headers.set(key, value);
+    if (["host", "connection", "content-length"].includes(key)) continue;
+    headers.set(key, value);
   }
+  return headers;
+}
+
+export async function GET(req: NextRequest, { params }: { params: { courseId: string } }) {
+  const backendUrl = buildBackendUrl(`/api/certificates/${encodeURIComponent(params.courseId)}/download`);
 
   const response = await fetch(backendUrl, {
-    headers,
+    headers: getForwardedHeaders(req),
     redirect: "manual"
   });
 

@@ -2,7 +2,7 @@ import { Lesson } from "@/shared/types";
 
 export async function fetchManageableLessons(courseId: string, token: string): Promise<Lesson[]> {
   const baseUrl = process.env.API_URL || "http://localhost:5000";
-  const res = await fetch(`${baseUrl}/api/lessons/manage/course/${courseId}`, {
+  const res = await fetch(`${baseUrl}/api/lessons/manage/course/${encodeURIComponent(courseId)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

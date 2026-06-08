@@ -1,10 +1,11 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
-import { fetchCourses } from "@/infrastructure/api/courses";
-import { fetchManageableLessons } from "@/infrastructure/api/instructorLessons";
+import { fetchManageableCourses } from "@/infrastructure/api/admin";
 import VideoUploadForm from "@/features/lessons/components/VideoUploadForm";
 import { hasPermission, PERMISSIONS } from "@/shared/permissions";
+import { DashboardCard, EmptyState, PageHeader, PageShell } from "@/shared/components/ui/DesignSystem";
+import { Link } from "@/shared/navigation";
 
 export default async function InstructorVideosPage() {
   const session = await auth();
@@ -21,37 +22,35 @@ export default async function InstructorVideosPage() {
     redirect("/auth/login");
   }
 
-  const courses = (await fetchCourses()).filter((course) => !course.isExternal && !course.isDiploma);
-  const lessonsByCourse: Record<string, Awaited<ReturnType<typeof fetchManageableLessons>>> = {};
-
-  await Promise.all(
-    courses.map(async (course) => {
-      try {
-        lessonsByCourse[course.id] = await fetchManageableLessons(course.id, token);
-      } catch {
-        lessonsByCourse[course.id] = [];
-      }
-    })
-  );
+  const courses = (await fetchManageableCourses(token)).filter((course) => !course.isExternal && !course.isDiploma);
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <p className="text-xs font-black uppercase tracking-wider text-forest">Instructor tools</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Video uploads</h1>
-        <p className="mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-slate-600">
-          Upload MP4 lesson videos into local storage. The backend saves files in `uploads/videos`,
-          updates the lesson `videoUrl`, and reads duration with ffprobe when available.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Video uploads"
+        description="Attach MP4 videos to lessons and update lesson playback details for your managed courses."
+        actions={(
+          <Link href="/instructor/content" className="btn-secondary">
+            Course content
+          </Link>
+        )}
+      />
 
       {courses.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-600">
-          No internal courses are available for uploads yet.
-        </div>
+        <EmptyState
+          title="No upload-ready courses"
+          description="No internal courses are available for uploads yet. Create course content first, then return here."
+          actions={(
+            <Link href="/instructor/content" className="btn-primary">
+              Manage courses
+            </Link>
+          )}
+        />
       ) : (
-        <VideoUploadForm courses={courses} lessonsByCourse={lessonsByCourse} />
+        <DashboardCard className="p-6">
+          <VideoUploadForm courses={courses} />
+        </DashboardCard>
       )}
-    </main>
+    </PageShell>
   );
 }

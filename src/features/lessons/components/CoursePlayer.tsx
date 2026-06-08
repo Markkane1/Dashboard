@@ -24,7 +24,10 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
   const handleSelectLesson = (lesson: Lesson) => {
     setActiveLesson(lesson);
     setIsMobileSidebarOpen(false);
-    router.replace(`/courses/${courseId}/learn?lesson=${lesson._id}`, { scroll: false });
+    router.replace(
+      `/courses/${encodeURIComponent(courseId)}/learn?lesson=${encodeURIComponent(lesson._id)}`,
+      { scroll: false }
+    );
   };
 
   // Called when active lesson video reaches natural playback completion
@@ -51,7 +54,7 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
   };
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[1600px] min-w-0 flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-100 md:flex-row">
+    <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[1600px] min-w-0 flex-col overflow-hidden border-x border-slate-200 bg-white md:flex-row">
       
       {/* Sidebar: Fixed 300px Left on Desktop, Accordion/Toggle Column below on Mobile */}
       <aside className="w-full min-w-0 border-b border-slate-200 bg-white md:w-[320px] md:flex-shrink-0 md:border-b-0 md:border-r">
@@ -92,10 +95,10 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
               </p>
             </div>
             <Link
-              href={`/courses/${courseId}/quiz`}
-              className="inline-flex items-center justify-center rounded-lg bg-forest px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-emerald-800"
+              href={`/courses/${encodeURIComponent(courseId)}/quiz`}
+              className="btn-primary"
             >
-              Take final quiz &rarr;
+              Take final quiz
             </Link>
           </div>
         )}

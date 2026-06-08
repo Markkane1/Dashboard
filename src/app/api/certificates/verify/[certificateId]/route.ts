@@ -8,13 +8,20 @@ function buildBackendUrl(path: string) {
   return `${BACKEND_URL.replace(/\/$/, "")}${path}`;
 }
 
+function getForwardedHeaders(req: NextRequest) {
+  const headers = new Headers();
+  for (const [key, value] of req.headers.entries()) {
+    if (["host", "connection", "content-length"].includes(key)) continue;
+    headers.set(key, value);
+  }
+  headers.set("content-type", "application/json");
+  return headers;
+}
+
 export async function GET(req: NextRequest, { params }: { params: { certificateId: string } }) {
-  const backendUrl = buildBackendUrl(`/api/certificates/verify/${params.certificateId}`);
+  const backendUrl = buildBackendUrl(`/api/certificates/verify/${encodeURIComponent(params.certificateId)}`);
   const response = await fetch(backendUrl, {
-    headers: {
-      "Content-Type": "application/json",
-      ...Object.fromEntries(req.headers.entries())
-    },
+    headers: getForwardedHeaders(req),
     cache: "no-store"
   });
 

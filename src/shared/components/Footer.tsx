@@ -9,7 +9,7 @@ const organizations = [
   { name: "UNECE", href: "https://unece.org" },
   { name: "ECOLEX", href: "https://www.ecolex.org" },
   { name: "UNITAR", href: "https://unitar.org" },
-  { name: "European Union", href: "https://ec.europa.eu" },
+  { name: "EU", href: "https://ec.europa.eu" },
 ];
 
 const treaties = [
@@ -22,98 +22,57 @@ const treaties = [
   { name: "CBD", href: "https://www.cbd.int" },
   { name: "CITES", href: "https://cites.org" },
   { name: "Ramsar", href: "https://www.ramsar.org" },
-  { name: "Minamata Convention", href: "https://www.minamataconvention.org" },
+  { name: "Minamata", href: "https://www.minamataconvention.org" },
 ];
+
+function LinkGroup({ title, links }: { title: string; links: Array<{ name: string; href: string }> }) {
+  return (
+    <div className="min-w-0">
+      <h2 className="text-xs font-black uppercase tracking-wide text-slate-500">{title}</h2>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+        {links.map((link) => (
+          <a
+            key={link.name}
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-slate-600 hover:text-teal-700"
+          >
+            {link.name}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Footer() {
   return (
-    <footer className="relative mt-12 overflow-hidden border-t border-white/20 bg-brand-inverse-surface text-brand-inverse-on-surface">
-      <div className="organic-blob blob-mint left-[-8rem] top-[-12rem] h-80 w-80 opacity-10" />
-      <div className="organic-blob blob-emerald bottom-[-14rem] right-[-10rem] h-96 w-96 opacity-20" />
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        
-        {/* Main 3-column Footer Grid */}
-        <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          
-          {/* Column 1: App Info (Sleek Branding) */}
-          <div className="lg:col-span-2 space-y-4">
+    <footer className="mt-8 border-t border-border bg-surface">
+      <div className="app-shell py-5">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-inverse-primary text-xs font-black text-brand-on-primary-fixed">
+              <span className="grid h-7 w-7 place-items-center rounded-md bg-teal-700 text-[10px] font-black text-white">
                 EPA
               </span>
-              <span className="text-lg font-black tracking-tight text-white">
-                EPA Elearning Platform
-              </span>
+              <span className="text-sm font-black text-slate-950">EPA Elearning</span>
             </div>
-            <p className="max-w-md text-sm leading-relaxed text-brand-inverse-on-surface/80">
-              An interactive e-learning platform inspired by international environmental agreements, providing self-paced training resources to expand legal and environmental literacy globally.
+            <p className="mt-2 max-w-xl text-xs leading-5 text-slate-600">
+              Self-paced environmental law and multilateral agreement learning resources.
             </p>
           </div>
 
-          {/* Column 2: Organizations */}
-          <div>
-            <h3 className="text-sm font-black uppercase tracking-wider text-brand-inverse-primary">
-              Organizations
-            </h3>
-            <ul className="mt-4 grid grid-cols-1 gap-2 text-sm">
-              {organizations.map((org) => (
-                <li key={org.name}>
-                  <a
-                    href={org.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center gap-1 text-brand-inverse-on-surface/80 transition-colors duration-200 hover:text-white"
-                  >
-                    <span>{org.name}</span>
-                    <span className="text-[10px] text-brand-inverse-on-surface/45 transition-colors group-hover:text-brand-inverse-primary">External</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Column 3: Global Treaties */}
-          <div>
-            <h3 className="text-sm font-black uppercase tracking-wider text-brand-inverse-primary">
-              Global treaties
-            </h3>
-            <ul className="mt-4 grid grid-cols-1 gap-2 text-sm">
-              {treaties.map((treaty) => (
-                <li key={treaty.name}>
-                  <a
-                    href={treaty.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center gap-1 text-brand-inverse-on-surface/80 transition-colors duration-200 hover:text-white"
-                  >
-                    <span>{treaty.name}</span>
-                    <span className="text-[10px] text-brand-inverse-on-surface/45 transition-colors group-hover:text-brand-inverse-primary">External</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
+          <LinkGroup title="Organizations" links={organizations} />
+          <LinkGroup title="Treaties" links={treaties} />
         </div>
 
-        {/* Divider line */}
-        <div className="mt-12 border-t border-white/10 pt-8" />
-
-        {/* Bottom Section: Copyrights & Data Retention */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-xs">
-          <p className="max-w-2xl leading-relaxed text-brand-inverse-on-surface/75">
-            Terms and conditions. Portions copyright United Nations, FAO, UNEP, and UNESCO.
-          </p>
-          <div className="flex-shrink-0">
-            <Link
-              href="/data-retention"
-              className="font-semibold text-brand-inverse-primary transition-all duration-200 hover:text-brand-primary-fixed hover:underline"
-            >
-              Data retention summary
-            </Link>
-          </div>
+        <div className="mt-4 flex flex-col gap-2 border-t border-slate-200 pt-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <p>Portions copyright United Nations, FAO, UNEP, and UNESCO.</p>
+          <Link href="/data-retention" className="font-semibold text-teal-700 hover:text-teal-800">
+            Data retention summary
+          </Link>
         </div>
-
       </div>
     </footer>
   );

@@ -17,11 +17,23 @@ const config: Config = {
         full: "9999px",
       },
       colors: {
+        primary: '#003527',
+        secondary: '#31694b',
+        mint: '#b4f0c9',
+        surface: '#f7f9fb',
+        danger: '#ba1a1a',
+        warning: '#b54708',
+        'surface-card': '#ffffff',
+        'surface-card-soft': 'rgba(255, 255, 255, 0.95)',
+        'text-primary': '#191c1e',
+        'text-muted': '#404944',
+        border: '#bfc9c3',
+
         // Maintain alias for compatibility, mapped to Deep Emerald
-        forest: "#003527",
-        ocean: "#31694b",
-        sand: "#eceef0",
-        
+        forest: '#003527',
+        ocean: '#31694b',
+        sand: '#eceef0',
+
         // Fluid Institutional Palette
         brand: {
           surface: '#f7f9fb',

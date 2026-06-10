@@ -1228,6 +1228,212 @@ describe('role and permission administration', () => {
       ]);
     });
   });
+
+  describe('video streaming API range and error handling', () => {
+    let testVideoPath: string;
+
+    before(() => {
+      testVideoPath = path.resolve(process.cwd(), 'uploads', 'videos', 'test-video.mp4');
+      fs.writeFileSync(testVideoPath, Buffer.alloc(1000, 'A'));
+    });
+
+    after(() => {
+      try {
+        if (fs.existsSync(testVideoPath)) {
+          fs.unlinkSync(testVideoPath);
+        }
+      } catch (err) {}
+    });
+
+    it('allows enrolled learners to request full video stream and range stream', async () => {
+      const learner = await User.create({
+        name: 'Video Learner',
+        email: 'video-learner@example.test',
+        password: await bcrypt.hash('password123', 12),
+        role: USER_ROLES.STUDENT,
+        roles: [USER_ROLES.STUDENT],
+        permissions: []
+      });
+
+      const course = await Course.create({
+        title: 'Video Streaming Course',
+        description: 'Course to test video streaming.',
+        price: 0,
+        category: 'policy',
+        lessonsCount: 1,
+        publishStatus: 'published',
+        approvalStatus: 'approved'
+      });
+
+      const lesson = await Lesson.create({
+        courseId: course._id,
+        title: 'Streaming Lesson',
+        order: 1,
+        videoUrl: '/uploads/videos/test-video.mp4',
+        isPublished: true
+      });
+
+      await Enrollment.create({
+        userId: learner._id,
+        courseId: course._id
+      });
+
+      const headers = authHeaderFor(learner, []);
+
+      // 1. Full stream request (no Range header)
+      const resFull = await fetch(`${baseUrl}/api/video/${lesson._id.toString()}`, { headers });
+      assert.equal(resFull.status, 200);
+      assert.equal(resFull.headers.get('content-length'), '1000');
+      assert.equal(resFull.headers.get('content-type'), 'video/mp4');
+      assert.equal(resFull.headers.get('accept-ranges'), 'bytes');
+
+      // 2. Partial range request (Range: bytes=0-99)
+      const resPartial = await fetch(`${baseUrl}/api/video/${lesson._id.toString()}`, {
+        headers: {
+          ...headers,
+          Range: 'bytes=0-99'
+        }
+      });
+      assert.equal(resPartial.status, 206);
+      assert.equal(resPartial.headers.get('content-range'), 'bytes 0-99/1000');
+      assert.equal(resPartial.headers.get('content-length'), '100');
+      assert.equal(resPartial.headers.get('content-type'), 'video/mp4');
+
+      // 3. Open range request (Range: bytes=500-)
+      const resOpenRange = await fetch(`${baseUrl}/api/video/${lesson._id.toString()}`, {
+        headers: {
+          ...headers,
+          Range: 'bytes=500-'
+        }
+      });
+      assert.equal(resOpenRange.status, 206);
+      assert.equal(resOpenRange.headers.get('content-range'), 'bytes 500-999/1000');
+      assert.equal(resOpenRange.headers.get('content-length'), '500');
+    });
+
+    it('returns 416 Range Not Satisfiable for invalid ranges', async () => {
+      const learner = await User.create({
+        name: 'Video Learner 2',
+        email: 'video-learner-2@example.test',
+        password: await bcrypt.hash('password123', 12),
+        role: USER_ROLES.STUDENT,
+        roles: [USER_ROLES.STUDENT],
+        permissions: []
+      });
+
+      const course = await Course.create({
+        title: 'Video Streaming Course 2',
+        description: 'Course to test video streaming invalid ranges.',
+        price: 0,
+        category: 'policy',
+        lessonsCount: 1,
+        publishStatus: 'published',
+        approvalStatus: 'approved'
+      });
+
+      const lesson = await Lesson.create({
+        courseId: course._id,
+        title: 'Streaming Lesson 2',
+        order: 1,
+        videoUrl: '/uploads/videos/test-video.mp4',
+        isPublished: true
+      });
+
+      await Enrollment.create({
+        userId: learner._id,
+        courseId: course._id
+      });
+
+      const headers = authHeaderFor(learner, []);
+
+      const res = await fetch(`${baseUrl}/api/video/${lesson._id.toString()}`, {
+        headers: {
+          ...headers,
+          Range: 'bytes=1500-1600'
+        }
+      });
+      assert.equal(res.status, 416);
+      assert.equal(res.headers.get('content-range'), 'bytes */1000');
+    });
+
+    it('returns 404 Not Found for missing video files', async () => {
+      const learner = await User.create({
+        name: 'Video Learner 3',
+        email: 'video-learner-3@example.test',
+        password: await bcrypt.hash('password123', 12),
+        role: USER_ROLES.STUDENT,
+        roles: [USER_ROLES.STUDENT],
+        permissions: []
+      });
+
+      const course = await Course.create({
+        title: 'Video Streaming Course 3',
+        description: 'Course to test missing video.',
+        price: 0,
+        category: 'policy',
+        lessonsCount: 1,
+        publishStatus: 'published',
+        approvalStatus: 'approved'
+      });
+
+      const lesson = await Lesson.create({
+        courseId: course._id,
+        title: 'Missing Video Lesson',
+        order: 1,
+        videoUrl: '/uploads/videos/nonexistent-video.mp4',
+        isPublished: true
+      });
+
+      await Enrollment.create({
+        userId: learner._id,
+        courseId: course._id
+      });
+
+      const headers = authHeaderFor(learner, []);
+
+      const res = await fetch(`${baseUrl}/api/video/${lesson._id.toString()}`, { headers });
+      assert.equal(res.status, 404);
+      const body = await res.json() as any;
+      assert.match(body.error, /does not exist|file/i);
+    });
+
+    it('returns 403 Access Denied for learners not enrolled in the course', async () => {
+      const learner = await User.create({
+        name: 'Video Learner 4',
+        email: 'video-learner-4@example.test',
+        password: await bcrypt.hash('password123', 12),
+        role: USER_ROLES.STUDENT,
+        roles: [USER_ROLES.STUDENT],
+        permissions: []
+      });
+
+      const course = await Course.create({
+        title: 'Video Streaming Course 4',
+        description: 'Course to test access denied.',
+        price: 0,
+        category: 'policy',
+        lessonsCount: 1,
+        publishStatus: 'published',
+        approvalStatus: 'approved'
+      });
+
+      const lesson = await Lesson.create({
+        courseId: course._id,
+        title: 'Protected Video Lesson',
+        order: 1,
+        videoUrl: '/uploads/videos/test-video.mp4',
+        isPublished: true
+      });
+
+      // No enrollment!
+      const headers = authHeaderFor(learner, []);
+
+      const res = await fetch(`${baseUrl}/api/video/${lesson._id.toString()}`, { headers });
+      assert.equal(res.status, 403);
+      const body = await res.json() as any;
+      assert.match(body.error, /denied|enrolled/i);
+    });
+  });
 });
 
 function authHeaderFor(

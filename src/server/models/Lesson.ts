@@ -35,8 +35,8 @@ const lessonSchema = new mongoose.Schema(
     },
     completionMode: {
       type: String,
-      enum: ['manual', 'video_progress', 'quiz_gate'],
-      default: 'manual'
+      enum: ['video_progress', 'quiz_gate'],
+      default: 'video_progress'
     },
     resources: [
       {

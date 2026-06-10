@@ -117,8 +117,8 @@ function validateLessonPayload(payload: Record<string, unknown>, partial = false
     }
     payload.duration = Math.floor(duration);
   }
-  if (payload.completionMode !== undefined && !['manual', 'video_progress', 'quiz_gate'].includes(String(payload.completionMode))) {
-    return 'completionMode must be manual, video_progress, or quiz_gate';
+  if (payload.completionMode !== undefined && !['video_progress', 'quiz_gate'].includes(String(payload.completionMode))) {
+    return 'completionMode must be video_progress or quiz_gate';
   }
   for (const key of ['moduleId', 'resourceIds', 'assignmentIds']) {
     if (payload[key] !== undefined) {

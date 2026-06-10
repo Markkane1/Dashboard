@@ -113,7 +113,7 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
     // Resolve absolute path from project root uploads folder
     let filePath;
     try {
-      filePath = resolveLocalVideoPath(videoUrl);
+      filePath = await resolveLocalVideoPath(videoUrl);
     } catch (pathError) {
       const error = pathError instanceof Error ? pathError : new Error(String(pathError));
       logger.warn({ err: error }, 'Invalid local video path');

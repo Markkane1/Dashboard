@@ -8,10 +8,6 @@ type CompletionRulesResult = {
   course?: any;
 };
 
-function isVerifiedCourse(course: any) {
-  return course?.certificateEligible === true || course?.requiresVerifiedProgress === true;
-}
-
 async function verifyCourseCompletionRules(userId: unknown, courseId: unknown): Promise<CompletionRulesResult> {
   const normalizedUserId = String(userId);
   const normalizedCourseId = String(courseId);
@@ -30,34 +26,42 @@ async function verifyCourseCompletionRules(userId: unknown, courseId: unknown): 
   }
 
   const lessons = await Lesson.find({ courseId: normalizedCourseId, isPublished: true }).select('_id completionMode');
+  const hasQuiz = Array.isArray(course.quizQuestions) && course.quizQuestions.length > 0;
+  const hasManualCompletionLessons = lessons.some((lesson: any) => lesson.completionMode === 'manual');
+  if (hasManualCompletionLessons) {
+    return {
+      allowed: false,
+      error: 'Manual lesson completion is not allowed. All course videos must use verified video progress.',
+      enrollment,
+      course
+    };
+  }
+  const hasQuizGateLessons = lessons.some((lesson: any) => lesson.completionMode === 'quiz_gate');
+  if (hasQuizGateLessons && !hasQuiz) {
+    return { allowed: false, error: 'Quiz-gated lessons require a course assessment.', enrollment, course };
+  }
+
+  const passedQuiz = hasQuiz
+    ? await QuizSubmission.findOne({
+        userId: normalizedUserId,
+        courseId: normalizedCourseId,
+        passed: true
+      })
+    : null;
+
+  const progressRequiredLessons = lessons.filter((lesson: any) => lesson.completionMode !== 'quiz_gate');
   const progressRecords = await Progress.find({
     userId: normalizedUserId,
     courseId: normalizedCourseId,
     completed: true
   }).select('lessonId');
   const completedLessonIds = new Set(progressRecords.map((progress: any) => progress.lessonId.toString()));
-  const allLessonsCompleted = lessons.every((lesson: any) => completedLessonIds.has(lesson._id.toString()));
-  if (!allLessonsCompleted) {
+  const allProgressRequiredLessonsCompleted = progressRequiredLessons.every((lesson: any) => completedLessonIds.has(lesson._id.toString()));
+  if (!allProgressRequiredLessonsCompleted) {
     return { allowed: false, error: 'Not all published lessons are completed.', enrollment, course };
   }
 
-  const hasQuiz = Array.isArray(course.quizQuestions) && course.quizQuestions.length > 0;
-  const hasManualCompletionLessons = lessons.some((lesson: any) => (lesson.completionMode || 'manual') === 'manual');
-  if (isVerifiedCourse(course) && hasManualCompletionLessons && !hasQuiz) {
-    return {
-      allowed: false,
-      error: 'Certificate-eligible courses with manual lessons require a quiz or assessment gate.',
-      enrollment,
-      course
-    };
-  }
-
   if (hasQuiz) {
-    const passedQuiz = await QuizSubmission.findOne({
-      userId: normalizedUserId,
-      courseId: normalizedCourseId,
-      passed: true
-    });
     if (!passedQuiz) {
       return { allowed: false, error: 'Final quiz has not been passed.', enrollment, course };
     }

@@ -6,10 +6,33 @@ import { Lesson } from "@/shared/types";
 import { DocumentIcon, ResourceIcon, TranscriptIcon } from "@/shared/components/ui/DesignSystem";
 import { logger } from '@/shared/logger';
 
+type YouTubePlayer = {
+  destroy: () => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  getPlayerState: () => number;
+};
+
+declare global {
+  interface Window {
+    YT?: {
+      Player: new (element: HTMLIFrameElement, options: {
+        events?: {
+          onReady?: () => void;
+          onStateChange?: (event: { data: number }) => void;
+        };
+      }) => YouTubePlayer;
+      PlayerState?: {
+        PLAYING: number;
+        ENDED: number;
+      };
+    };
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
 interface VideoPlayerProps {
   lesson: Lesson;
-  courseRequiresVerifiedProgress?: boolean;
-  courseCertificateEligible?: boolean;
   onComplete: () => void;
   onProgressUpdate?: (watchedSeconds: number, completed: boolean) => void;
 }
@@ -35,7 +58,12 @@ function getYouTubeEmbedUrl(value: string) {
       return "";
     }
 
-    return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`;
+    const params = new URLSearchParams({
+      rel: "0",
+      enablejsapi: "1",
+      origin: typeof window !== "undefined" ? window.location.origin : ""
+    });
+    return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
   } catch {
     return "";
   }
@@ -43,13 +71,13 @@ function getYouTubeEmbedUrl(value: string) {
 
 export default function VideoPlayer({
   lesson,
-  courseRequiresVerifiedProgress = false,
-  courseCertificateEligible = false,
   onComplete,
   onProgressUpdate
 }: VideoPlayerProps) {
   const { data: session } = useSession();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
+  const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
   const currentTimeRef = useRef(0);
   const resumeProgressRef = useRef({
     duration: lesson.duration,
@@ -77,7 +105,7 @@ export default function VideoPlayer({
   }, [lesson.duration, lesson.progress?.watchedSeconds]);
 
   // 1. Sync progress coordinates to backend Express API
-  const syncProgress = useCallback(async (watched: number, total: number, showError = false, completionSource: "video_progress" | "manual" = "video_progress") => {
+  const syncProgress = useCallback(async (watched: number, total: number, showError = false) => {
     if (!watched || !total || isNaN(watched) || isNaN(total)) return false;
     if (!apiToken) return false;
 
@@ -91,7 +119,7 @@ export default function VideoPlayer({
         body: JSON.stringify({
           lessonId: lesson._id,
           watchedSeconds: Math.floor(watched),
-          completionSource
+          completionSource: "video_progress"
         })
       });
       if (!res.ok) {
@@ -202,17 +230,82 @@ export default function VideoPlayer({
     onComplete();
   };
 
-  const manualCompletionAllowed = youtubeEmbedUrl && lesson.completionMode === "manual" && !courseRequiresVerifiedProgress && !courseCertificateEligible;
+  useEffect(() => {
+    if (!youtubeEmbedUrl || !youtubeIframeRef.current) return;
 
-  const handleEmbeddedLessonComplete = async () => {
-    if (lesson.duration <= 0) {
-      setVideoError("Set a lesson duration before marking an embedded video complete.");
-      return;
+    let cancelled = false;
+    const previousReadyHandler = window.onYouTubeIframeAPIReady;
+
+    const setupPlayer = () => {
+      if (cancelled || !youtubeIframeRef.current || !window.YT?.Player) return;
+      youtubePlayerRef.current?.destroy();
+      youtubePlayerRef.current = new window.YT.Player(youtubeIframeRef.current, {
+        events: {
+          onReady: () => {
+            setIsVideoReady(true);
+            setVideoError("");
+          },
+          onStateChange: (event) => {
+            const endedState = window.YT?.PlayerState?.ENDED ?? 0;
+            if (event.data !== endedState) return;
+
+            const player = youtubePlayerRef.current;
+            const duration = player?.getDuration() || lesson.duration || 0;
+            if (!duration) {
+              setVideoError("This lesson needs a duration before completion can be recorded.");
+              return;
+            }
+
+            void syncProgress(duration, duration, true).then((saved) => {
+              if (saved) onComplete();
+            });
+          }
+        }
+      });
+    };
+
+    if (window.YT?.Player) {
+      setupPlayer();
+    } else {
+      window.onYouTubeIframeAPIReady = () => {
+        previousReadyHandler?.();
+        setupPlayer();
+      };
+
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const script = document.createElement("script");
+        script.src = "https://www.youtube.com/iframe_api";
+        script.async = true;
+        document.body.appendChild(script);
+      }
     }
-    const saved = await syncProgress(lesson.duration, lesson.duration, true, "manual");
-    if (!saved) return;
-    onComplete();
-  };
+
+    return () => {
+      cancelled = true;
+      window.onYouTubeIframeAPIReady = previousReadyHandler;
+      youtubePlayerRef.current?.destroy();
+      youtubePlayerRef.current = null;
+    };
+  }, [lesson._id, lesson.duration, onComplete, syncProgress, youtubeEmbedUrl]);
+
+  useEffect(() => {
+    if (!youtubeEmbedUrl) return;
+
+    const interval = setInterval(() => {
+      const player = youtubePlayerRef.current;
+      if (!player) return;
+      const playingState = window.YT?.PlayerState?.PLAYING ?? 1;
+      if (player.getPlayerState() !== playingState) return;
+
+      const currentTime = player.getCurrentTime();
+      const duration = player.getDuration() || lesson.duration || 0;
+      if (currentTime > 0 && duration > 0) {
+        void syncProgress(currentTime, duration);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [lesson._id, lesson.duration, syncProgress, youtubeEmbedUrl]);
 
   return (
     <div className="mx-auto max-w-4xl min-w-0 space-y-6 select-none">
@@ -221,6 +314,7 @@ export default function VideoPlayer({
       <div className="relative overflow-hidden rounded-2xl bg-black shadow-lg ring-1 ring-slate-900/10 aspect-video">
         {youtubeEmbedUrl ? (
           <iframe
+            ref={youtubeIframeRef}
             key={lesson._id}
             src={youtubeEmbedUrl}
             title={lesson.title}
@@ -265,23 +359,6 @@ export default function VideoPlayer({
           </div>
         )}
       </div>
-      {youtubeEmbedUrl && manualCompletionAllowed && (
-        <div className="mx-auto flex max-w-4xl justify-end">
-          <button
-            type="button"
-            onClick={handleEmbeddedLessonComplete}
-            disabled={!apiToken || lesson.duration <= 0}
-            className="rounded-lg bg-forest px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            Mark lesson complete
-          </button>
-        </div>
-      )}
-      {youtubeEmbedUrl && !manualCompletionAllowed && (
-        <div className="mx-auto max-w-4xl rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-          This lesson is part of verified training. Completion is recorded through the required video progress or assessment gate.
-        </div>
-      )}
 
       {/* Lesson Metadata details section */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/60 shadow-sm space-y-6">

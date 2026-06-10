@@ -28,8 +28,7 @@ export default function CoursePlayer({
   const [submissionError, setSubmissionError] = useState("");
   const [submittingAssignmentId, setSubmittingAssignmentId] = useState("");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const progressRequiredLessons = lessonList.filter((lesson) => lesson.completionMode !== "quiz_gate");
-  const allLessonsCompleted = lessonList.length > 0 && progressRequiredLessons.every((lesson) => lesson.progress.completed);
+  const allLessonsCompleted = lessonList.length > 0 && lessonList.every((lesson) => lesson.progress.completed);
   const activeAssignments = assignmentList.filter((assignment) => (
     assignment.lessonId === activeLesson._id ||
     activeLesson.assignmentIds?.includes(assignment.id)

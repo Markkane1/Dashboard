@@ -6,6 +6,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const { execSync } = require('child_process');
+const ffmpeg = require('fluent-ffmpeg');
+try {
+  const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+  const ffprobeInstaller = require('@ffprobe-installer/ffprobe');
+  ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+  ffmpeg.setFfprobePath(ffprobeInstaller.path);
+} catch (e) {}
 
 Object.assign(process.env, {
   NODE_ENV: 'test',
@@ -1174,6 +1181,58 @@ describe('role and permission administration', () => {
       const data = await res.json() as any;
       assert.match(data.error, /duration|unrecognized/i);
     });
+
+    it('rejects manual lesson completion progress writes', async () => {
+      const learner = await User.create({
+        name: 'Manual Progress Learner',
+        email: 'manual-progress-learner@example.test',
+        password: await bcrypt.hash('password123', 12),
+        role: USER_ROLES.STUDENT,
+        roles: [USER_ROLES.STUDENT],
+        permissions: []
+      });
+
+      const course = await Course.create({
+        title: 'Manual Progress Course',
+        description: 'Testing rejection of manual lesson completion.',
+        price: 0,
+        category: 'policy',
+        lessonsCount: 1,
+        publishStatus: 'published',
+        approvalStatus: 'approved'
+      });
+
+      const lesson = await Lesson.create({
+        courseId: course._id,
+        title: 'Manual Progress Lesson',
+        order: 1,
+        duration: 100,
+        completionMode: 'video_progress',
+        isPublished: true
+      });
+
+      await Enrollment.create({
+        userId: learner._id,
+        courseId: course._id
+      });
+
+      const res = await fetch(`${baseUrl}/api/progress`, {
+        method: 'POST',
+        headers: {
+          ...authHeaderFor(learner, []),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          lessonId: lesson._id.toString(),
+          watchedSeconds: 100,
+          completionSource: 'manual'
+        })
+      });
+
+      assert.equal(res.status, 400);
+      const data = await res.json() as any;
+      assert.match(data.error, /completionSource|invalid/i);
+    });
   });
 
   describe('course search API relevance sorting', () => {
@@ -1432,6 +1491,170 @@ describe('role and permission administration', () => {
       assert.equal(res.status, 403);
       const body = await res.json() as any;
       assert.match(body.error, /denied|enrolled/i);
+    });
+  });
+
+  describe('video upload hardening and validation', () => {
+    let mockVideoPath: string;
+    let createdFiles: string[] = [];
+
+    const createTestVideo = (targetPath: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        ffmpeg()
+          .input('color=c=black:s=320x240:d=1')
+          .inputFormat('lavfi')
+          .outputOptions([
+            '-c:v libx264',
+            '-pix_fmt yuv420p'
+          ])
+          .save(targetPath)
+          .on('end', () => resolve())
+          .on('error', (err: any) => reject(err));
+      });
+    };
+
+    before(async () => {
+      mockVideoPath = path.resolve(process.cwd(), 'uploads', 'videos', 'mock-valid-video.mp4');
+      await createTestVideo(mockVideoPath);
+    });
+
+    after(() => {
+      // Clean up mock video
+      try {
+        if (fs.existsSync(mockVideoPath)) {
+          fs.unlinkSync(mockVideoPath);
+        }
+      } catch (err) {}
+
+      // Clean up uploaded files
+      for (const filePath of createdFiles) {
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (err) {}
+      }
+    });
+
+    it('successfully uploads valid video, renames with UUID, and stores original filename as metadata', async () => {
+      const contentManager = await User.create({
+        name: 'Video Instructor',
+        email: 'video-instructor@example.test',
+        password: await bcrypt.hash('password123', 12),
+        role: USER_ROLES.INSTRUCTOR,
+        roles: [USER_ROLES.INSTRUCTOR],
+        permissions: [PERMISSIONS.MANAGE_CONTENT]
+      });
+
+      const course = await Course.create({
+        title: 'Video Upload Course',
+        description: 'Course to test video upload.',
+        price: 0,
+        category: 'policy',
+        lessonsCount: 1,
+        publishStatus: 'published',
+        approvalStatus: 'approved'
+      });
+
+      const lesson = await Lesson.create({
+        courseId: course._id,
+        title: 'Upload Lesson',
+        order: 1,
+        isPublished: true
+      });
+
+      const fileBuffer = fs.readFileSync(mockVideoPath);
+      const form = new FormData();
+      form.append('video', new Blob([fileBuffer], { type: 'video/mp4' }), 'my-original-lesson-video.mp4');
+
+      const headers = authHeaderFor(contentManager, [PERMISSIONS.MANAGE_CONTENT]);
+
+      const res = await fetch(`${baseUrl}/api/lessons/${lesson._id.toString()}/upload`, {
+        method: 'POST',
+        headers,
+        body: form
+      });
+
+      assert.equal(res.status, 200);
+      const updatedLesson = await res.json() as any;
+      assert.ok(updatedLesson.videoUrl);
+      assert.equal(updatedLesson.videoOriginalName, 'my-original-lesson-video.mp4');
+
+      // Verify filename on disk is not based on original name but is a UUID
+      const videoFilename = path.basename(updatedLesson.videoUrl);
+      assert.match(videoFilename, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.mp4$/);
+
+      // Verify the file actually exists on disk
+      const resolvedPath = path.resolve(process.cwd(), 'uploads', 'videos', videoFilename);
+      assert.ok(fs.existsSync(resolvedPath));
+      createdFiles.push(resolvedPath);
+    });
+
+    it('rejects spoofed non-video files and deletes the temporary file', async () => {
+      const contentManager = await User.create({
+        name: 'Video Instructor 2',
+        email: 'video-instructor-2@example.test',
+        password: await bcrypt.hash('password123', 12),
+        role: USER_ROLES.INSTRUCTOR,
+        roles: [USER_ROLES.INSTRUCTOR],
+        permissions: [PERMISSIONS.MANAGE_CONTENT]
+      });
+
+      const course = await Course.create({
+        title: 'Video Upload Course 2',
+        description: 'Course to test spoofed upload.',
+        price: 0,
+        category: 'policy',
+        lessonsCount: 1,
+        publishStatus: 'published',
+        approvalStatus: 'approved'
+      });
+
+      const lesson = await Lesson.create({
+        courseId: course._id,
+        title: 'Upload Lesson 2',
+        order: 1,
+        isPublished: true
+      });
+
+      // Create spoofed video (text contents renamed to .mp4)
+      const form = new FormData();
+      form.append('video', new Blob([Buffer.from('Not a real MP4 video. Just some dummy text.')], { type: 'video/mp4' }), 'spoofed.mp4');
+
+      const headers = authHeaderFor(contentManager, [PERMISSIONS.MANAGE_CONTENT]);
+
+      const res = await fetch(`${baseUrl}/api/lessons/${lesson._id.toString()}/upload`, {
+        method: 'POST',
+        headers,
+        body: form
+      });
+
+      assert.equal(res.status, 400);
+      const data = await res.json() as any;
+      assert.match(data.error, /valid video/i);
+
+      // Verify that no new files are created in the uploads/videos directory
+      const videoDir = path.resolve(process.cwd(), 'uploads', 'videos');
+      const files = fs.readdirSync(videoDir);
+      // Ensure no UUID-like files other than our created valid test video exist
+      for (const file of files) {
+        if (file !== '.gitkeep' && file !== 'mock-valid-video.mp4' && file !== 'test-video.mp4') {
+          const resolvedPath = path.resolve(videoDir, file);
+          if (!createdFiles.includes(resolvedPath)) {
+            assert.fail(`Found orphan file from failed upload: ${file}`);
+          }
+        }
+      }
+    });
+
+    it('correctly parses environment variable for size limit', () => {
+      process.env.VIDEO_MAX_UPLOAD_SIZE_BYTES = '1000';
+      // Delete from require cache to force re-evaluation
+      delete require.cache[require.resolve('../src/server/config/storage')];
+      const { storageConfig: config } = require('../src/server/config/storage');
+      assert.equal(config.maxVideoSize, 1000);
+      delete process.env.VIDEO_MAX_UPLOAD_SIZE_BYTES;
+      delete require.cache[require.resolve('../src/server/config/storage')];
     });
   });
 });

@@ -3,6 +3,14 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
+try {
+  const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+  const ffprobeInstaller = require('@ffprobe-installer/ffprobe');
+  ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+  ffmpeg.setFfprobePath(ffprobeInstaller.path);
+} catch (e) {
+  console.warn('Failed to load local ffmpeg/ffprobe installers, falling back to system');
+}
 const auth = require('../middleware/auth');
 const { Lesson, Progress, Course, User } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
@@ -14,6 +22,9 @@ const {
 const { logger } = require('../logger');
 const { hasPermission, PERMISSIONS } = require('../../shared/permissions');
 const { writeAuditLog } = require('../services/audit');
+const crypto = require('crypto');
+const path = require('path');
+const { storageConfig } = require('../config/storage');
 import type { NextFunction, Request, Response } from 'express';
 import type { FileFilterCallback } from 'multer';
 
@@ -22,19 +33,23 @@ type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
 const storage = multer.diskStorage({
   destination: (_req: Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => cb(null, getLocalVideoDir()),
   filename: (_req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-');
-    cb(null, `${Date.now()}-${safeName}`);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const finalExt = storageConfig.allowedVideoExtensions.includes(ext) ? ext : '.mp4';
+    cb(null, `${crypto.randomUUID()}${finalExt}`);
   }
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 500 * 1024 * 1024 },
+  limits: { fileSize: storageConfig.maxVideoSize },
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
-    if (file.mimetype !== 'video/mp4') {
-      return cb(new Error('Only MP4 video uploads are supported.'));
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!storageConfig.allowedVideoExtensions.includes(ext)) {
+      return cb(new Error(`Only ${storageConfig.allowedVideoExtensions.join(', ')} extension(s) are allowed.`));
     }
-
+    if (!storageConfig.allowedVideoTypes.includes(file.mimetype)) {
+      return cb(new Error(`Only MIME type(s) ${storageConfig.allowedVideoTypes.join(', ')} are supported.`));
+    }
     cb(null, true);
   }
 });
@@ -43,16 +58,35 @@ function isValidObjectId(id: unknown): id is string {
   return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id);
 }
 
-function readVideoDuration(filePath: string): Promise<number | undefined> {
+interface VideoValidationResult {
+  isValid: boolean;
+  duration?: number;
+}
+
+function validateAndGetDuration(filePath: string): Promise<VideoValidationResult> {
   return new Promise((resolve) => {
-    ffmpeg.ffprobe(filePath, (error: Error | null, metadata: { format?: { duration?: number } }) => {
+    ffmpeg.ffprobe(filePath, (error: Error | null, metadata: any) => {
       if (error) {
-        logger.warn({ err: error }, 'Unable to read uploaded video duration with ffprobe');
-        resolve(undefined);
+        logger.warn({ err: error }, 'Video content validation or duration check failed with ffprobe');
+        resolve({ isValid: false });
         return;
       }
 
-      resolve(Math.round(metadata.format?.duration || 0));
+      if (!metadata || !metadata.format || !metadata.streams) {
+        logger.warn('Video validation failed: missing format or streams metadata');
+        resolve({ isValid: false });
+        return;
+      }
+
+      const hasVideoStream = metadata.streams.some((stream: any) => stream.codec_type === 'video');
+      if (!hasVideoStream) {
+        logger.warn('Video validation failed: no video stream found');
+        resolve({ isValid: false });
+        return;
+      }
+
+      const duration = Math.round(metadata.format.duration || 0);
+      resolve({ isValid: true, duration });
     });
   });
 }
@@ -60,7 +94,7 @@ function readVideoDuration(filePath: string): Promise<number | undefined> {
 function removeUploadedFile(file?: Express.Multer.File) {
   if (!file?.path) return;
 
-    require('fs').unlink(file.path, (error: NodeJS.ErrnoException | null) => {
+  require('fs').unlink(file.path, (error: NodeJS.ErrnoException | null) => {
     if (error) {
       logger.warn({ err: error }, 'Unable to clean up uploaded lesson video');
     }
@@ -166,12 +200,12 @@ router.get('/course/:courseId', auth, async (req: AuthenticatedRequest, res: Res
     const lessonsWithProgress = lessons.map((lesson: any) => {
       const lessonObj = lesson.toObject();
       const progress = progressMap.get(lessonObj._id.toString());
-      
+
       lessonObj.progress = {
         watchedSeconds: progress ? progress.watchedSeconds : 0,
         completed: progress ? progress.completed : false
       };
-      
+
       return lessonObj;
     });
 
@@ -243,7 +277,20 @@ router.post(
 
     next();
   },
-  upload.single('video'),
+  (req: Request, res: Response, next: NextFunction) => {
+    upload.single('video')(req, res, (err: any) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: "File size exceeds the limit configured on the server." });
+          }
+          return res.status(400).json({ error: `Upload error: ${err.message}` });
+        }
+        return res.status(400).json({ error: err.message || "Failed to upload file." });
+      }
+      next();
+    });
+  },
   async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res: Response) => {
     try {
       const { lessonId } = req.params;
@@ -264,12 +311,21 @@ router.post(
 
       const oldValue = {
         videoUrl: lesson.videoUrl,
-        duration: lesson.duration
+        duration: lesson.duration,
+        videoOriginalName: lesson.videoOriginalName
       };
-      const duration = await readVideoDuration(req.file.path);
+      
+      // Run deep ffprobe video content validation
+      const validation = await validateAndGetDuration(req.file.path);
+      if (!validation.isValid) {
+        removeUploadedFile(req.file);
+        return res.status(400).json({ error: "The uploaded file is not a valid video." });
+      }
+
       lesson.videoUrl = getPublicVideoUrl(req.file.filename);
-      if (duration) {
-        lesson.duration = duration;
+      lesson.videoOriginalName = req.file.originalname;
+      if (validation.duration !== undefined) {
+        lesson.duration = validation.duration;
       }
 
       await lesson.save();
@@ -281,17 +337,19 @@ router.post(
           result: 'success',
           lessonId,
           filename: req.file.filename,
+          originalName: req.file.originalname,
           oldValue,
           newValue: {
             videoUrl: lesson.videoUrl,
-            duration: lesson.duration
+            duration: lesson.duration,
+            videoOriginalName: lesson.videoOriginalName
           }
         }
       });
       res.json(lesson);
     } catch (error) {
-        removeUploadedFile(req.file);
-        logger.error({ err: error }, 'Error uploading lesson video');
+      removeUploadedFile(req.file);
+      logger.error({ err: error }, 'Error uploading lesson video');
       res.status(500).json({ error: "Failed to upload lesson video." });
     }
   }

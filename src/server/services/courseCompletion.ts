@@ -36,11 +36,6 @@ async function verifyCourseCompletionRules(userId: unknown, courseId: unknown): 
       course
     };
   }
-  const hasQuizGateLessons = lessons.some((lesson: any) => lesson.completionMode === 'quiz_gate');
-  if (hasQuizGateLessons && !hasQuiz) {
-    return { allowed: false, error: 'Quiz-gated lessons require a course assessment.', enrollment, course };
-  }
-
   const passedQuiz = hasQuiz
     ? await QuizSubmission.findOne({
         userId: normalizedUserId,
@@ -49,15 +44,14 @@ async function verifyCourseCompletionRules(userId: unknown, courseId: unknown): 
       })
     : null;
 
-  const progressRequiredLessons = lessons.filter((lesson: any) => lesson.completionMode !== 'quiz_gate');
   const progressRecords = await Progress.find({
     userId: normalizedUserId,
     courseId: normalizedCourseId,
     completed: true
   }).select('lessonId');
   const completedLessonIds = new Set(progressRecords.map((progress: any) => progress.lessonId.toString()));
-  const allProgressRequiredLessonsCompleted = progressRequiredLessons.every((lesson: any) => completedLessonIds.has(lesson._id.toString()));
-  if (!allProgressRequiredLessonsCompleted) {
+  const allLessonsCompleted = lessons.every((lesson: any) => completedLessonIds.has(lesson._id.toString()));
+  if (!allLessonsCompleted) {
     return { allowed: false, error: 'Not all published lessons are completed.', enrollment, course };
   }
 

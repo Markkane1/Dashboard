@@ -50,11 +50,11 @@ async function serializeUserWithEnrollments(
 
   const enrolledCourses = enrollments
     .map((enrollment: any) => getPopulatedCourseId(enrollment))
-    .filter(Boolean);
+    .filter((courseId: string | null): courseId is string => Boolean(courseId));
   const completedCourses = enrollments
     .filter((enrollment: any) => enrollment.completed)
     .map((enrollment: any) => getPopulatedCourseId(enrollment))
-    .filter(Boolean);
+    .filter((courseId: string | null): courseId is string => Boolean(courseId));
 
   return {
     id: String(userId),

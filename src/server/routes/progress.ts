@@ -48,11 +48,6 @@ router.post('/', auth, async (req: AuthenticatedRequest, res: Response) => {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to update progress." });
     }
 
-    const completionMode = lesson.completionMode || 'video_progress';
-    if (completionMode === 'quiz_gate') {
-      return res.status(400).json({ error: "This lesson is completed through the course assessment gate." });
-    }
-
     const dbDuration = Number(lesson.duration || 0);
     if (!dbDuration || dbDuration <= 0) {
       return res.status(400).json({ error: "Lesson duration is not configured." });

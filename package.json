@@ -19,6 +19,8 @@
     "audit:lock": "npm audit --audit-level=high"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
     "@fontsource-variable/inter": "^5.2.8",
     "@hookform/resolvers": "^5.4.0",
     "@types/nodemailer": "^8.0.0",

@@ -87,6 +87,7 @@ export type Lesson = {
   description?: string;
   order: number;
   videoUrl: string;
+  videoOriginalName?: string;
   duration: number;
   completionMode?: "video_progress" | "quiz_gate";
   resources: LessonResource[];

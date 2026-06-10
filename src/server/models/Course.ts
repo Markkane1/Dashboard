@@ -128,6 +128,15 @@ const courseSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    certificateEligible: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    requiresVerifiedProgress: {
+      type: Boolean,
+      default: false
+    },
     requiresCertificateApproval: {
       type: Boolean,
       default: true

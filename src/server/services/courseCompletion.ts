@@ -8,6 +8,10 @@ type CompletionRulesResult = {
   course?: any;
 };
 
+function isVerifiedCourse(course: any) {
+  return course?.certificateEligible === true || course?.requiresVerifiedProgress === true;
+}
+
 async function verifyCourseCompletionRules(userId: unknown, courseId: unknown): Promise<CompletionRulesResult> {
   const normalizedUserId = String(userId);
   const normalizedCourseId = String(courseId);
@@ -25,7 +29,7 @@ async function verifyCourseCompletionRules(userId: unknown, courseId: unknown): 
     return { allowed: false, error: 'Course is not published or active.' };
   }
 
-  const lessons = await Lesson.find({ courseId: normalizedCourseId, isPublished: true }).select('_id');
+  const lessons = await Lesson.find({ courseId: normalizedCourseId, isPublished: true }).select('_id completionMode');
   const progressRecords = await Progress.find({
     userId: normalizedUserId,
     courseId: normalizedCourseId,
@@ -38,6 +42,16 @@ async function verifyCourseCompletionRules(userId: unknown, courseId: unknown): 
   }
 
   const hasQuiz = Array.isArray(course.quizQuestions) && course.quizQuestions.length > 0;
+  const hasManualCompletionLessons = lessons.some((lesson: any) => (lesson.completionMode || 'manual') === 'manual');
+  if (isVerifiedCourse(course) && hasManualCompletionLessons && !hasQuiz) {
+    return {
+      allowed: false,
+      error: 'Certificate-eligible courses with manual lessons require a quiz or assessment gate.',
+      enrollment,
+      course
+    };
+  }
+
   if (hasQuiz) {
     const passedQuiz = await QuizSubmission.findOne({
       userId: normalizedUserId,

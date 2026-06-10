@@ -3,7 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { z } = require('zod');
 const auth = require('../middleware/auth');
-const { Progress, Lesson } = require('../models');
+const { Course, Progress, Lesson } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
 const { logger } = require('../logger');
 import type { Request, Response } from 'express';
@@ -14,8 +14,13 @@ const progressSchema = z.object({
   lessonId: z.string().refine((value: string) => mongoose.Types.ObjectId.isValid(value), {
     message: 'A valid ObjectId lessonId is required.'
   }),
-  watchedSeconds: z.number().finite().min(0)
-});
+  watchedSeconds: z.number().finite().min(0),
+  completionSource: z.enum(['video_progress', 'manual']).optional().default('video_progress')
+}).strict();
+
+function isVerifiedCourse(course: any) {
+  return course?.certificateEligible === true || course?.requiresVerifiedProgress === true;
+}
 
 /**
  * POST /api/progress
@@ -38,8 +43,24 @@ router.post('/', auth, async (req: AuthenticatedRequest, res: Response) => {
       return res.status(404).json({ error: "Associated lesson not found." });
     }
 
+    const course = await Course.findById(lesson.courseId).select('certificateEligible requiresVerifiedProgress quizQuestions');
+    if (!course) {
+      return res.status(404).json({ error: "Associated course not found." });
+    }
+
     if (!(await hasCourseAccess(req.user, lesson.courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to update progress." });
+    }
+
+    const completionMode = lesson.completionMode || 'manual';
+    const hasQuizGate = Array.isArray(course.quizQuestions) && course.quizQuestions.length > 0;
+    if (parsed.data.completionSource === 'manual') {
+      if (completionMode !== 'manual') {
+        return res.status(400).json({ error: "Manual completion is not enabled for this lesson." });
+      }
+      if (isVerifiedCourse(course) && !hasQuizGate) {
+        return res.status(403).json({ error: "Manual lesson completion is not sufficient for certificate-eligible training. Add a quiz gate or verified progress requirement." });
+      }
     }
 
     const dbDuration = Number(lesson.duration || 0);

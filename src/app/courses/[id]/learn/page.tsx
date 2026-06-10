@@ -2,6 +2,7 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
 import { fetchCourseAssignments } from "@/infrastructure/api/assignments";
+import { fetchCourseById } from "@/infrastructure/api/courses";
 import { fetchCourseLessons } from "@/infrastructure/api/lessons";
 import CoursePlayer from "@/features/lessons/components/CoursePlayer";
 import { Link } from "@/shared/navigation";
@@ -36,10 +37,12 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
   // Course access is enforced by the Express lesson/assignment APIs via hasCourseAccess.
   let lessons = [];
   let assignments = [];
+  let course;
   try {
-    [lessons, assignments] = await Promise.all([
+    [lessons, assignments, course] = await Promise.all([
       fetchCourseLessons(courseId, token),
       fetchCourseAssignments(courseId, token),
+      fetchCourseById(courseId),
     ]);
   } catch (error) {
     logger.error("Failed to load course lessons for player UI:", error);
@@ -79,6 +82,8 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
 
       <CoursePlayer
         courseId={courseId}
+        courseCertificateEligible={course?.certificateEligible === true}
+        courseRequiresVerifiedProgress={course?.requiresVerifiedProgress === true}
         lessons={lessons}
         assignments={assignments}
         initialLesson={activeLesson}

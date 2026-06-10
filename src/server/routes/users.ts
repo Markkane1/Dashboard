@@ -34,14 +34,20 @@ type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
 const MAX_FAILED_LOGIN_ATTEMPTS = Number(process.env.MAX_FAILED_LOGIN_ATTEMPTS || 5);
 const ACCOUNT_LOCKOUT_MS = Number(process.env.ACCOUNT_LOCKOUT_MS || 15 * 60 * 1000);
 
-async function serializeUser(user: any): Promise<SharedUser & Record<string, unknown>> {
+/**
+ * Serializes a user using pre-fetched user enrollment records.
+ * This helper avoids N+1 query patterns during user batch listings.
+ */
+async function serializeUserWithEnrollments(
+  user: any,
+  enrollments: any[]
+): Promise<SharedUser & Record<string, unknown>> {
   const plain = typeof user.toObject === 'function' ? user.toObject() : user;
   const userId = plain._id || plain.id;
   const roles = normalizeRoles(plain.roles, [plain.role || USER_ROLES.STUDENT]);
   const directPermissions = normalizePermissions(plain.permissions);
   const rolePermissions = await resolvePermissionsForRoles(roles, plain.role);
-  
-  const enrollments = await Enrollment.find({ userId }).populate('courseId', '_id');
+
   const enrolledCourses = enrollments
     .map((enrollment: any) => getPopulatedCourseId(enrollment))
     .filter(Boolean);
@@ -65,6 +71,17 @@ async function serializeUser(user: any): Promise<SharedUser & Record<string, unk
     status: plain.status || 'active',
     createdAt: plain.createdAt
   };
+}
+
+/**
+ * Serializes a single user by fetching their enrollment records dynamically.
+ * Maintains backward compatibility for single-user endpoints.
+ */
+async function serializeUser(user: any): Promise<SharedUser & Record<string, unknown>> {
+  const plain = typeof user.toObject === 'function' ? user.toObject() : user;
+  const userId = plain._id || plain.id;
+  const enrollments = await Enrollment.find({ userId }).populate('courseId', '_id');
+  return serializeUserWithEnrollments(user, enrollments);
 }
 
 async function resolvePermissionsForRoles(roles: string[], fallbackRole?: string) {
@@ -180,9 +197,29 @@ router.get('/', auth, requireAdmin, async (req: AuthenticatedRequest, res: Respo
         .limit(limit)
     ]);
 
+    const userIds = users.map((user: any) => user._id);
+    const allEnrollments = await Enrollment.find({ userId: { $in: userIds } }).populate('courseId', '_id');
+
+    // Group enrollments by userId for O(1) matching during serialization
+    const enrollmentsByUserId = new Map<string, any[]>();
+    for (const enrollment of allEnrollments) {
+      const uIdStr = enrollment.userId.toString();
+      if (!enrollmentsByUserId.has(uIdStr)) {
+        enrollmentsByUserId.set(uIdStr, []);
+      }
+      enrollmentsByUserId.get(uIdStr)!.push(enrollment);
+    }
+
+    const serializedUsers = await Promise.all(
+      users.map((user: any) => {
+        const userEnrollments = enrollmentsByUserId.get(user._id.toString()) || [];
+        return serializeUserWithEnrollments(user, userEnrollments);
+      })
+    );
+
     res.setHeader('X-Total-Count', String(totalCount));
     res.setHeader('X-Page-Limit', String(limit));
-    res.json(await Promise.all(users.map((user: any) => serializeUser(user))));
+    res.json(serializedUsers);
   } catch (error) {
     logger.error({ err: error }, 'Error listing users');
     res.status(500).json({ error: 'Failed to list users' });

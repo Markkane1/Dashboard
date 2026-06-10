@@ -120,14 +120,19 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
       return res.status(400).json({ error: "Invalid linked video path." });
     }
     
-    if (!fs.existsSync(filePath)) {
-      logger.warn({ path: filePath }, 'Local video file not found');
-      return res.status(404).json({ error: "Linked video file does not exist on disk." });
+    // A. Read the local video file size asynchronously
+    let fileSize: number;
+    try {
+      const stat = await fs.promises.stat(filePath);
+      fileSize = stat.size;
+    } catch (statError: any) {
+      if (statError.code === 'ENOENT') {
+        logger.warn({ path: filePath }, 'Local video file not found');
+        return res.status(404).json({ error: "Linked video file does not exist on disk." });
+      }
+      logger.error({ err: statError, path: filePath }, 'Failed to read local video file stats');
+      return res.status(500).json({ error: "Failed to read video file." });
     }
-
-    // A. Read the local video file size
-    const stat = fs.statSync(filePath);
-    const fileSize = stat.size;
 
     if (!req.headers.range) {
       const headers = {

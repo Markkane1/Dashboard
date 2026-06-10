@@ -35,6 +35,8 @@ export type Course = {
   prerequisiteCourseIds?: string[];
   trainerIds?: string[];
   requiresFeedback?: boolean;
+  certificateEligible?: boolean;
+  requiresVerifiedProgress?: boolean;
   requiresCertificateApproval?: boolean;
   diplomaRequiredCourseIds?: string[];
 };
@@ -86,6 +88,7 @@ export type Lesson = {
   order: number;
   videoUrl: string;
   duration: number;
+  completionMode?: "manual" | "video_progress" | "quiz_gate";
   resources: LessonResource[];
   resourceIds?: string[];
   assignmentIds?: string[];

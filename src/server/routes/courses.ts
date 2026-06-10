@@ -46,6 +46,8 @@ const COURSE_CARD_FIELDS = [
   'prerequisiteCourseIds',
   'trainerIds',
   'requiresFeedback',
+  'certificateEligible',
+  'requiresVerifiedProgress',
   'requiresCertificateApproval',
   'createdAt'
 ].join(' ');
@@ -80,6 +82,8 @@ const COURSE_WRITE_FIELDS = [
   'prerequisiteCourseIds',
   'trainerIds',
   'requiresFeedback',
+  'certificateEligible',
+  'requiresVerifiedProgress',
   'requiresCertificateApproval'
 ];
 
@@ -120,6 +124,8 @@ function serializeCourse(course: any): SharedCourse {
     prerequisiteCourseIds: (plain.prerequisiteCourseIds || []).map(String),
     trainerIds: (plain.trainerIds || []).map(String),
     requiresFeedback: plain.requiresFeedback === true,
+    certificateEligible: plain.certificateEligible === true,
+    requiresVerifiedProgress: plain.requiresVerifiedProgress === true,
     requiresCertificateApproval: plain.requiresCertificateApproval !== false
   };
 }
@@ -402,6 +408,7 @@ router.get('/', async (req: Request, res: Response) => {
     const limit = getCourseLimit(req.query.limit);
     const page = getCoursePage(req.query.page);
     const cursor = decodeCursor(req.query.cursor);
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const filter = buildCourseFilter(req.query);
     const pageFilter = cursor
       ? {
@@ -414,11 +421,26 @@ router.get('/', async (req: Request, res: Response) => {
       : filter;
     const skip = cursor ? 0 : (page - 1) * limit;
 
+    let query = Course.find(pageFilter);
+    let sortFields: any = { createdAt: -1, _id: -1 };
+
+    if (q) {
+      const projectionObj = COURSE_CARD_FIELDS.split(' ').reduce((acc: any, field) => {
+        acc[field] = 1;
+        return acc;
+      }, {});
+      projectionObj.score = { $meta: 'textScore' };
+
+      query = query.select(projectionObj);
+      sortFields = { score: { $meta: 'textScore' }, createdAt: -1 };
+    } else {
+      query = query.select(COURSE_CARD_FIELDS);
+    }
+
     const [totalCount, courses] = await Promise.all([
       Course.countDocuments(filter),
-      Course.find(pageFilter)
-        .select(COURSE_CARD_FIELDS)
-        .sort({ createdAt: -1, _id: -1 })
+      query
+        .sort(sortFields)
         .skip(skip)
         .limit(limit + 1)
     ]);

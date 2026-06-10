@@ -9,12 +9,21 @@ import LessonSidebar from "./LessonSidebar";
 
 interface CoursePlayerProps {
   courseId: string;
+  courseCertificateEligible?: boolean;
+  courseRequiresVerifiedProgress?: boolean;
   lessons: Lesson[];
   assignments?: Assignment[];
   initialLesson: Lesson;
 }
 
-export default function CoursePlayer({ courseId, lessons, assignments = [], initialLesson }: CoursePlayerProps) {
+export default function CoursePlayer({
+  courseId,
+  courseCertificateEligible = false,
+  courseRequiresVerifiedProgress = false,
+  lessons,
+  assignments = [],
+  initialLesson
+}: CoursePlayerProps) {
   const router = useRouter();
   const [activeLesson, setActiveLesson] = useState<Lesson>(initialLesson);
   const [lessonList, setLessonList] = useState(lessons);
@@ -195,11 +204,13 @@ export default function CoursePlayer({ courseId, lessons, assignments = [], init
           </div>
         )}
 
-        <VideoPlayer
-          lesson={activeLesson}
-          onComplete={handleLessonComplete}
-          onProgressUpdate={handleProgressUpdate}
-        />
+          <VideoPlayer
+            lesson={activeLesson}
+            courseCertificateEligible={courseCertificateEligible}
+            courseRequiresVerifiedProgress={courseRequiresVerifiedProgress}
+            onComplete={handleLessonComplete}
+            onProgressUpdate={handleProgressUpdate}
+          />
 
         {activeAssignments.length > 0 && (
           <section className="mx-auto mt-6 max-w-4xl rounded-lg border border-slate-200 bg-white p-4 shadow-sm">

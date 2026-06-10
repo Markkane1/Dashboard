@@ -84,7 +84,7 @@ async function requireContentManager(req: AuthenticatedRequest, res: Response, n
 
 function pickLessonFields(body: Record<string, unknown>) {
   const allowed: Record<string, unknown> = {};
-  for (const key of ['courseId', 'moduleId', 'title', 'description', 'order', 'videoUrl', 'duration', 'resources', 'resourceIds', 'assignmentIds', 'transcript', 'isPublished']) {
+  for (const key of ['courseId', 'moduleId', 'title', 'description', 'order', 'videoUrl', 'duration', 'completionMode', 'resources', 'resourceIds', 'assignmentIds', 'transcript', 'isPublished']) {
     if (Object.prototype.hasOwnProperty.call(body, key)) {
       allowed[key] = body[key];
     }
@@ -116,6 +116,9 @@ function validateLessonPayload(payload: Record<string, unknown>, partial = false
       return 'duration must be a non-negative number';
     }
     payload.duration = Math.floor(duration);
+  }
+  if (payload.completionMode !== undefined && !['manual', 'video_progress', 'quiz_gate'].includes(String(payload.completionMode))) {
+    return 'completionMode must be manual, video_progress, or quiz_gate';
   }
   for (const key of ['moduleId', 'resourceIds', 'assignmentIds']) {
     if (payload[key] !== undefined) {

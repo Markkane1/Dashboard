@@ -8,6 +8,8 @@ import { logger } from '@/shared/logger';
 
 interface VideoPlayerProps {
   lesson: Lesson;
+  courseRequiresVerifiedProgress?: boolean;
+  courseCertificateEligible?: boolean;
   onComplete: () => void;
   onProgressUpdate?: (watchedSeconds: number, completed: boolean) => void;
 }
@@ -39,7 +41,13 @@ function getYouTubeEmbedUrl(value: string) {
   }
 }
 
-export default function VideoPlayer({ lesson, onComplete, onProgressUpdate }: VideoPlayerProps) {
+export default function VideoPlayer({
+  lesson,
+  courseRequiresVerifiedProgress = false,
+  courseCertificateEligible = false,
+  onComplete,
+  onProgressUpdate
+}: VideoPlayerProps) {
   const { data: session } = useSession();
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentTimeRef = useRef(0);
@@ -69,7 +77,7 @@ export default function VideoPlayer({ lesson, onComplete, onProgressUpdate }: Vi
   }, [lesson.duration, lesson.progress?.watchedSeconds]);
 
   // 1. Sync progress coordinates to backend Express API
-  const syncProgress = useCallback(async (watched: number, total: number, showError = false) => {
+  const syncProgress = useCallback(async (watched: number, total: number, showError = false, completionSource: "video_progress" | "manual" = "video_progress") => {
     if (!watched || !total || isNaN(watched) || isNaN(total)) return false;
     if (!apiToken) return false;
 
@@ -82,7 +90,8 @@ export default function VideoPlayer({ lesson, onComplete, onProgressUpdate }: Vi
         },
         body: JSON.stringify({
           lessonId: lesson._id,
-          watchedSeconds: Math.floor(watched)
+          watchedSeconds: Math.floor(watched),
+          completionSource
         })
       });
       if (!res.ok) {
@@ -193,12 +202,14 @@ export default function VideoPlayer({ lesson, onComplete, onProgressUpdate }: Vi
     onComplete();
   };
 
+  const manualCompletionAllowed = youtubeEmbedUrl && lesson.completionMode === "manual" && !courseRequiresVerifiedProgress && !courseCertificateEligible;
+
   const handleEmbeddedLessonComplete = async () => {
     if (lesson.duration <= 0) {
       setVideoError("Set a lesson duration before marking an embedded video complete.");
       return;
     }
-    const saved = await syncProgress(lesson.duration, lesson.duration, true);
+    const saved = await syncProgress(lesson.duration, lesson.duration, true, "manual");
     if (!saved) return;
     onComplete();
   };
@@ -254,7 +265,7 @@ export default function VideoPlayer({ lesson, onComplete, onProgressUpdate }: Vi
           </div>
         )}
       </div>
-      {youtubeEmbedUrl && (
+      {youtubeEmbedUrl && manualCompletionAllowed && (
         <div className="mx-auto flex max-w-4xl justify-end">
           <button
             type="button"
@@ -264,6 +275,11 @@ export default function VideoPlayer({ lesson, onComplete, onProgressUpdate }: Vi
           >
             Mark lesson complete
           </button>
+        </div>
+      )}
+      {youtubeEmbedUrl && !manualCompletionAllowed && (
+        <div className="mx-auto max-w-4xl rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+          This lesson is part of verified training. Completion is recorded through the required video progress or assessment gate.
         </div>
       )}
 

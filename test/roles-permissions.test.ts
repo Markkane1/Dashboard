@@ -1122,7 +1122,7 @@ describe('role and permission administration', () => {
       assert.equal(data2.completed, true);
     });
 
-    it('ignores client-sent duration and uses trusted database lesson duration', async () => {
+    it('rejects client-sent duration because database lesson duration is authoritative', async () => {
       const learner = await User.create({
         name: 'Progress Learner 2',
         email: 'progress-learner-2@example.test',
@@ -1170,9 +1170,62 @@ describe('role and permission administration', () => {
         })
       });
 
-      assert.equal(res.status, 200);
+      assert.equal(res.status, 400);
       const data = await res.json() as any;
-      assert.equal(data.duration, 100);
+      assert.match(data.error, /duration|unrecognized/i);
+    });
+  });
+
+  describe('course search API relevance sorting', () => {
+    it('sorts search results by relevance score first, then createdAt descending', async () => {
+      const course1 = await Course.create({
+        title: 'CBD CBD CBD',
+        description: 'CBD CBD CBD CBD CBD.',
+        category: 'policy',
+        publishStatus: 'published',
+        approvalStatus: 'approved',
+        createdAt: new Date('2026-06-28T00:00:00Z')
+      });
+
+      const course2 = await Course.create({
+        title: 'CBD Policy Basics',
+        description: 'Introduction to CBD.',
+        category: 'policy',
+        publishStatus: 'published',
+        approvalStatus: 'approved',
+        createdAt: new Date('2026-06-29T00:00:00Z')
+      });
+
+      const course3 = await Course.create({
+        title: 'Unrelated Climate Science Class',
+        description: 'General climate frameworks.',
+        category: 'science',
+        publishStatus: 'published',
+        approvalStatus: 'approved',
+        createdAt: new Date('2026-06-30T00:00:00Z')
+      });
+
+      const res = await fetch(`${baseUrl}/api/courses?q=CBD`);
+      assert.equal(res.status, 200);
+      const courses = await res.json() as any[];
+
+      assert.equal(courses.length, 2);
+      assert.equal(courses[0].id, course1._id.toString());
+      assert.equal(courses[1].id, course2._id.toString());
+    });
+
+    it('retains default createdAt sorting when q is not provided', async () => {
+      const res = await fetch(`${baseUrl}/api/courses`);
+      assert.equal(res.status, 200);
+      const courses = await res.json() as any[];
+
+      assert.ok(courses.length >= 3);
+      const titles = courses.slice(0, 3).map(c => c.title);
+      assert.deepEqual(titles, [
+        'Unrelated Climate Science Class',
+        'CBD Policy Basics',
+        'CBD CBD CBD'
+      ]);
     });
   });
 });

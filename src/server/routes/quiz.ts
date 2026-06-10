@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const { Course, Enrollment, Lesson, Progress, QuizSubmission } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
@@ -8,6 +9,10 @@ import type { Request, Response } from 'express';
 import type { QuizQuestion } from '../../shared/types';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
+
+function isValidObjectId(id: unknown): id is string {
+  return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id);
+}
 
 function buildFallbackQuestions(course: { title: string }): Array<QuizQuestion & { correctAnswerIndex: number; explanation: string }> {
   return [
@@ -73,6 +78,10 @@ function serializeQuestion(question: QuizQuestion): QuizQuestion {
 }
 
 async function getCourseAccessState(courseId: string, user: NonNullable<Request['user']>) {
+  if (!isValidObjectId(courseId)) {
+    return { status: 404, error: "Course not found." };
+  }
+
   const course = await Course.findById(courseId);
   if (!course) {
     return { status: 404, error: "Course not found." };

@@ -138,7 +138,7 @@ export default function AdminPanel({ token, users, analytics, roles, permissionC
         <StatusBanner variant={error ? "error" : "success"} title={error || message} />
       )}
 
-      <DashboardCard className="flex gap-2 overflow-x-auto p-2">
+      <DashboardCard className="flex gap-2 overflow-x-auto p-2" role="tablist" aria-label="Admin sections">
         {[
           ["overview", "Overview"],
           ["users", "Users"],
@@ -149,6 +149,8 @@ export default function AdminPanel({ token, users, analytics, roles, permissionC
           <button
             key={tab}
             type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab as AdminTab)}
             className={`rounded-md px-4 py-2 text-sm font-black ${activeTab === tab ? "bg-teal-700 text-white" : "text-slate-700 hover:bg-slate-100"}`}
           >

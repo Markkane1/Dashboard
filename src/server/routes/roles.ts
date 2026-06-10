@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const Role = require('../models/Role');
 const User = require('../models/User');
@@ -34,6 +35,10 @@ function serializeRole(role: any) {
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt,
   };
+}
+
+function isValidObjectId(id: unknown): id is string {
+  return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id);
 }
 
 router.get('/permissions', auth, requirePermission(PERMISSIONS.MANAGE_USERS), (_req: Request, res: Response) => {
@@ -90,6 +95,10 @@ router.post('/', auth, requirePermission(PERMISSIONS.MANAGE_USERS), async (req: 
 
 router.patch('/:id', auth, requirePermission(PERMISSIONS.MANAGE_USERS), async (req: Request, res: Response) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid role id.' });
+    }
+
     const role = await Role.findById(req.params.id);
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });
@@ -134,6 +143,10 @@ router.patch('/:id', auth, requirePermission(PERMISSIONS.MANAGE_USERS), async (r
 
 router.delete('/:id', auth, requirePermission(PERMISSIONS.MANAGE_USERS), async (req: Request, res: Response) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid role id.' });
+    }
+
     const role = await Role.findById(req.params.id);
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });

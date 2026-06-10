@@ -1,5 +1,6 @@
 import { Course, Role, User } from "@/shared/types";
 import { PermissionCatalogItem } from "@/shared/permissions";
+import type { CoursePageParams } from "@/infrastructure/api/courses";
 
 const getBaseUrl = () => process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:5000";
 
@@ -97,8 +98,18 @@ export async function fetchAnalyticsOverview(token: string): Promise<AnalyticsOv
   return res.json();
 }
 
-export async function fetchManageableCourses(token: string): Promise<Course[]> {
-  const res = await fetch(`${getBaseUrl()}/api/courses?limit=50`, {
+export async function fetchManageableCourses(
+  token: string,
+  params: CoursePageParams = { limit: 50 }
+): Promise<Course[]> {
+  const url = new URL(`${getBaseUrl()}/api/courses`);
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      url.searchParams.set(key, String(value));
+    }
+  }
+
+  const res = await fetch(url.toString(), {
     headers: authHeaders(token),
     cache: "no-store",
   });

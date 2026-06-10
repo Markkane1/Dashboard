@@ -90,6 +90,10 @@ router.post('/', auth, async (req: AuthenticatedRequest, res: Response) => {
 router.get('/course/:courseId', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { courseId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(courseId)) {
+      return res.status(400).json({ error: "Invalid course id." });
+    }
+
     const userId = req.user.id;
 
     if (!(await hasCourseAccess(req.user, courseId))) {

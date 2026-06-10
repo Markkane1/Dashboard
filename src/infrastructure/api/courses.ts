@@ -10,6 +10,8 @@ export type CoursePageParams = {
   topic?: string;
   mea?: string;
   q?: string;
+  isDiploma?: boolean;
+  isExternal?: boolean;
 };
 
 export type CoursePage = {

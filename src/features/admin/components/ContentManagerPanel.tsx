@@ -593,7 +593,7 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
                 </div>
               </div>
 
-              <div className="flex gap-2 overflow-x-auto border-b border-slate-200 pb-2">
+              <div className="flex gap-2 overflow-x-auto border-b border-slate-200 pb-2" role="tablist" aria-label="Course editor sections">
                 {[
                   ["details", "Details"],
                   ["lessons", "Lessons"],
@@ -602,6 +602,8 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
                   <button
                     key={tab}
                     type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab}
                     onClick={() => setActiveTab(tab as WorkspaceTab)}
                     className={`rounded-md px-4 py-2 text-sm font-black ${activeTab === tab ? "bg-forest text-white" : "border border-slate-300 text-slate-700"}`}
                   >

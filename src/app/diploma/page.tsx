@@ -2,21 +2,11 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
 import { findUserByEmail } from "@/features/users/data/userDb";
-import { fetchCoursePage } from "@/infrastructure/api/courses";
+import { fetchCoursePage, fetchCoursesByIds } from "@/infrastructure/api/courses";
 import { Course } from "@/shared/types";
 import { Link } from "@/shared/navigation";
 import { AuthenticatedDownloadButton } from "@/features/users/components/DashboardActions";
 import { DashboardCard, EmptyState, PageHeader, PageShell } from "@/shared/components/ui/DesignSystem";
-
-function getRequiredCourses(diploma: Course, courses: Course[]) {
-  if (diploma.diplomaRequiredCourseIds && diploma.diplomaRequiredCourseIds.length > 0) {
-    return courses.filter((course) => diploma.diplomaRequiredCourseIds!.includes(course.id));
-  }
-
-  return courses.filter(
-    (course) => course.category === diploma.category && !course.isDiploma && !course.isExternal
-  );
-}
 
 export default async function DiplomaPage() {
   const session = await auth();
@@ -26,8 +16,39 @@ export default async function DiplomaPage() {
 
   const user = await findUserByEmail(session.user.email);
   const completedCourseIds = user?.completedCourses || [];
-  const { courses } = await fetchCoursePage({ limit: 100 });
-  const diplomaTracks = courses.filter((course) => course.isDiploma);
+
+  const diplomaPage = await fetchCoursePage({ limit: 60, isDiploma: true });
+  const diplomaTracks = diplomaPage.courses;
+  const requiredCourseIds = diplomaTracks.flatMap((course) => course.diplomaRequiredCourseIds || []);
+  const requiredCourses = requiredCourseIds.length > 0
+    ? await fetchCoursesByIds(requiredCourseIds)
+    : [];
+
+  const categoriesWithoutRequirements = diplomaTracks
+    .filter((course) => !course.diplomaRequiredCourseIds || course.diplomaRequiredCourseIds.length === 0)
+    .map((course) => course.category)
+    .filter(Boolean);
+
+  const fallbackCoursesByCategory = new Map<string, Course[]>();
+  if (categoriesWithoutRequirements.length > 0) {
+    const fallbackPages = await Promise.all(
+      categoriesWithoutRequirements.map((category) =>
+        fetchCoursePage({ category, limit: 24, isDiploma: false, isExternal: false })
+      )
+    );
+
+    fallbackPages.forEach((page, index) => {
+      fallbackCoursesByCategory.set(categoriesWithoutRequirements[index], page.courses);
+    });
+  }
+
+  const getRequiredCourses = (diploma: Course) => {
+    if (diploma.diplomaRequiredCourseIds && diploma.diplomaRequiredCourseIds.length > 0) {
+      return requiredCourses.filter((course) => diploma.diplomaRequiredCourseIds!.includes(course.id));
+    }
+
+    return fallbackCoursesByCategory.get(diploma.category) || [];
+  };
 
   return (
     <PageShell>
@@ -50,11 +71,11 @@ export default async function DiplomaPage() {
       ) : (
         <div className="grid min-w-0 gap-4 lg:grid-cols-2">
           {diplomaTracks.map((diploma) => {
-            const requiredCourses = getRequiredCourses(diploma, courses);
-            const completedRequired = requiredCourses.filter((course) => completedCourseIds.includes(course.id));
-            const isEligible = requiredCourses.length > 0 && completedRequired.length === requiredCourses.length;
-            const percent = requiredCourses.length > 0
-              ? Math.round((completedRequired.length / requiredCourses.length) * 100)
+            const trackRequiredCourses = getRequiredCourses(diploma);
+            const completedRequired = trackRequiredCourses.filter((course) => completedCourseIds.includes(course.id));
+            const isEligible = trackRequiredCourses.length > 0 && completedRequired.length === trackRequiredCourses.length;
+            const percent = trackRequiredCourses.length > 0
+              ? Math.round((completedRequired.length / trackRequiredCourses.length) * 100)
               : 0;
 
             return (

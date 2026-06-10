@@ -5,6 +5,7 @@ const { requirePermission } = require('../middleware/roles');
 const { Course, Enrollment, Progress, QuizSubmission, User } = require('../models');
 const { logger } = require('../logger');
 const { PERMISSIONS } = require('../../shared/permissions');
+const mongoose = require('mongoose');
 import type { Request, Response } from 'express';
 
 function percent(numerator: number, denominator: number) {
@@ -128,9 +129,11 @@ router.get('/overview', auth, requirePermission(PERMISSIONS.VIEW_ANALYTICS), asy
 router.get('/courses/:courseId', auth, requirePermission(PERMISSIONS.VIEW_ANALYTICS), async (req: Request, res: Response) => {
   try {
     const { courseId } = req.params;
-    const courseObjectId = require('mongoose').Types.ObjectId.isValid(courseId)
-      ? new (require('mongoose').Types.ObjectId)(courseId)
-      : courseId;
+    if (!mongoose.Types.ObjectId.isValid(courseId)) {
+      return res.status(400).json({ error: 'Invalid course id.' });
+    }
+
+    const courseObjectId = new mongoose.Types.ObjectId(courseId);
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const [course, enrollments, completions, quizAttempts, quizAverages, activeLearners, weeklyActiveLearners, progressStats] = await Promise.all([

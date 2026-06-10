@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 
 function classNames(...classes: Array<string | undefined | false | null>) {
@@ -64,8 +62,12 @@ export function StudentSidebar({ className, children }: CommonProps) {
   );
 }
 
-export function DashboardCard({ className, children }: CommonProps) {
-  return <section className={classNames("dashboard-card p-6", className)}>{children}</section>;
+type DashboardCardProps = React.HTMLAttributes<HTMLElement> & {
+  children: React.ReactNode;
+};
+
+export function DashboardCard({ className, children, ...props }: DashboardCardProps) {
+  return <section className={classNames("dashboard-card p-6", className)} {...props}>{children}</section>;
 }
 
 type StatCardProps = {
@@ -188,8 +190,10 @@ export function StatusBanner({
   icon?: React.ReactNode;
   className?: string;
 }) {
+  const liveRole = variant === "error" ? "alert" : "status";
+
   return (
-    <div className={classNames("status-banner", `status-banner--${variant}`, className)}>
+    <div className={classNames("status-banner", `status-banner--${variant}`, className)} role={liveRole}>
       {icon ? <div className="status-banner-icon">{icon}</div> : null}
       <div>
         <p className="font-semibold text-brand-on-background">{title}</p>
@@ -225,7 +229,13 @@ export function ConfirmDialog({
   return (
     <>
       <div className="confirm-dialog-backdrop" aria-hidden="true" />
-      <div className={classNames("confirm-dialog-panel surface-card", className)} role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description">
+      <div
+        className={classNames("confirm-dialog-panel surface-card", className)}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby={description ? "confirm-dialog-description" : undefined}
+      >
         <h2 id="confirm-dialog-title" className="confirm-dialog-title">{title}</h2>
         {description ? <p id="confirm-dialog-description" className="confirm-dialog-description">{description}</p> : null}
         <div className="mt-6 flex flex-wrap gap-3">

@@ -3,7 +3,7 @@ import { Link } from "@/shared/navigation";
 import CourseCard from "@/features/courses/components/CourseCard";
 import EnrollButton from "@/features/enrollments/components/EnrollButton";
 import { categories } from "@/features/courses/data/categories";
-import { fetchCourseById, fetchCoursePage, fetchCourses } from "@/infrastructure/api/courses";
+import { fetchCourseById, fetchCoursePage } from "@/infrastructure/api/courses";
 import { auth } from "@/../auth";
 import { findUserByEmail } from "@/features/users/data/userDb";
 import { Metadata } from "next";

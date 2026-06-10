@@ -4,7 +4,7 @@ import { auth } from "@/../auth";
 import { fetchManageableCourses } from "@/infrastructure/api/admin";
 import VideoUploadForm from "@/features/lessons/components/VideoUploadForm";
 import { hasPermission, PERMISSIONS } from "@/shared/permissions";
-import { DashboardCard, EmptyState, PageHeader, PageShell } from "@/shared/components/ui/DesignSystem";
+import { EmptyState, PageHeader, PageShell } from "@/shared/components/ui/DesignSystem";
 import { Link } from "@/shared/navigation";
 
 export default async function InstructorVideosPage() {
@@ -22,7 +22,11 @@ export default async function InstructorVideosPage() {
     redirect("/auth/login");
   }
 
-  const courses = (await fetchManageableCourses(token)).filter((course) => !course.isExternal && !course.isDiploma);
+  const courses = await fetchManageableCourses(token, {
+    limit: 50,
+    isExternal: false,
+    isDiploma: false,
+  });
 
   return (
     <PageShell>
@@ -47,9 +51,7 @@ export default async function InstructorVideosPage() {
           )}
         />
       ) : (
-        <DashboardCard className="p-6">
-          <VideoUploadForm courses={courses} />
-        </DashboardCard>
+        <VideoUploadForm courses={courses} />
       )}
     </PageShell>
   );

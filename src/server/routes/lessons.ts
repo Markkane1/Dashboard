@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
 const auth = require('../middleware/auth');
@@ -36,6 +37,10 @@ const upload = multer({
     cb(null, true);
   }
 });
+
+function isValidObjectId(id: unknown): id is string {
+  return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id);
+}
 
 function readVideoDuration(filePath: string): Promise<number | undefined> {
   return new Promise((resolve) => {
@@ -123,6 +128,10 @@ function validateLessonPayload(payload: Record<string, unknown>, partial = false
 router.get('/course/:courseId', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { courseId } = req.params;
+    if (!isValidObjectId(courseId)) {
+      return res.status(400).json({ error: "Invalid course id." });
+    }
+
     const userId = req.user.id;
 
     // 1. Authorization: Verify the requesting user is enrolled in this course
@@ -166,6 +175,10 @@ router.get('/course/:courseId', auth, async (req: AuthenticatedRequest, res: Res
 router.get('/manage/course/:courseId', auth, requireContentManager, async (req: Request, res: Response) => {
   try {
     const { courseId } = req.params;
+    if (!isValidObjectId(courseId)) {
+      return res.status(400).json({ error: "Invalid course id." });
+    }
+
     const lessons = await Lesson.find({ courseId }).sort({ order: 1 });
     res.json(lessons);
   } catch (error) {
@@ -219,6 +232,11 @@ router.post(
   async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res: Response) => {
     try {
       const { lessonId } = req.params;
+      if (!isValidObjectId(lessonId)) {
+        removeUploadedFile(req.file);
+        return res.status(400).json({ error: "Invalid lesson id." });
+      }
+
       const lesson = await Lesson.findById(lessonId);
       if (!lesson) {
         removeUploadedFile(req.file);
@@ -251,6 +269,10 @@ router.post(
  */
 router.patch('/:lessonId', auth, requireContentManager, async (req: Request, res: Response) => {
   try {
+    if (!isValidObjectId(req.params.lessonId)) {
+      return res.status(400).json({ error: 'Invalid lesson id.' });
+    }
+
     const updates = pickLessonFields(req.body || {});
     delete updates.courseId;
     if (Object.keys(updates).length === 0) {
@@ -284,6 +306,10 @@ router.patch('/:lessonId', auth, requireContentManager, async (req: Request, res
  */
 router.delete('/:lessonId', auth, requireContentManager, async (req: Request, res: Response) => {
   try {
+    if (!isValidObjectId(req.params.lessonId)) {
+      return res.status(400).json({ error: 'Invalid lesson id.' });
+    }
+
     const lesson = await Lesson.findByIdAndDelete(req.params.lessonId);
     if (!lesson) {
       return res.status(404).json({ error: 'Lesson not found.' });
@@ -307,6 +333,10 @@ router.delete('/:lessonId', auth, requireContentManager, async (req: Request, re
 router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { lessonId } = req.params;
+    if (!isValidObjectId(lessonId)) {
+      return res.status(404).json({ error: "Lesson not found." });
+    }
+
     const userId = req.user.id;
 
     // 1. Fetch the target lesson details

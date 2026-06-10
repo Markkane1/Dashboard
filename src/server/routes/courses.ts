@@ -123,6 +123,10 @@ function getValidCourseIds(ids: unknown): string[] {
   ];
 }
 
+function isValidObjectId(id: unknown): id is string {
+  return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id);
+}
+
 function getCourseLimit(value: unknown): number {
   const limit = Number(value || DEFAULT_COURSE_LIMIT);
   if (!Number.isFinite(limit)) {
@@ -180,6 +184,8 @@ function buildCourseFilter(query: Request['query']) {
   const mea = typeof query.mea === 'string' ? query.mea.trim() : '';
   const q = typeof query.q === 'string' ? query.q.trim() : '';
   const sdg = typeof query.sdg === 'string' ? Number(query.sdg) : undefined;
+  const isDiploma = typeof query.isDiploma === 'string' ? query.isDiploma.toLowerCase() === 'true' : undefined;
+  const isExternal = typeof query.isExternal === 'string' ? query.isExternal.toLowerCase() === 'true' : undefined;
 
   if (category) {
     filters.push({ category });
@@ -189,6 +195,12 @@ function buildCourseFilter(query: Request['query']) {
   }
   if (topic) {
     filters.push({ topics: topic });
+  }
+  if (isDiploma !== undefined) {
+    filters.push({ isDiploma });
+  }
+  if (isExternal !== undefined) {
+    filters.push({ isExternal });
   }
   const filterSection = section || mea;
   if (filterSection) {
@@ -376,6 +388,10 @@ router.post('/batch', async (req: Request, res: Response) => {
 // Returns protected course authoring details, including quiz answer keys.
 router.get('/manage/:id', auth, requireContentManager, async (req: Request, res: Response) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid course id.' });
+    }
+
     const course = await Course.findById(req.params.id).select(`${COURSE_CARD_FIELDS} quizQuestions`);
     if (!course) {
       return res.status(404).json({ error: 'Course not found' });
@@ -410,6 +426,10 @@ router.post('/', auth, requireContentManager, async (req: Request, res: Response
 // Returns a single course by ID
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(404).json({ error: "Course not found" });
+    }
+
     const course = await Course.findById(req.params.id).select(COURSE_CARD_FIELDS);
     if (!course) {
       return res.status(404).json({ error: "Course not found" });
@@ -425,6 +445,10 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Update course metadata, publishing assets, and quiz authoring fields.
 router.patch('/:id', auth, requireContentManager, async (req: Request, res: Response) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid course id.' });
+    }
+
     const updates = pickCourseFields(req.body || {});
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No allowed course fields provided' });
@@ -455,6 +479,10 @@ router.patch('/:id', auth, requireContentManager, async (req: Request, res: Resp
 // Content-manager deletion with model-level cleanup of related records.
 router.delete('/:id', auth, requireContentManager, async (req: Request, res: Response) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid course id.' });
+    }
+
     const deleted = await Course.findOneAndDelete({ _id: req.params.id });
     if (!deleted) {
       return res.status(404).json({ error: 'Course not found' });

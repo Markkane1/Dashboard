@@ -24,13 +24,14 @@ function getForwardedVideoHeaders(req: NextRequest, token: string) {
   return headers;
 }
 
-export async function GET(req: NextRequest, { params }: { params: { lessonId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ lessonId: string }> }) {
   const session = await auth();
   if (!session?.apiAccessToken) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  const response = await fetch(buildBackendUrl(params.lessonId), {
+  const resolvedParams = await params;
+  const response = await fetch(buildBackendUrl(resolvedParams.lessonId), {
     headers: getForwardedVideoHeaders(req, session.apiAccessToken),
     redirect: "manual",
     cache: "no-store",

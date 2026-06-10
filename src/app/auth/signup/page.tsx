@@ -35,11 +35,13 @@ export default function SignupPage() {
   React.useEffect(() => {
     if (!turnstileSiteKey) return;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).onSignupCaptchaSuccess = (token: string) => {
       setValue("captchaToken", token, { shouldValidate: true });
     };
 
     return () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (window as any).onSignupCaptchaSuccess;
     };
   }, [setValue, turnstileSiteKey]);

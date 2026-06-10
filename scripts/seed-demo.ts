@@ -1,13 +1,13 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import bcrypt from 'bcryptjs';
+import { createRequire } from 'module';
 // Standalone seed/cleanup utility; intentionally connects to MongoDB outside Next.js runtime.
 // eslint-disable-next-line no-restricted-imports
 import mongoose from 'mongoose';
 import { connectMongo } from '../src/server/db/mongoose';
 import models from '../src/server/models';
 import { USER_ROLES } from '../src/shared/permissions';
-import loggerModule from '../src/server/logger';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
@@ -21,7 +21,8 @@ const {
   QuizSubmission,
   User
 } = models;
-const { logger } = loggerModule;
+const requireLogger = createRequire(import.meta.url);
+const { logger } = requireLogger('../src/server/logger');
 
 const DEMO_KEY = 'demo-content-v1';
 const LESSON_BACKFILL_KEY = 'demo-lesson-backfill-v1';

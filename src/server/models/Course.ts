@@ -24,6 +24,12 @@ const courseSchema = new mongoose.Schema(
       type: String,
       default: ""
     },
+    trainerIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    ],
     price: {
       type: Number,
       required: true,
@@ -79,6 +85,53 @@ const courseSchema = new mongoose.Schema(
         type: String
       }
     ],
+    prerequisiteCourseIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course'
+      }
+    ],
+    publishStatus: {
+      type: String,
+      enum: ['draft', 'pending', 'published', 'rejected'],
+      default: 'published',
+      index: true
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['draft', 'pending', 'approved', 'rejected'],
+      default: 'approved',
+      index: true
+    },
+    submittedForApprovalAt: {
+      type: Date
+    },
+    approvedAt: {
+      type: Date
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    rejectedAt: {
+      type: Date
+    },
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    approvalComments: {
+      type: String,
+      default: ''
+    },
+    requiresFeedback: {
+      type: Boolean,
+      default: false
+    },
+    requiresCertificateApproval: {
+      type: Boolean,
+      default: true
+    },
     duration: {
       type: String,
       default: ''
@@ -109,6 +162,18 @@ const courseSchema = new mongoose.Schema(
       type: Number,
       default: 70
     },
+    quizMaxAttempts: {
+      type: Number,
+      default: 3
+    },
+    quizRandomizeQuestions: {
+      type: Boolean,
+      default: true
+    },
+    quizRandomizeOptions: {
+      type: Boolean,
+      default: true
+    },
     demoKey: {
       type: String,
       index: true
@@ -125,6 +190,8 @@ const courseSchema = new mongoose.Schema(
 // Indexes for course sorting and filtering to prevent full collection scans
 courseSchema.index({ createdAt: -1 });
 courseSchema.index({ category: 1, createdAt: -1 });
+courseSchema.index({ publishStatus: 1, approvalStatus: 1, createdAt: -1 });
+courseSchema.index({ trainerIds: 1 });
 courseSchema.index({ sdgGoals: 1 });
 courseSchema.index({ sections: 1 });
 courseSchema.index({ mea: 1 });

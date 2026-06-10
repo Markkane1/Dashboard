@@ -16,6 +16,17 @@ function LoginForm() {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const errorParam = searchParams.get("error");
+
+  const getErrorMessage = () => {
+    if (globalError) return globalError;
+    if (errorParam === "PendingApproval") return "Your account is pending administrator approval.";
+    if (errorParam === "AccountDisabled") return "Your account has been disabled.";
+    if (errorParam === "AccessDenied") return "Access denied. You do not have permission to log in.";
+    if (errorParam) return "An error occurred during authentication. Please try again.";
+    return null;
+  };
+  const activeError = getErrorMessage();
 
   const {
     register,
@@ -64,9 +75,9 @@ function LoginForm() {
         <PageHeader title="Log in" description="Access your courses and certificates." />
 
         <FormPanel className="mt-6">
-          {globalError && (
+          {activeError && (
             <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
-              {globalError}
+              {activeError}
             </div>
           )}
 

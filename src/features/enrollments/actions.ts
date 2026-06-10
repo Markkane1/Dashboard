@@ -2,7 +2,7 @@
 
 import { auth } from "../../../auth";
 import { logger } from '@/shared/logger';
-import { findUserByEmail, enrollInCourseApi, unenrollFromCourseApi, completeCourseApi } from "@/features/users/data/userDb";
+import { findUserByEmail, enrollInCourseApi, unenrollFromCourseApi } from "@/features/users/data/userDb";
 import { fetchCourseById } from "@/infrastructure/api/courses";
 import { revalidatePath } from "next/cache";
 import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
@@ -13,7 +13,7 @@ import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
  */
 export async function enrollCourse(courseId: string): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    validateServerActionOrigin();
+    await validateServerActionOrigin();
 
     const session = await auth();
     if (!session || !session.user || !session.user.email) {
@@ -50,54 +50,12 @@ export async function enrollCourse(courseId: string): Promise<{ success: boolean
 }
 
 /**
- * Mark a course as completed.
- * Verifies authentication, user validity, and course ID existence.
- */
-export async function markComplete(courseId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    validateServerActionOrigin();
-
-    const session = await auth();
-    if (!session || !session.user || !session.user.email) {
-      return { success: false, error: "Not authenticated" };
-    }
-
-    // Safeguard: Check if course actually exists
-    let courseExists = false;
-    try {
-      await fetchCourseById(courseId);
-      courseExists = true;
-    } catch (e) {}
-
-    if (!courseExists) {
-      return { success: false, error: "Course not found in system database" };
-    }
-
-    const user = await findUserByEmail(session.user.email);
-    if (!user) {
-      return { success: false, error: "User profile not found" };
-    }
-
-    const ok = await completeCourseApi(user.id, user.email, courseId);
-    if (!ok) {
-      return { success: false, error: "Completion request failed on backend" };
-    }
-
-    revalidatePath("/dashboard");
-    return { success: true };
-  } catch (error) {
-    logger.error("Error in markComplete server action:", error);
-    return { success: false, error: "An error occurred while completing course. Please try again." };
-  }
-}
-
-/**
  * Unenroll a user from a course.
  * Verifies authentication, user validity, and course ID existence.
  */
 export async function unenrollCourse(courseId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    validateServerActionOrigin();
+    await validateServerActionOrigin();
 
     const session = await auth();
     if (!session || !session.user || !session.user.email) {

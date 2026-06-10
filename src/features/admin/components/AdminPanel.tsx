@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Role, User } from "@/shared/types";
+import { CertificateQueueItem, CohortRosterPreview, Course, ReportPreview, Role, User } from "@/shared/types";
 import type { AnalyticsOverview } from "@/infrastructure/api/admin";
 import type { Permission, PermissionCatalogItem } from "@/shared/permissions";
 import { ConfirmDialog, DashboardCard, StatCard, StatusBanner } from "@/shared/components/ui/DesignSystem";
@@ -14,9 +14,10 @@ type AdminPanelProps = {
   analytics: AnalyticsOverview;
   roles: Role[];
   permissionCatalog: PermissionCatalogItem[];
+  courses: Course[];
 };
 
-type AdminTab = "overview" | "users" | "roles" | "taxonomy" | "messages";
+type AdminTab = "overview" | "operations" | "users" | "roles" | "taxonomy" | "cohorts" | "reports" | "audit" | "messages";
 
 const emptyRoleForm = {
   id: "",
@@ -44,12 +45,38 @@ async function apiRequest(path: string, token: string, init: RequestInit = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-export default function AdminPanel({ token, users, analytics, roles, permissionCatalog }: AdminPanelProps) {
+async function apiUpload(path: string, token: string, formData: FormData) {
+  const res = await fetch(`/api/admin${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed with status ${res.status}`);
+  }
+  return res.json();
+}
+
+export default function AdminPanel({ token, users, analytics, roles, permissionCatalog, courses }: AdminPanelProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [roleForm, setRoleForm] = useState(emptyRoleForm);
+  const [cohorts, setCohorts] = useState<Array<{ id: string; title: string; status: string; courseIds: string[]; trainerIds: string[]; seatLimit?: number }>>([]);
+  const [selectedCohortId, setSelectedCohortId] = useState("");
+  const [rosterPreview, setRosterPreview] = useState<CohortRosterPreview | null>(null);
+  const [auditLogs, setAuditLogs] = useState<Array<{ id: string; actorEmail: string; action: string; entityType: string; entityId: string; createdAt: string }>>([]);
+  const [courseApprovals, setCourseApprovals] = useState<Course[]>([]);
+  const [certificateApprovals, setCertificateApprovals] = useState<CertificateQueueItem[]>([]);
+  const [revocations, setRevocations] = useState<CertificateQueueItem[]>([]);
+  const [reportPreview, setReportPreview] = useState<ReportPreview | null>(null);
+  const [cohortForm, setCohortForm] = useState({ title: "", courseIds: [] as string[], trainerIds: [] as string[], startsAt: "", endsAt: "", seatLimit: 0 });
+  const [reportFilters, setReportFilters] = useState({ type: "completion", courseId: "", cohortId: "", status: "", from: "", to: "", approvalStatus: "", revoked: "" });
+  const [auditFilters, setAuditFilters] = useState({ actorId: "", action: "", entityType: "", entityId: "", from: "", to: "" });
   const [isDeleteRoleOpen, setIsDeleteRoleOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -60,6 +87,10 @@ export default function AdminPanel({ token, users, analytics, roles, permissionC
       return groups;
     }, {}),
     [permissionCatalog]
+  );
+  const trainerOptions = useMemo(
+    () => users.filter((user) => user.role === "instructor" || user.roles?.includes("instructor") || user.role === "admin"),
+    [users]
   );
 
   const run = (action: () => Promise<void>, success: string) => {
@@ -120,6 +151,115 @@ export default function AdminPanel({ token, users, analytics, roles, permissionC
     });
   }, "Announcement sent.");
 
+  const loadCohorts = () => run(async () => {
+    setCohorts(await apiRequest("/cohorts", token));
+  }, "Cohorts loaded.");
+
+  const createCohort = (formData: FormData) => run(async () => {
+    await apiRequest("/cohorts", token, {
+      method: "POST",
+      body: JSON.stringify({
+        title: formData.get("title"),
+        courseIds: cohortForm.courseIds,
+        trainerIds: cohortForm.trainerIds,
+        startsAt: formData.get("startsAt") || undefined,
+        endsAt: formData.get("endsAt") || undefined,
+        seatLimit: Number(formData.get("seatLimit") || 0),
+        status: "active",
+      }),
+    });
+    setCohortForm({ title: "", courseIds: [], trainerIds: [], startsAt: "", endsAt: "", seatLimit: 0 });
+    setCohorts(await apiRequest("/cohorts", token));
+  }, "Cohort created.");
+
+  const loadAuditLogs = () => run(async () => {
+    const params = new URLSearchParams({ limit: "100" });
+    Object.entries(auditFilters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    setAuditLogs(await apiRequest(`/audit-logs?${params.toString()}`, token));
+  }, "Audit logs loaded.");
+
+  const loadOperations = () => run(async () => {
+    const [courseQueue, certificateQueue, revokedQueue] = await Promise.all([
+      apiRequest("/courses/approvals?status=pending", token),
+      apiRequest("/certificates/approvals?status=pending", token),
+      apiRequest("/certificates/revocations", token),
+    ]);
+    setCourseApprovals(courseQueue);
+    setCertificateApprovals(certificateQueue);
+    setRevocations(revokedQueue);
+  }, "Operations queue loaded.");
+
+  const reviewCourse = (courseId: string, action: "approve" | "reject") => run(async () => {
+    await apiRequest(`/courses/${encodeURIComponent(courseId)}/approval`, token, {
+      method: "POST",
+      body: JSON.stringify({ action, comments: action === "approve" ? "Approved from operations console." : "Rejected from operations console." }),
+    });
+    setCourseApprovals(await apiRequest("/courses/approvals?status=pending", token));
+  }, `Course ${action}d.`);
+
+  const reviewCertificate = (item: CertificateQueueItem, status: "approved" | "rejected") => run(async () => {
+    await apiRequest(`/certificates/${encodeURIComponent(item.courseId)}/approval`, token, {
+      method: "POST",
+      body: JSON.stringify({ userId: item.userId, status, comments: status === "approved" ? "Approved from operations console." : "Rejected from operations console." }),
+    });
+    setCertificateApprovals(await apiRequest("/certificates/approvals?status=pending", token));
+  }, `Certificate ${status}.`);
+
+  const previewRosterImport = (formData: FormData) => run(async () => {
+    const cohortId = String(formData.get("cohortId") || selectedCohortId);
+    if (!cohortId) throw new Error("Select a cohort before importing.");
+    const upload = new FormData();
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) throw new Error("Choose a CSV or XLSX roster file.");
+    upload.set("file", file);
+    const preview = await apiUpload(`/cohorts/${encodeURIComponent(cohortId)}/members/import/preview`, token, upload);
+    setSelectedCohortId(cohortId);
+    setRosterPreview(preview);
+  }, "Roster preview ready.");
+
+  const confirmRosterImport = () => {
+    if (!selectedCohortId || !rosterPreview) return;
+    run(async () => {
+      await apiRequest(`/cohorts/${encodeURIComponent(selectedCohortId)}/members/import/confirm`, token, {
+        method: "POST",
+        body: JSON.stringify({ rows: rosterPreview.rows.filter((row) => row.status === "ready") }),
+      });
+      setRosterPreview(null);
+      setCohorts(await apiRequest("/cohorts", token));
+    }, "Roster imported.");
+  };
+
+  const reportQuery = (format?: string) => {
+    const params = new URLSearchParams();
+    Object.entries(reportFilters).forEach(([key, value]) => {
+      if (key !== "type" && value) params.set(key, value);
+    });
+    if (format) params.set("format", format);
+    const query = params.toString();
+    return `/api/admin/reports/${encodeURIComponent(reportFilters.type)}/export${query ? `?${query}` : ""}`;
+  };
+
+  const auditReportQuery = (format?: string) => {
+    const params = new URLSearchParams();
+    Object.entries(auditFilters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    if (format) params.set("format", format);
+    const query = params.toString();
+    return `/api/admin/reports/audit-logs/export${query ? `?${query}` : ""}`;
+  };
+
+  const previewReport = () => run(async () => {
+    const params = new URLSearchParams();
+    Object.entries(reportFilters).forEach(([key, value]) => {
+      if (key !== "type" && value) params.set(key, value);
+    });
+    const query = params.toString();
+    setReportPreview(await apiRequest(`/reports/${encodeURIComponent(reportFilters.type)}/preview${query ? `?${query}` : ""}`, token));
+  }, "Report preview loaded.");
+
   const selectRole = (role: Role) => {
     setRoleForm({
       id: role.id,
@@ -141,9 +281,13 @@ export default function AdminPanel({ token, users, analytics, roles, permissionC
       <DashboardCard className="flex gap-2 overflow-x-auto p-2" role="tablist" aria-label="Admin sections">
         {[
           ["overview", "Overview"],
+          ["operations", "Operations"],
           ["users", "Users"],
           ["roles", "Roles"],
           ["taxonomy", "Categories"],
+          ["cohorts", "Cohorts"],
+          ["reports", "Reports"],
+          ["audit", "Audit"],
           ["messages", "Messages"],
         ].map(([tab, label]) => (
           <button
@@ -190,6 +334,63 @@ export default function AdminPanel({ token, users, analytics, roles, permissionC
                   <span className="text-sm font-black text-teal-700">{course.completionRate}%</span>
                 </div>
               ))}
+            </div>
+          </DashboardCard>
+        </div>
+      )}
+
+      {activeTab === "operations" && (
+        <div className="space-y-5">
+          <DashboardCard className="space-y-4 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-black text-slate-950">Operations console</h2>
+                <p className="text-sm font-semibold text-slate-600">Review pending course and certificate governance actions.</p>
+              </div>
+              <button type="button" onClick={loadOperations} className="btn-secondary">Refresh queues</button>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-3">
+              <div className="rounded-md border border-slate-200 p-3">
+                <p className="text-sm font-black text-slate-950">Course approvals</p>
+                <div className="mt-3 space-y-3">
+                  {courseApprovals.length === 0 ? <p className="text-sm font-semibold text-slate-500">No pending courses loaded.</p> : courseApprovals.map((course) => (
+                    <div key={course.id} className="rounded-md bg-slate-50 p-3">
+                      <p className="text-sm font-black text-slate-950">{course.title}</p>
+                      <p className="text-xs font-semibold text-slate-500">{course.category} / {course.approvalStatus}</p>
+                      <div className="mt-3 flex gap-2">
+                        <button type="button" onClick={() => reviewCourse(course.id, "approve")} className="btn-primary">Approve</button>
+                        <button type="button" onClick={() => reviewCourse(course.id, "reject")} className="btn-danger">Reject</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-md border border-slate-200 p-3">
+                <p className="text-sm font-black text-slate-950">Certificate approvals</p>
+                <div className="mt-3 space-y-3">
+                  {certificateApprovals.length === 0 ? <p className="text-sm font-semibold text-slate-500">No pending certificates loaded.</p> : certificateApprovals.map((item) => (
+                    <div key={item.id} className="rounded-md bg-slate-50 p-3">
+                      <p className="text-sm font-black text-slate-950">{item.learnerName || item.learnerEmail}</p>
+                      <p className="text-xs font-semibold text-slate-500">{item.courseTitle} / {item.serialNumber || item.certificateId}</p>
+                      <div className="mt-3 flex gap-2">
+                        <button type="button" onClick={() => reviewCertificate(item, "approved")} className="btn-primary">Approve</button>
+                        <button type="button" onClick={() => reviewCertificate(item, "rejected")} className="btn-danger">Reject</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-md border border-slate-200 p-3">
+                <p className="text-sm font-black text-slate-950">Revoked certificates</p>
+                <div className="mt-3 space-y-3">
+                  {revocations.length === 0 ? <p className="text-sm font-semibold text-slate-500">No revocations loaded.</p> : revocations.map((item) => (
+                    <div key={item.id} className="rounded-md bg-slate-50 p-3">
+                      <p className="text-sm font-black text-slate-950">{item.serialNumber || item.certificateId}</p>
+                      <p className="text-xs font-semibold text-slate-500">{item.learnerName} / {item.revocationReason || "No reason recorded"}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </DashboardCard>
         </div>
@@ -353,6 +554,156 @@ export default function AdminPanel({ token, users, analytics, roles, permissionC
 
       {activeTab === "taxonomy" && (
         <TaxonomyManager token={token} />
+      )}
+
+      {activeTab === "cohorts" && (
+        <DashboardCard className="space-y-4 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-black text-slate-950">Training batches / cohorts</h2>
+              <p className="text-sm font-semibold text-slate-600">Create official training batches, assign trainers, and bulk-import learner rosters.</p>
+            </div>
+            <button type="button" onClick={loadCohorts} className="btn-secondary">Refresh</button>
+          </div>
+          <form onSubmit={(event) => { event.preventDefault(); createCohort(new FormData(event.currentTarget)); }} className="grid gap-3 lg:grid-cols-3">
+            <input name="title" value={cohortForm.title} onChange={(event) => setCohortForm({ ...cohortForm, title: event.target.value })} required placeholder="Cohort title" className="control" />
+            <select
+              multiple
+              value={cohortForm.courseIds}
+              onChange={(event) => setCohortForm({ ...cohortForm, courseIds: Array.from(event.target.selectedOptions).map((option) => option.value) })}
+              className="control min-h-28"
+            >
+              {courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}
+            </select>
+            <select
+              multiple
+              value={cohortForm.trainerIds}
+              onChange={(event) => setCohortForm({ ...cohortForm, trainerIds: Array.from(event.target.selectedOptions).map((option) => option.value) })}
+              className="control min-h-28"
+            >
+              {trainerOptions.map((trainer) => <option key={trainer.id} value={trainer.id}>{trainer.name} ({trainer.email})</option>)}
+            </select>
+            <input name="startsAt" value={cohortForm.startsAt} onChange={(event) => setCohortForm({ ...cohortForm, startsAt: event.target.value })} type="date" className="control" />
+            <input name="endsAt" value={cohortForm.endsAt} onChange={(event) => setCohortForm({ ...cohortForm, endsAt: event.target.value })} type="date" className="control" />
+            <input name="seatLimit" value={cohortForm.seatLimit} onChange={(event) => setCohortForm({ ...cohortForm, seatLimit: Number(event.target.value) })} type="number" min="0" className="control" />
+            <button disabled={isPending} className="btn-primary lg:col-span-3">Create cohort</button>
+          </form>
+          <form onSubmit={(event) => { event.preventDefault(); previewRosterImport(new FormData(event.currentTarget)); }} className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <select name="cohortId" value={selectedCohortId} onChange={(event) => setSelectedCohortId(event.target.value)} required className="control">
+              <option value="">Select cohort for roster import</option>
+              {cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.title}</option>)}
+            </select>
+            <input name="file" type="file" accept=".csv,.xlsx" className="control" />
+            <button type="submit" disabled={isPending} className="btn-secondary">Preview roster</button>
+          </form>
+          {rosterPreview && (
+            <div className="rounded-md border border-slate-200 p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-black text-slate-950">{rosterPreview.readyRows} ready / {rosterPreview.blockedRows} blocked / {rosterPreview.totalRows} rows</p>
+                <button type="button" onClick={confirmRosterImport} disabled={isPending || rosterPreview.readyRows === 0} className="btn-primary">Confirm import</button>
+              </div>
+              <div className="mt-3 max-h-64 overflow-auto rounded-md border border-slate-200">
+                {rosterPreview.rows.map((row) => (
+                  <div key={`${row.rowNumber}-${row.email}`} className="grid gap-2 border-b border-slate-100 p-2 text-xs sm:grid-cols-[80px_minmax(0,1fr)_120px_minmax(0,1fr)]">
+                    <span className="font-bold text-slate-500">Row {row.rowNumber}</span>
+                    <span className="truncate font-semibold text-slate-800">{row.email}</span>
+                    <span className={row.status === "ready" ? "font-black text-emerald-700" : "font-black text-red-700"}>{row.status}</span>
+                    <span className="text-slate-500">{row.errors.join(", ")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
+            {cohorts.length === 0 ? <p className="p-3 text-sm font-semibold text-slate-500">No cohorts loaded.</p> : cohorts.map((cohort) => (
+              <div key={cohort.id} className="p-3 text-sm">
+                <p className="font-black text-slate-950">{cohort.title}</p>
+                <p className="text-xs font-semibold text-slate-500">{cohort.status} / {cohort.courseIds.length} courses / {cohort.trainerIds.length} trainers / {cohort.seatLimit || "unlimited"} seats</p>
+              </div>
+            ))}
+          </div>
+        </DashboardCard>
+      )}
+
+      {activeTab === "reports" && (
+        <DashboardCard className="space-y-4 p-4">
+          <h2 className="text-lg font-black text-slate-950">Compliance exports</h2>
+          <p className="text-sm font-semibold text-slate-600">Preview and download filtered launch compliance reports.</p>
+          <div className="grid gap-3 lg:grid-cols-4">
+            <select value={reportFilters.type} onChange={(event) => setReportFilters({ ...reportFilters, type: event.target.value })} className="control">
+              {["cohort-roster", "completion", "quiz-results", "certificates", "assignment-submissions", "audit-logs", "courses", "users"].map((report) => (
+                <option key={report} value={report}>{report.replace(/-/g, " ")}</option>
+              ))}
+            </select>
+            <select value={reportFilters.courseId} onChange={(event) => setReportFilters({ ...reportFilters, courseId: event.target.value })} className="control">
+              <option value="">All courses</option>
+              {courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}
+            </select>
+            <select value={reportFilters.cohortId} onChange={(event) => setReportFilters({ ...reportFilters, cohortId: event.target.value })} className="control">
+              <option value="">All cohorts</option>
+              {cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.title}</option>)}
+            </select>
+            <input value={reportFilters.status} onChange={(event) => setReportFilters({ ...reportFilters, status: event.target.value })} placeholder="Status filter" className="control" />
+            <input value={reportFilters.from} onChange={(event) => setReportFilters({ ...reportFilters, from: event.target.value })} type="date" className="control" />
+            <input value={reportFilters.to} onChange={(event) => setReportFilters({ ...reportFilters, to: event.target.value })} type="date" className="control" />
+            <select value={reportFilters.approvalStatus} onChange={(event) => setReportFilters({ ...reportFilters, approvalStatus: event.target.value })} className="control">
+              <option value="">Any approval</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select value={reportFilters.revoked} onChange={(event) => setReportFilters({ ...reportFilters, revoked: event.target.value })} className="control">
+              <option value="">Any revocation</option>
+              <option value="true">Revoked</option>
+              <option value="false">Not revoked</option>
+            </select>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={previewReport} className="btn-secondary">Preview count</button>
+            <a className="btn-secondary" href={reportQuery()}>CSV</a>
+            <a className="btn-secondary" href={reportQuery("xlsx")}>XLSX</a>
+            <a className="btn-secondary" href={reportQuery("pdf")}>PDF</a>
+          </div>
+          {reportPreview && (
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-black text-slate-950">{reportPreview.rowCount} matching rows</p>
+              <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-white p-3 text-xs text-slate-700">{JSON.stringify(reportPreview.sample, null, 2)}</pre>
+            </div>
+          )}
+        </DashboardCard>
+      )}
+
+      {activeTab === "audit" && (
+        <DashboardCard className="space-y-4 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-black text-slate-950">Audit logs</h2>
+              <p className="text-sm font-semibold text-slate-600">Review governed actions and compliance exports.</p>
+            </div>
+            <button type="button" onClick={loadAuditLogs} className="btn-secondary">Refresh</button>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-3">
+            <input value={auditFilters.actorId} onChange={(event) => setAuditFilters({ ...auditFilters, actorId: event.target.value })} placeholder="Actor ID" className="control" />
+            <input value={auditFilters.action} onChange={(event) => setAuditFilters({ ...auditFilters, action: event.target.value })} placeholder="Action, e.g. certificate.approved" className="control" />
+            <input value={auditFilters.entityType} onChange={(event) => setAuditFilters({ ...auditFilters, entityType: event.target.value })} placeholder="Entity type" className="control" />
+            <input value={auditFilters.entityId} onChange={(event) => setAuditFilters({ ...auditFilters, entityId: event.target.value })} placeholder="Entity ID" className="control" />
+            <input value={auditFilters.from} onChange={(event) => setAuditFilters({ ...auditFilters, from: event.target.value })} type="date" className="control" />
+            <input value={auditFilters.to} onChange={(event) => setAuditFilters({ ...auditFilters, to: event.target.value })} type="date" className="control" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a className="btn-secondary" href={auditReportQuery("csv")}>Export CSV</a>
+            <a className="btn-secondary" href={auditReportQuery("xlsx")}>Export XLSX</a>
+            <a className="btn-secondary" href={auditReportQuery("pdf")}>Export PDF</a>
+          </div>
+          <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
+            {auditLogs.length === 0 ? <p className="p-3 text-sm font-semibold text-slate-500">No audit logs loaded.</p> : auditLogs.map((log) => (
+              <div key={log.id} className="p-3 text-sm">
+                <p className="font-black text-slate-950">{log.action} <span className="font-semibold text-slate-500">on {log.entityType}</span></p>
+                <p className="text-xs font-semibold text-slate-500">{log.actorEmail || "system"} / {log.entityId} / {new Date(log.createdAt).toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+        </DashboardCard>
       )}
 
       {activeTab === "messages" && (

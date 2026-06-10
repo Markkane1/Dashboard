@@ -10,25 +10,26 @@ import {
 } from "@/shared/components/ui/DesignSystem";
 
 type CoursesPageProps = {
-  searchParams: {
+  searchParams: Promise<{
     category?: string;
     sdg?: string;
     section?: string;
     mea?: string;
     topic?: string;
     q?: string;
-  };
+  }>;
 };
 
 export default async function CoursesPage({ searchParams }: CoursesPageProps) {
-  const activeSection = searchParams.section || searchParams.mea;
+  const resolvedSearchParams = await searchParams;
+  const activeSection = resolvedSearchParams.section || resolvedSearchParams.mea;
   const filters: CoursePageParams = {
     limit: 24,
-    category: searchParams.category,
-    sdg: searchParams.sdg,
+    category: resolvedSearchParams.category,
+    sdg: resolvedSearchParams.sdg,
     section: activeSection,
-    topic: searchParams.topic,
-    q: searchParams.q,
+    topic: resolvedSearchParams.topic,
+    q: resolvedSearchParams.q,
   };
 
   const [coursePage, categories, topics, sections, sdgItems] = await Promise.all([
@@ -49,11 +50,11 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
         .sort((a, b) => a - b)
     : [1, 2, 3, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17];
   const activeFilterCount = [
-    searchParams.category,
-    searchParams.sdg,
+    resolvedSearchParams.category,
+    resolvedSearchParams.sdg,
     activeSection,
-    searchParams.topic,
-    searchParams.q,
+    resolvedSearchParams.topic,
+    resolvedSearchParams.q,
   ].filter(Boolean).length;
 
   return (
@@ -92,23 +93,23 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
             <div className="filter-bar-group">
               <input
                 name="q"
-                defaultValue={searchParams.q || ""}
+                defaultValue={resolvedSearchParams.q || ""}
                 placeholder="Search courses"
                 className="control min-w-[16rem]"
               />
-              <select name="category" defaultValue={searchParams.category || ""} className="control min-w-[12rem]">
+              <select name="category" defaultValue={resolvedSearchParams.category || ""} className="control min-w-[12rem]">
                 <option value="">All themes</option>
                 {categoryOptions.map((category) => (
                   <option key={category.id} value={category.id}>{category.label}</option>
                 ))}
               </select>
-              <select name="sdg" defaultValue={searchParams.sdg || ""} className="control min-w-[12rem]">
+              <select name="sdg" defaultValue={resolvedSearchParams.sdg || ""} className="control min-w-[12rem]">
                 <option value="">All SDGs</option>
                 {sdgGoals.map((goal) => (
                   <option key={goal} value={goal}>SDG {goal}</option>
                 ))}
               </select>
-              <select name="topic" defaultValue={searchParams.topic || ""} className="control min-w-[12rem]">
+              <select name="topic" defaultValue={resolvedSearchParams.topic || ""} className="control min-w-[12rem]">
                 <option value="">All topics</option>
                 {topicOptions.map((topic) => (
                   <option key={topic.key} value={topic.key}>{topic.label}</option>

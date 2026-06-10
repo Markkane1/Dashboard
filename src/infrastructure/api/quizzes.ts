@@ -35,11 +35,11 @@ export async function fetchCourseQuiz(courseId: string, token: string): Promise<
 }
 
 export async function fetchCourseQuizFromUiApi(courseId: string): Promise<CourseQuiz> {
-  const requestHeaders = headers();
+  const requestHeaders = await headers();
   const protocol = requestHeaders.get("x-forwarded-proto") || "http";
   const host = requestHeaders.get("host");
   const baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || (host ? `${protocol}://${host}` : "http://localhost:3000");
-  const cookieHeader = cookies().toString();
+  const cookieHeader = (await cookies()).toString();
 
   const res = await fetch(`${baseUrl.replace(/\/$/, "")}/api/courses/quiz?courseId=${encodeURIComponent(courseId)}`, {
     method: "GET",

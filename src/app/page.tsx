@@ -24,18 +24,19 @@ export async function generateMetadata(): Promise<Metadata> {
 import { fetchCoursePage } from "@/infrastructure/api/courses";
 import { fetchTaxonomies } from "@/infrastructure/api/taxonomies";
 
-export default async function HomePage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  const activeSection = typeof searchParams.section === 'string'
-    ? searchParams.section
-    : typeof searchParams.mea === 'string'
-      ? searchParams.mea
+export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const resolvedSearchParams = await searchParams;
+  const activeSection = typeof resolvedSearchParams.section === 'string'
+    ? resolvedSearchParams.section
+    : typeof resolvedSearchParams.mea === 'string'
+      ? resolvedSearchParams.mea
       : undefined;
   const filters = {
-    category: typeof searchParams.category === 'string' ? searchParams.category : undefined,
-    sdg: typeof searchParams.sdg === 'string' ? searchParams.sdg : undefined,
-    topic: typeof searchParams.topic === 'string' ? searchParams.topic : undefined,
+    category: typeof resolvedSearchParams.category === 'string' ? resolvedSearchParams.category : undefined,
+    sdg: typeof resolvedSearchParams.sdg === 'string' ? resolvedSearchParams.sdg : undefined,
+    topic: typeof resolvedSearchParams.topic === 'string' ? resolvedSearchParams.topic : undefined,
     section: activeSection,
-    q: typeof searchParams.q === 'string' ? searchParams.q : undefined,
+    q: typeof resolvedSearchParams.q === 'string' ? resolvedSearchParams.q : undefined,
     limit: 24,
   };
   const [coursePage, taxonomyCategories, taxonomyTopics, taxonomySections, taxonomySdgs] = await Promise.all([

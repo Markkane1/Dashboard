@@ -12,5 +12,6 @@ declare namespace Express {
       [key: string]: unknown;
     };
     contentManager?: unknown;
+    assignmentSubmission?: any;
   }
 }

@@ -8,11 +8,16 @@ import {
   saveUser,
   storePasswordResetToken,
   StoredUser,
+  resendVerificationEmail as resendVerificationEmailDb,
+  requestEmailChange as requestEmailChangeDb,
+  confirmEmailChange as confirmEmailChangeDb,
 } from "@/features/users/data/userDb";
 import { logger } from '@/shared/logger';
 import { signupSchema, SignupInput } from "./validations";
 import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
 import { sendEmail } from "@/shared/email/sendEmail";
+import { buildVerificationEmail } from "@/shared/email/templates/verification";
+import { buildPasswordResetEmail } from "@/shared/email/templates/passwordReset";
 import { USER_ROLES } from "@/shared/permissions";
 
 function createToken() {
@@ -33,22 +38,14 @@ function buildUrl(path: string, token: string) {
 
 async function sendVerificationEmail(email: string, name: string, token: string) {
   const verificationUrl = buildUrl("/auth/verify-email", token);
-  await sendEmail({
-    to: email,
-    subject: "Verify your EPA Learning email",
-    text: `Hi ${name}, verify your email address by opening this link: ${verificationUrl}`,
-    html: `<p>Hi ${name},</p><p>Verify your email address to activate your EPA Learning account.</p><p><a href="${verificationUrl}">Verify email</a></p>`,
-  });
+  const emailContent = buildVerificationEmail(name, verificationUrl);
+  await sendEmail({ ...emailContent, to: email });
 }
 
 async function sendPasswordResetEmail(email: string, token: string) {
   const resetUrl = buildUrl("/auth/reset-password", token);
-  await sendEmail({
-    to: email,
-    subject: "Reset your EPA Learning password",
-    text: `Reset your EPA Learning password by opening this link within one hour: ${resetUrl}`,
-    html: `<p>Reset your EPA Learning password by opening this link within one hour:</p><p><a href="${resetUrl}">Reset password</a></p>`,
-  });
+  const emailContent = buildPasswordResetEmail(resetUrl);
+  await sendEmail({ ...emailContent, to: email });
 }
 
 async function verifyCaptcha(captchaToken?: string) {
@@ -75,7 +72,7 @@ async function verifyCaptcha(captchaToken?: string) {
 
 export async function registerUser(input: SignupInput) {
   try {
-    validateServerActionOrigin();
+    await validateServerActionOrigin();
   } catch {
     return { success: false, error: "Invalid request origin." };
   }
@@ -107,8 +104,6 @@ export async function registerUser(input: SignupInput) {
 
     // Salt and hash the password
     const hashedPassword = await bcrypt.hash(password, 12);
-    const verification = createToken();
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const newUser: StoredUser = {
       id: crypto.randomUUID(),
@@ -119,14 +114,16 @@ export async function registerUser(input: SignupInput) {
       roles: [USER_ROLES.STUDENT],
       avatar: "",
       enrolledCourses: [],
-      emailVerified: false,
-      emailVerificationTokenHash: verification.tokenHash,
-      emailVerificationExpires: verificationExpires.toISOString(),
       createdAt: new Date().toISOString(),
     };
 
     const savedUser = await saveUser(newUser);
-    await sendVerificationEmail(savedUser.email, savedUser.name, verification.token);
+
+    if (!savedUser.emailVerificationToken) {
+      throw new Error("No verification token returned from backend");
+    }
+
+    await sendVerificationEmail(savedUser.email, savedUser.name, savedUser.emailVerificationToken);
 
     return {
       success: true,
@@ -143,10 +140,9 @@ export async function registerUser(input: SignupInput) {
     return { success: false, error: "Something went wrong. Please try again." };
   }
 }
-
 export async function requestPasswordReset(input: { email: string }) {
   try {
-    validateServerActionOrigin();
+    await validateServerActionOrigin();
   } catch {
     return { success: false, error: "Invalid request origin." };
   }
@@ -184,7 +180,7 @@ export async function resetPassword(input: {
   confirmPassword: string;
 }) {
   try {
-    validateServerActionOrigin();
+    await validateServerActionOrigin();
   } catch {
     return { success: false, error: "Invalid request origin." };
   }
@@ -209,7 +205,7 @@ export async function resetPassword(input: {
 
 export async function enrollInCourse(courseId: string) {
   try {
-    validateServerActionOrigin();
+    await validateServerActionOrigin();
   } catch {
     return { success: false, error: "Invalid request origin." };
   }
@@ -239,6 +235,100 @@ export async function enrollInCourse(courseId: string) {
     return { success: true, enrolled: !alreadyEnrolled, alreadyEnrolled };
   } catch (error) {
     logger.error("Error in enrollInCourse server action:", error);
+    return { success: false, error: "Something went wrong. Please try again." };
+  }
+}
+
+/**
+ * Resend a verification email to an unverified address.
+ * Always returns success to prevent email enumeration attacks.
+ */
+export async function resendVerification(input: { email: string }) {
+  try {
+    await validateServerActionOrigin();
+  } catch {
+    return { success: false, error: "Invalid request origin." };
+  }
+
+  const email = String(input.email || "").toLowerCase().trim();
+  if (!email || !email.includes("@")) {
+    return { success: false, error: "Please enter a valid email address." };
+  }
+
+  try {
+    await resendVerificationEmailDb(email);
+    // Always return success to prevent email enumeration
+    return { success: true };
+  } catch (error) {
+    logger.error("Error in resendVerification server action:", error);
+    return { success: true }; // Still mask the error externally
+  }
+}
+
+/**
+ * Authenticated user requests an email address change.
+ * Sends a confirmation link to the new email address.
+ */
+export async function requestEmailChange(input: { newEmail: string }) {
+  try {
+    await validateServerActionOrigin();
+  } catch {
+    return { success: false, error: "Invalid request origin." };
+  }
+
+  const { auth } = await import("../../../auth");
+
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return { success: false, error: "You must be signed in to change your email address." };
+    }
+
+    const user = await findUserByEmail(session.user.email);
+    if (!user) {
+      return { success: false, error: "User not found." };
+    }
+
+    const newEmail = String(input.newEmail || "").toLowerCase().trim();
+    if (!newEmail || !newEmail.includes("@")) {
+      return { success: false, error: "Please enter a valid email address." };
+    }
+
+    const result = await requestEmailChangeDb(user.id, user.email, newEmail);
+    if (!result.ok) {
+      return { success: false, error: result.error || "Failed to request email change." };
+    }
+
+    return { success: true };
+  } catch (error) {
+    logger.error("Error in requestEmailChange server action:", error);
+    return { success: false, error: "Something went wrong. Please try again." };
+  }
+}
+
+/**
+ * Confirm an email address change using the token from the confirmation link.
+ */
+export async function confirmEmailChange(input: { token: string }) {
+  try {
+    await validateServerActionOrigin();
+  } catch {
+    return { success: false, error: "Invalid request origin." };
+  }
+
+  const token = String(input.token || "");
+  if (!token) {
+    return { success: false, error: "Confirmation token is missing." };
+  }
+
+  try {
+    const ok = await confirmEmailChangeDb(token);
+    if (!ok) {
+      return { success: false, error: "Confirmation link is invalid or expired." };
+    }
+    return { success: true };
+  } catch (error) {
+    logger.error("Error in confirmEmailChange server action:", error);
     return { success: false, error: "Something went wrong. Please try again." };
   }
 }

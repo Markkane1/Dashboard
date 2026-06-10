@@ -19,18 +19,19 @@ import {
 export const dynamicParams = true;
 
 interface CourseDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
-  searchParams?: {
+  }>;
+  searchParams?: Promise<{
     error?: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({ params }: CourseDetailPageProps): Promise<Metadata> {
+  const resolvedParams = await params;
   let course;
   try {
-    course = await fetchCourseById(params.id);
+    course = await fetchCourseById(resolvedParams.id);
   } catch {
     return {
       title: "Course Not Found | EPA Elearning",
@@ -54,9 +55,11 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
 }
 
 export default async function CourseDetailPage({ params, searchParams }: CourseDetailPageProps) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   let course;
   try {
-    course = await fetchCourseById(params.id);
+    course = await fetchCourseById(resolvedParams.id);
   } catch {
     notFound();
   }
@@ -70,7 +73,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
   if (session?.user?.email) {
     const dbUser = await findUserByEmail(session.user.email);
     if (dbUser && dbUser.enrolledCourses) {
-      initialEnrolled = dbUser.enrolledCourses.includes(params.id);
+      initialEnrolled = dbUser.enrolledCourses.includes(resolvedParams.id);
     }
   }
 
@@ -112,7 +115,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
         <span className="min-w-0 max-w-full truncate text-sm text-text-primary sm:max-w-md">{course.title}</span>
       </nav>
 
-      {searchParams?.error === "not-enrolled" && (
+      {resolvedSearchParams?.error === "not-enrolled" && (
         <StatusBanner
           variant="warning"
           title="Enroll to access the course lessons"

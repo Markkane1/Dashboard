@@ -2,13 +2,33 @@ const assert = require('node:assert/strict');
 const { before, after, describe, it } = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execSync } = require('node:child_process');
 const mongoose = require('mongoose');
 
-process.env.MONGOMS_DOWNLOAD_DIR = path.join(__dirname, '.mongodb-binaries');
+Object.assign(process.env, {
+  NODE_ENV: 'test',
+  MONGOMS_DOWNLOAD_DIR: path.join(__dirname, '.mongodb-binaries'),
+  LOG_LEVEL: 'silent'
+});
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
-const { CertificateIssuance, Course, Enrollment, Lesson, Notification, Progress, QuizSubmission } = require('../src/server/models');
+const {
+  Assignment,
+  AssignmentSubmission,
+  AuditLog,
+  CertificateIssuance,
+  Cohort,
+  CohortMembership,
+  Course,
+  CourseModule,
+  CourseResource,
+  Enrollment,
+  Lesson,
+  Notification,
+  Progress,
+  QuizSubmission
+} = require('../src/server/models');
 
 let mongoServer;
 
@@ -20,15 +40,31 @@ const ids = {
 };
 
 before(async () => {
-  mongoServer = await MongoMemoryServer.create({
-    binary: {
-      systemBinary: getSystemMongoBinary()
-    }
-  });
-  await mongoose.connect(mongoServer.getUri());
+  const systemBinary = getSystemMongoBinary();
+  if (systemBinary) {
+    mongoServer = await MongoMemoryServer.create({
+      binary: {
+        systemBinary
+      }
+    });
+    await mongoose.connect(mongoServer.getUri());
+  } else {
+    const fallbackUri = process.env.TEST_MONGODB_URI || 'mongodb://127.0.0.1:27017/test_model_indexes';
+    console.warn(`[TEST] No MongoDB system binary found for memory server. Falling back to local MongoDB at: ${fallbackUri}`);
+    await mongoose.connect(fallbackUri);
+  }
+
+  await mongoose.connection.db.dropDatabase();
 
   await Promise.all([
     Course.syncIndexes(),
+    Assignment.syncIndexes(),
+    AssignmentSubmission.syncIndexes(),
+    AuditLog.syncIndexes(),
+    Cohort.syncIndexes(),
+    CohortMembership.syncIndexes(),
+    CourseModule.syncIndexes(),
+    CourseResource.syncIndexes(),
     CertificateIssuance.syncIndexes(),
     Enrollment.syncIndexes(),
     Lesson.syncIndexes(),
@@ -161,6 +197,30 @@ describe('model query indexes', () => {
     assertNoBlockingSort(inboxExplain);
     assertUsesIndex(unreadExplain, 'userId_1_readAt_1');
   });
+
+  it('uses LMS governance indexes for modules, cohorts, resources, and audit logs', async () => {
+    const moduleExplain = await CourseModule.find({ courseId: ids.course }).sort({ order: 1 }).explain('executionStats');
+    const resourceExplain = await CourseResource.find({ courseId: ids.course, moduleId: ids.lesson }).explain('executionStats');
+    const cohortExplain = await Cohort.find({ status: 'active' }).sort({ startsAt: -1 }).explain('executionStats');
+    const membershipExplain = await CohortMembership.find({ cohortId: ids.course, userId: ids.user }).explain('executionStats');
+    const auditExplain = await AuditLog.find({ entityType: 'Course', entityId: ids.course.toString() })
+      .sort({ createdAt: -1 })
+      .explain('executionStats');
+    const assignmentExplain = await Assignment.find({ courseId: ids.course, status: 'published' })
+      .sort({ dueAt: 1 })
+      .explain('executionStats');
+    const assignmentSubmissionExplain = await AssignmentSubmission.find({ courseId: ids.course, status: 'submitted' })
+      .sort({ updatedAt: -1 })
+      .explain('executionStats');
+
+    assertUsesIndex(moduleExplain, 'courseId_1_order_1');
+    assertUsesIndex(resourceExplain, 'courseId_1_moduleId_1');
+    assertUsesIndex(cohortExplain, 'status_1_startsAt_-1');
+    assertUsesIndex(membershipExplain, 'cohortId_1_userId_1');
+    assertUsesIndex(auditExplain, 'entityType_1_entityId_1_createdAt_-1');
+    assertUsesIndex(assignmentExplain, 'courseId_1_status_1_dueAt_1');
+    assertUsesIndex(assignmentSubmissionExplain, 'courseId_1_status_1_updatedAt_-1');
+  });
 });
 
 async function seedPlannerData() {
@@ -230,13 +290,40 @@ async function seedPlannerData() {
   await Progress.insertMany(progressDocs);
   await Enrollment.insertMany(uniqueByUserCourse(enrollmentDocs));
   await QuizSubmission.insertMany(quizSubmissionDocs);
+  await CourseModule.create({ courseId: ids.course, title: 'Module 1', order: 0, isPublished: true });
+  await CourseResource.create({ courseId: ids.course, moduleId: ids.lesson, title: 'Resource 1', url: '/resource.pdf', isPublished: true });
+  const assignment = await Assignment.create({ courseId: ids.course, title: 'Assignment 1', status: 'published', dueAt: new Date() });
+  await AssignmentSubmission.create({ assignmentId: assignment._id, courseId: ids.course, learnerId: ids.user, text: 'Evidence', status: 'submitted' });
+  await Cohort.create({ _id: ids.course, title: 'Cohort 1', status: 'active', startsAt: new Date() });
+  await CohortMembership.create({ cohortId: ids.course, userId: ids.user, status: 'active' });
+  await AuditLog.create({ action: 'course.approve', entityType: 'Course', entityId: ids.course.toString() });
 }
 
 function getSystemMongoBinary() {
   const candidates = [
-    process.env.MONGOMS_SYSTEM_BINARY,
-    'C:\\Program Files\\MongoDB\\Server\\8.3\\bin\\mongod.exe'
-  ].filter(Boolean);
+    process.env.MONGOMS_SYSTEM_BINARY
+  ].filter((candidate) => typeof candidate === 'string' && candidate.length > 0);
+
+  const serverPath = 'C:\\Program Files\\MongoDB\\Server';
+  if (fs.existsSync(serverPath)) {
+    try {
+      const versions = fs.readdirSync(serverPath);
+      for (const version of versions) {
+        const binaryPath = path.join(serverPath, version, 'bin', 'mongod.exe');
+        if (fs.existsSync(binaryPath)) {
+          candidates.push(binaryPath);
+        }
+      }
+    } catch (error) {}
+  }
+
+  try {
+    const whichCommand = process.platform === 'win32' ? 'where mongod' : 'which mongod';
+    const pathBinary = execSync(whichCommand, { stdio: [] }).toString().trim().split('\n')[0].trim();
+    if (pathBinary && fs.existsSync(pathBinary)) {
+      candidates.push(pathBinary);
+    }
+  } catch (error) {}
 
   return candidates.find((candidate) => fs.existsSync(candidate));
 }

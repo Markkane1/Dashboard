@@ -9,22 +9,32 @@ import { getPermissionsForRole, normalizeRoles, normalizeUserRole, USER_ROLES, t
 
 async function findOrCreateOAuthUser(input: {
   name?: string | null;
-  email?: string | null;
   image?: string | null;
+  email?: string | null;
 }) {
   if (!input.email) {
     return null;
   }
 
-  const existingUser = await findUserByEmail(input.email);
+  const email = input.email.toLowerCase().trim();
+  const existingUser = await findUserByEmail(email);
   if (existingUser) {
     return existingUser;
   }
 
+  const domain = email.split("@")[1];
+  const allowedDomainsStr = env.OAUTH_ALLOWED_DOMAINS || "";
+  const allowedDomains = allowedDomainsStr
+    .split(",")
+    .map((d: string) => d.trim().toLowerCase())
+    .filter(Boolean);
+
+  const isAllowed = allowedDomains.length === 0 || allowedDomains.includes(domain);
+
   const newUser: StoredUser = {
     id: crypto.randomUUID(),
-    name: input.name || input.email.split("@")[0],
-    email: input.email.toLowerCase().trim(),
+    name: input.name || email.split("@")[0],
+    email,
     password: await bcrypt.hash(crypto.randomUUID(), 12),
     role: USER_ROLES.STUDENT,
     roles: [USER_ROLES.STUDENT],
@@ -32,6 +42,7 @@ async function findOrCreateOAuthUser(input: {
     avatar: input.image || "",
     enrolledCourses: [],
     emailVerified: true,
+    status: isAllowed ? "active" : "pending",
     createdAt: new Date().toISOString(),
   };
 
@@ -77,6 +88,67 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google") {
+        if (!user.email) {
+          return false;
+        }
+
+        const email = user.email.toLowerCase().trim();
+        const domain = email.split("@")[1];
+        const allowedDomainsStr = env.OAUTH_ALLOWED_DOMAINS || "";
+        const allowedDomains = allowedDomainsStr
+          .split(",")
+          .map((d: string) => d.trim().toLowerCase())
+          .filter(Boolean);
+
+        const dbUser = await findUserByEmail(email);
+        if (dbUser) {
+          if (dbUser.status === "disabled") {
+            return `/auth/login?error=AccountDisabled`;
+          }
+          if (dbUser.status === "pending") {
+            return `/auth/login?error=PendingApproval`;
+          }
+        } else {
+          const isAllowed = allowedDomains.length === 0 || allowedDomains.includes(domain);
+          if (!isAllowed) {
+            // Option B - Pending approval flow:
+            // Create the user with status: "pending"
+            const newUser: StoredUser = {
+              id: crypto.randomUUID(),
+              name: user.name || email.split("@")[0],
+              email,
+              password: await bcrypt.hash(crypto.randomUUID(), 12),
+              role: USER_ROLES.STUDENT,
+              roles: [USER_ROLES.STUDENT],
+              permissions: getPermissionsForRole(USER_ROLES.STUDENT),
+              avatar: user.image || "",
+              enrolledCourses: [],
+              emailVerified: true,
+              status: "pending",
+              createdAt: new Date().toISOString(),
+            };
+            await saveUser(newUser);
+            return `/auth/login?error=PendingApproval`;
+          }
+        }
+      } else if (account?.provider === "credentials") {
+        if (user.email) {
+          const dbUser = await findUserByEmail(user.email);
+          if (dbUser) {
+            if (dbUser.status === "disabled") {
+              return `/auth/login?error=AccountDisabled`;
+            }
+            if (dbUser.status === "pending") {
+              return `/auth/login?error=PendingApproval`;
+            }
+          }
+        }
+      }
+
+      return true;
+    },
     async jwt({ token, user, account }) {
       if (user?.email || token.email) {
         const dbUser = user?.email

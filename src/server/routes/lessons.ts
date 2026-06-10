@@ -13,6 +13,7 @@ const {
 } = require('../services/videoStorage');
 const { logger } = require('../logger');
 const { hasPermission, PERMISSIONS } = require('../../shared/permissions');
+const { writeAuditLog } = require('../services/audit');
 import type { NextFunction, Request, Response } from 'express';
 import type { FileFilterCallback } from 'multer';
 
@@ -83,7 +84,7 @@ async function requireContentManager(req: AuthenticatedRequest, res: Response, n
 
 function pickLessonFields(body: Record<string, unknown>) {
   const allowed: Record<string, unknown> = {};
-  for (const key of ['courseId', 'title', 'description', 'order', 'videoUrl', 'duration', 'resources', 'transcript', 'isPublished']) {
+  for (const key of ['courseId', 'moduleId', 'title', 'description', 'order', 'videoUrl', 'duration', 'resources', 'resourceIds', 'assignmentIds', 'transcript', 'isPublished']) {
     if (Object.prototype.hasOwnProperty.call(body, key)) {
       allowed[key] = body[key];
     }
@@ -115,6 +116,16 @@ function validateLessonPayload(payload: Record<string, unknown>, partial = false
       return 'duration must be a non-negative number';
     }
     payload.duration = Math.floor(duration);
+  }
+  for (const key of ['moduleId', 'resourceIds', 'assignmentIds']) {
+    if (payload[key] !== undefined) {
+      if (key === 'moduleId') {
+        if (payload[key] && !mongoose.Types.ObjectId.isValid(String(payload[key]))) return 'moduleId must be a valid ObjectId';
+      } else {
+        if (!Array.isArray(payload[key])) return `${key} must be an array`;
+        payload[key] = (payload[key] as unknown[]).map(String).filter((id) => mongoose.Types.ObjectId.isValid(id));
+      }
+    }
   }
 
   return null;
@@ -206,6 +217,7 @@ router.post('/', auth, requireContentManager, async (req: Request, res: Response
 
     const lesson = await Lesson.create(payload);
     await Course.findByIdAndUpdate(payload.courseId, { $inc: { lessonsCount: 1 } });
+    await writeAuditLog(req, { action: 'lesson.create', entityType: 'Lesson', entityId: lesson._id, details: { courseId: payload.courseId, title: payload.title } });
     res.status(201).json(lesson);
   } catch (error) {
     logger.error({ err: error }, 'Error creating lesson');
@@ -247,6 +259,10 @@ router.post(
         return res.status(400).json({ error: "Video file is required in the 'video' form field." });
       }
 
+      const oldValue = {
+        videoUrl: lesson.videoUrl,
+        duration: lesson.duration
+      };
       const duration = await readVideoDuration(req.file.path);
       lesson.videoUrl = getPublicVideoUrl(req.file.filename);
       if (duration) {
@@ -254,6 +270,21 @@ router.post(
       }
 
       await lesson.save();
+      await writeAuditLog(req, {
+        action: 'lesson.video-upload',
+        entityType: 'Lesson',
+        entityId: lesson._id,
+        details: {
+          result: 'success',
+          lessonId,
+          filename: req.file.filename,
+          oldValue,
+          newValue: {
+            videoUrl: lesson.videoUrl,
+            duration: lesson.duration
+          }
+        }
+      });
       res.json(lesson);
     } catch (error) {
         removeUploadedFile(req.file);
@@ -293,6 +324,7 @@ router.patch('/:lessonId', auth, requireContentManager, async (req: Request, res
       return res.status(404).json({ error: 'Lesson not found.' });
     }
 
+    await writeAuditLog(req, { action: 'lesson.update', entityType: 'Lesson', entityId: lesson._id, details: { updatedFields: Object.keys(updates) } });
     res.json(lesson);
   } catch (error) {
     logger.error({ err: error }, 'Error updating lesson');
@@ -319,6 +351,7 @@ router.delete('/:lessonId', auth, requireContentManager, async (req: Request, re
       Progress.deleteMany({ lessonId: lesson._id }),
       Course.updateOne({ _id: lesson.courseId, lessonsCount: { $gt: 0 } }, { $inc: { lessonsCount: -1 } })
     ]);
+    await writeAuditLog(req, { action: 'lesson.delete', entityType: 'Lesson', entityId: lesson._id, details: { courseId: lesson.courseId?.toString(), title: lesson.title } });
     res.status(204).send();
   } catch (error) {
     logger.error({ err: error }, 'Error deleting lesson');

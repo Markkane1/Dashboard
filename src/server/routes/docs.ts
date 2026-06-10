@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const auth = require('../middleware/auth');
 const { CertificateIssuance, Course, User } = require('../models');
 const { getCompletedEnrollments, getEnrollment } = require('../services/enrollments');
+const { generateCertificateSerial } = require('../services/certificateSerial');
+const { writeAuditLog } = require('../services/audit');
 const { formatIssuedOn, getOrCreateDocumentPdf } = require('../services/documentPdf');
 const { logger } = require('../logger');
 import type { Request, Response } from 'express';
@@ -52,25 +54,24 @@ async function getOrCreateCertificateIssuance(input: {
   recipientName: string;
   courseTitle: string;
   issuedAt: Date;
+  approvalStatus?: 'pending' | 'approved';
 }) {
-  return CertificateIssuance.findOneAndUpdate(
-    { userId: input.userId, courseId: input.courseId },
-    {
-      $setOnInsert: {
-        certificateId: crypto.randomUUID(),
-        userId: input.userId,
-        courseId: input.courseId,
-        recipientName: input.recipientName,
-        courseTitle: input.courseTitle,
-        issuedAt: input.issuedAt
-      }
-    },
-    {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true
-    }
-  );
+  const existing = await CertificateIssuance.findOne({ userId: input.userId, courseId: input.courseId });
+  if (existing) return existing;
+  const course = await Course.findById(input.courseId);
+  const serialNumber = await generateCertificateSerial(course, input.issuedAt);
+
+  return CertificateIssuance.create({
+    certificateId: crypto.randomUUID(),
+    serialNumber,
+    userId: input.userId,
+    courseId: input.courseId,
+    recipientName: input.recipientName,
+    courseTitle: input.courseTitle,
+    issuedAt: input.issuedAt,
+    approvalStatus: input.approvalStatus || 'approved',
+    approvedAt: input.approvalStatus === 'pending' ? undefined : new Date()
+  });
 }
 
 async function generateCertificate(req: AuthenticatedRequest, res: Response) {
@@ -88,13 +89,21 @@ async function generateCertificate(req: AuthenticatedRequest, res: Response) {
 
     const recipientName = req.user.name || user.name;
     const issuedAt = enrollment.completedAt || enrollment.updatedAt || enrollment.createdAt;
+    const existingIssuance = await CertificateIssuance.findOne({ userId: req.user.id, courseId: course._id });
     const issuance = await getOrCreateCertificateIssuance({
       userId: req.user.id,
       courseId: course._id.toString(),
       recipientName,
       courseTitle: course.title,
-      issuedAt
+      issuedAt,
+      approvalStatus: course.requiresCertificateApproval === false ? 'approved' : 'pending'
     });
+    if (issuance.revokedAt) {
+      return res.status(403).json({ error: 'Certificate has been revoked.' });
+    }
+    if (issuance.approvalStatus !== 'approved') {
+      return res.status(403).json({ error: 'Certificate is pending approval.' });
+    }
     const issuedOn = formatIssuedOn(issuedAt);
     const verificationUrl = buildVerificationUrl(req, issuance.certificateId);
     const pdfBytes = await getOrCreateDocumentPdf(
@@ -105,18 +114,48 @@ async function generateCertificate(req: AuthenticatedRequest, res: Response) {
         courseUpdatedAt: course.updatedAt,
         enrollmentCompletedAt: enrollment.completedAt,
         recipientName,
-        certificateId: issuance.certificateId,
+        certificateId: issuance.serialNumber || issuance.certificateId,
         verificationUrl
       },
       {
         type: 'certificate',
         recipientName,
-        courseTitle: course.title,
-        issuedOn,
-        certificateId: issuance.certificateId,
-        verificationUrl
+      courseTitle: course.title,
+      issuedOn,
+      certificateId: issuance.serialNumber || issuance.certificateId,
+      verificationUrl
       }
     );
+    if (!existingIssuance) {
+      await writeAuditLog(req, {
+        action: 'certificate.generate',
+        entityType: 'CertificateIssuance',
+        entityId: issuance._id,
+        details: {
+          result: 'success',
+          oldValue: null,
+          newValue: {
+            certificateId: issuance.certificateId,
+            serialNumber: issuance.serialNumber,
+            userId: req.user.id,
+            courseId: course._id.toString(),
+            approvalStatus: issuance.approvalStatus,
+            issuedAt: issuance.issuedAt
+          }
+        }
+      });
+    }
+    await writeAuditLog(req, {
+      action: 'certificate.download',
+      entityType: 'CertificateIssuance',
+      entityId: issuance._id,
+      details: {
+        result: 'success',
+        courseId: course._id.toString(),
+        certificateId: issuance.certificateId,
+        serialNumber: issuance.serialNumber
+      }
+    });
     sendPdf(res, pdfBytes, `certificate-${safeFilename(course.title)}.pdf`);
   } catch (error) {
     logger.error({ err: error }, 'Error generating certificate PDF');
@@ -128,25 +167,42 @@ router.get('/verify/:certificateId', async (req: Request, res: Response) => {
   try {
     const issuance = await CertificateIssuance.findOne({
       certificateId: String(req.params.certificateId)
-    }).select('certificateId recipientName courseTitle issuedAt revokedAt courseId userId');
+    }).select('certificateId recipientName courseTitle issuedAt revokedAt');
 
     if (!issuance) {
-      return res.status(404).json({ valid: false, error: 'Certificate not found.' });
+      return res.status(404).json({
+        valid: false,
+        certificateId: '',
+        recipientName: '',
+        courseTitle: '',
+        issuedAt: '',
+        revokedAt: null,
+        status: 'not_found'
+      });
     }
 
+    const isRevoked = !!issuance.revokedAt;
+
     res.json({
-      valid: !issuance.revokedAt,
+      valid: !isRevoked,
       certificateId: issuance.certificateId,
       recipientName: issuance.recipientName,
       courseTitle: issuance.courseTitle,
-      issuedAt: issuance.issuedAt,
-      revokedAt: issuance.revokedAt || null,
-      courseId: issuance.courseId.toString(),
-      userId: issuance.userId.toString()
+      issuedAt: issuance.issuedAt.toISOString(),
+      revokedAt: issuance.revokedAt ? issuance.revokedAt.toISOString() : null,
+      status: isRevoked ? 'revoked' : 'valid'
     });
   } catch (error) {
     logger.error({ err: error }, 'Error verifying certificate');
-    res.status(500).json({ valid: false, error: 'Failed to verify certificate.' });
+    res.status(500).json({
+      valid: false,
+      certificateId: '',
+      recipientName: '',
+      courseTitle: '',
+      issuedAt: '',
+      revokedAt: null,
+      status: 'not_found'
+    });
   }
 });
 
@@ -211,6 +267,7 @@ router.get('/diploma', auth, async (req: AuthenticatedRequest, res: Response) =>
         issuedOn
       }
     );
+    await writeAuditLog(req, { action: 'diploma.download', entityType: 'Course', entityId: diploma._id, details: { diplomaId: diploma._id.toString(), diplomaTitle: diploma.title, requiredCourseCount: requiredCourseIds.length } });
     sendPdf(res, pdfBytes, `diploma-${safeFilename(diploma.title)}.pdf`);
   } catch (error) {
     logger.error({ err: error }, 'Error generating diploma PDF');

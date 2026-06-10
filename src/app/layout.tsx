@@ -21,7 +21,7 @@ async function loadMessages(locale: string) {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const requestedLocale = headers().get("x-next-locale");
+  const requestedLocale = (await headers()).get("x-next-locale");
   const locale = isAppLocale(requestedLocale) ? requestedLocale : defaultLocale;
   const direction = getTextDirection(locale);
   const messages = await loadMessages(locale);

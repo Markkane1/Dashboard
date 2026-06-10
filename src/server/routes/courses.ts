@@ -4,8 +4,12 @@ const mongoose = require('mongoose');
 const Course = require('../models/Course');
 const auth = require('../middleware/auth');
 const { requireContentManager } = require('../middleware/roles');
+const { requirePermission } = require('../middleware/roles');
+const { PERMISSIONS } = require('../../shared/permissions');
+const { CourseApproval } = require('../models');
+const { writeAuditLog } = require('../services/audit');
 const { logger } = require('../logger');
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import type { AuthoredQuizQuestion, Course as SharedCourse } from '../../shared/types';
 
 const DEFAULT_COURSE_LIMIT = 24;
@@ -34,6 +38,15 @@ const COURSE_CARD_FIELDS = [
   'rating',
   'enrolledCount',
   'quizPassingScore',
+  'quizMaxAttempts',
+  'quizRandomizeQuestions',
+  'quizRandomizeOptions',
+  'publishStatus',
+  'approvalStatus',
+  'prerequisiteCourseIds',
+  'trainerIds',
+  'requiresFeedback',
+  'requiresCertificateApproval',
   'createdAt'
 ].join(' ');
 const COURSE_WRITE_FIELDS = [
@@ -58,7 +71,16 @@ const COURSE_WRITE_FIELDS = [
   'duration',
   'rating',
   'quizQuestions',
-  'quizPassingScore'
+  'quizPassingScore',
+  'quizMaxAttempts',
+  'quizRandomizeQuestions',
+  'quizRandomizeOptions',
+  'publishStatus',
+  'approvalStatus',
+  'prerequisiteCourseIds',
+  'trainerIds',
+  'requiresFeedback',
+  'requiresCertificateApproval'
 ];
 
 function serializeCourse(course: any): SharedCourse {
@@ -89,7 +111,16 @@ function serializeCourse(course: any): SharedCourse {
     lessonsCount: plain.lessonsCount || 0,
     rating: plain.rating || 0,
     enrolledCount: plain.enrolledCount || 0,
-    quizPassingScore: plain.quizPassingScore || 70
+    quizPassingScore: plain.quizPassingScore || 70,
+    quizMaxAttempts: plain.quizMaxAttempts || 3,
+    quizRandomizeQuestions: plain.quizRandomizeQuestions !== false,
+    quizRandomizeOptions: plain.quizRandomizeOptions !== false,
+    publishStatus: plain.publishStatus || 'published',
+    approvalStatus: plain.approvalStatus || 'approved',
+    prerequisiteCourseIds: (plain.prerequisiteCourseIds || []).map(String),
+    trainerIds: (plain.trainerIds || []).map(String),
+    requiresFeedback: plain.requiresFeedback === true,
+    requiresCertificateApproval: plain.requiresCertificateApproval !== false
   };
 }
 
@@ -106,6 +137,34 @@ function serializeManageCourse(course: any): SharedCourse {
           explanation: question.explanation || ''
         }))
       : []
+  };
+}
+
+function auditQuizQuestions(questions: unknown) {
+  return Array.isArray(questions)
+    ? questions.map((question: any, index: number) => ({
+        id: question.id || `question-${index + 1}`,
+        prompt: question.prompt || '',
+        correctAnswerIndex: question.correctAnswerIndex,
+        optionCount: Array.isArray(question.options) ? question.options.length : 0
+      }))
+    : [];
+}
+
+function auditCourseSnapshot(course: any) {
+  const plain = typeof course?.toObject === 'function' ? course.toObject() : course;
+  if (!plain) return null;
+  return {
+    id: String(plain._id || plain.id),
+    title: plain.title,
+    category: plain.category,
+    publishStatus: plain.publishStatus,
+    approvalStatus: plain.approvalStatus,
+    trainerIds: (plain.trainerIds || []).map(String),
+    prerequisiteCourseIds: (plain.prerequisiteCourseIds || []).map(String),
+    quizPassingScore: plain.quizPassingScore,
+    quizMaxAttempts: plain.quizMaxAttempts,
+    quizQuestions: auditQuizQuestions(plain.quizQuestions)
   };
 }
 
@@ -202,6 +261,7 @@ function buildCourseFilter(query: Request['query']) {
   if (isExternal !== undefined) {
     filters.push({ isExternal });
   }
+  filters.push({ publishStatus: 'published', approvalStatus: 'approved' });
   const filterSection = section || mea;
   if (filterSection) {
     const normalizedSection = filterSection.toUpperCase();
@@ -279,6 +339,19 @@ function validateCoursePayload(payload: Record<string, unknown>, partial = false
       return 'quizPassingScore must be between 0 and 100';
     }
     payload.quizPassingScore = score;
+  }
+  if (payload.quizMaxAttempts !== undefined) {
+    const maxAttempts = Number(payload.quizMaxAttempts);
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 25) {
+      return 'quizMaxAttempts must be between 1 and 25';
+    }
+    payload.quizMaxAttempts = maxAttempts;
+  }
+  for (const key of ['prerequisiteCourseIds', 'trainerIds', 'diplomaRequiredCourseIds']) {
+    if (payload[key] !== undefined) {
+      if (!Array.isArray(payload[key])) return `${key} must be an array`;
+      payload[key] = [...new Set((payload[key] as unknown[]).map(String).filter((id) => mongoose.Types.ObjectId.isValid(id)))];
+    }
   }
 
   if (payload.sections !== undefined) {
@@ -386,6 +459,20 @@ router.post('/batch', async (req: Request, res: Response) => {
 
 // GET /api/courses/manage/:id
 // Returns protected course authoring details, including quiz answer keys.
+router.get('/manage', auth, requireContentManager, async (req: Request, res: Response) => {
+  try {
+    const limit = getCourseLimit(req.query.limit);
+    const courses = await Course.find({})
+      .select(`${COURSE_CARD_FIELDS} quizQuestions`)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit);
+    res.json(courses.map(serializeManageCourse));
+  } catch (error) {
+    logger.error({ err: error }, 'Error fetching manageable course list');
+    res.status(500).json({ error: 'Failed to fetch manageable courses' });
+  }
+});
+
 router.get('/manage/:id', auth, requireContentManager, async (req: Request, res: Response) => {
   try {
     if (!isValidObjectId(req.params.id)) {
@@ -414,11 +501,43 @@ router.post('/', auth, requireContentManager, async (req: Request, res: Response
       return res.status(400).json({ error: validationError });
     }
 
+    payload.publishStatus = 'draft';
+    payload.approvalStatus = 'draft';
     const course = await Course.create(payload);
+    await writeAuditLog(req, { action: 'course.create', entityType: 'Course', entityId: course._id });
     res.status(201).json(serializeCourse(course));
   } catch (error) {
     logger.error({ err: error }, 'Error creating course');
     res.status(500).json({ error: 'Failed to create course' });
+  }
+});
+
+router.get('/approvals', auth, requirePermission(PERMISSIONS.APPROVE_COURSES), async (req: Request, res: Response) => {
+  try {
+    const status = typeof req.query.status === 'string' && req.query.status
+      ? req.query.status
+      : 'pending';
+    const filter: Record<string, unknown> = {};
+    if (['draft', 'pending', 'approved', 'rejected', 'published'].includes(status)) {
+      filter.approvalStatus = status === 'published' ? 'approved' : status;
+    }
+    const courses = await Course.find(filter)
+      .select(`${COURSE_CARD_FIELDS} approvalComments submittedForApprovalAt approvedAt rejectedAt`)
+      .sort({ submittedForApprovalAt: -1, updatedAt: -1 })
+      .limit(200);
+    res.json(courses.map((course: any) => {
+      const plain = typeof course.toObject === 'function' ? course.toObject() : course;
+      return {
+        ...serializeManageCourse(plain),
+        approvalComments: plain.approvalComments || '',
+        submittedForApprovalAt: plain.submittedForApprovalAt,
+        approvedAt: plain.approvedAt,
+        rejectedAt: plain.rejectedAt
+      };
+    }));
+  } catch (error) {
+    logger.error({ err: error }, 'Error listing course approval queue');
+    res.status(500).json({ error: 'Failed to list course approval queue.' });
   }
 });
 
@@ -430,7 +549,11 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Course not found" });
     }
 
-    const course = await Course.findById(req.params.id).select(COURSE_CARD_FIELDS);
+    const course = await Course.findOne({
+      _id: req.params.id,
+      publishStatus: 'published',
+      approvalStatus: 'approved'
+    }).select(COURSE_CARD_FIELDS);
     if (!course) {
       return res.status(404).json({ error: "Course not found" });
     }
@@ -459,6 +582,11 @@ router.patch('/:id', auth, requireContentManager, async (req: Request, res: Resp
       return res.status(400).json({ error: validationError });
     }
 
+    const before = await Course.findById(req.params.id).select(`${COURSE_CARD_FIELDS} quizQuestions`);
+    if (!before) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
     const course = await Course.findByIdAndUpdate(
       req.params.id,
       { $set: updates },
@@ -468,10 +596,87 @@ router.patch('/:id', auth, requireContentManager, async (req: Request, res: Resp
       return res.status(404).json({ error: 'Course not found' });
     }
 
+    const updatedFields = Object.keys(updates);
+    await writeAuditLog(req, {
+      action: updatedFields.includes('quizQuestions') ? 'course.quiz-answer-key-update' : 'course.update',
+      entityType: 'Course',
+      entityId: course._id,
+      details: {
+        result: 'success',
+        updatedFields,
+        oldValue: auditCourseSnapshot(before),
+        newValue: auditCourseSnapshot(course)
+      }
+    });
     res.json(serializeManageCourse(course));
   } catch (error) {
     logger.error({ err: error }, 'Error updating course');
     res.status(500).json({ error: 'Failed to update course' });
+  }
+});
+
+// POST /api/courses/:id/approval
+// Submit, approve, or reject official course publishing.
+router.post('/:id/approval', auth, async (req: Request, res: Response, next: NextFunction) => {
+  const action = String(req.body?.action || '').toLowerCase();
+  if (action === 'submit') {
+    return next();
+  }
+
+  return requirePermission(PERMISSIONS.APPROVE_COURSES)(req as any, res, next);
+}, async (req: Request, res: Response) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid course id.' });
+    }
+    const action = String(req.body?.action || '').toLowerCase();
+    const comments = String(req.body?.comments || '').trim();
+    if (!['submit', 'approve', 'reject'].includes(action)) {
+      return res.status(400).json({ error: 'action must be submit, approve, or reject.' });
+    }
+
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ error: 'Course not found.' });
+
+    const oldValue = auditCourseSnapshot(course);
+    if (action === 'submit') {
+      course.publishStatus = 'pending';
+      course.approvalStatus = 'pending';
+      course.submittedForApprovalAt = new Date();
+      await CourseApproval.create({ courseId: course._id, status: 'pending', submittedBy: req.user?.id, comments });
+    } else if (action === 'approve') {
+      course.publishStatus = 'published';
+      course.approvalStatus = 'approved';
+      course.approvedAt = new Date();
+      course.approvedBy = req.user?.id;
+      course.rejectedAt = undefined;
+      course.rejectedBy = undefined;
+      await CourseApproval.create({ courseId: course._id, status: 'approved', reviewedBy: req.user?.id, reviewedAt: new Date(), comments });
+    } else {
+      course.publishStatus = 'rejected';
+      course.approvalStatus = 'rejected';
+      course.rejectedAt = new Date();
+      course.rejectedBy = req.user?.id;
+      await CourseApproval.create({ courseId: course._id, status: 'rejected', reviewedBy: req.user?.id, reviewedAt: new Date(), comments });
+    }
+
+    course.approvalComments = comments;
+    await course.save();
+    await writeAuditLog(req, {
+      action: `course.${action}`,
+      entityType: 'Course',
+      entityId: course._id,
+      details: {
+        result: 'success',
+        comments,
+        oldValue,
+        newValue: auditCourseSnapshot(course)
+      }
+    });
+    res.json(serializeManageCourse(course));
+  } catch (error) {
+    logger.error({ err: error }, 'Error updating course approval');
+    res.status(500).json({ error: 'Failed to update course approval.' });
   }
 });
 
@@ -488,6 +693,16 @@ router.delete('/:id', auth, requireContentManager, async (req: Request, res: Res
       return res.status(404).json({ error: 'Course not found' });
     }
 
+    await writeAuditLog(req, {
+      action: 'course.delete',
+      entityType: 'Course',
+      entityId: req.params.id,
+      details: {
+        result: 'success',
+        oldValue: auditCourseSnapshot(deleted),
+        newValue: null
+      }
+    });
     res.status(204).send();
   } catch (error) {
     logger.error({ err: error }, 'Error deleting course');

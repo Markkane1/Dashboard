@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AuthoredQuizQuestion, Course, Lesson } from "@/shared/types";
+import { Assignment, AssignmentSubmission, AuthoredQuizQuestion, Course, CourseModule, CourseResource, Lesson } from "@/shared/types";
 import { fetchTaxonomies } from "@/infrastructure/api/taxonomies";
 import {
   AdminSidebar,
@@ -27,6 +27,15 @@ type CourseForm = {
   thumbnail: string;
   price: number;
   quizPassingScore: number;
+  quizMaxAttempts: number;
+  quizRandomizeQuestions: boolean;
+  quizRandomizeOptions: boolean;
+  publishStatus: Course["publishStatus"];
+  approvalStatus: Course["approvalStatus"];
+  prerequisiteCourseIds: string[];
+  trainerIds: string[];
+  requiresFeedback: boolean;
+  requiresCertificateApproval: boolean;
   sdgGoals: number[];
   topics: string[];
   sections: string[];
@@ -38,6 +47,7 @@ type CourseForm = {
 };
 
 type LessonForm = {
+  moduleId: string;
   title: string;
   description: string;
   order: number;
@@ -52,7 +62,7 @@ type TaxonomyOption = {
   label: string;
 };
 
-type WorkspaceTab = "details" | "lessons" | "quiz";
+type WorkspaceTab = "details" | "modules" | "lessons" | "resources" | "assignments" | "quiz" | "governance";
 type PendingDelete = "course" | "lesson" | null;
 
 async function apiRequest<T>(path: string, token: string, init: RequestInit = {}): Promise<T> {
@@ -83,6 +93,15 @@ function getCourseForm(course?: Course | null): CourseForm {
     thumbnail: course?.thumbnail || "",
     price: course?.price || 0,
     quizPassingScore: course?.quizPassingScore || 70,
+    quizMaxAttempts: course?.quizMaxAttempts || 3,
+    quizRandomizeQuestions: course?.quizRandomizeQuestions !== false,
+    quizRandomizeOptions: course?.quizRandomizeOptions !== false,
+    publishStatus: course?.publishStatus || "draft",
+    approvalStatus: course?.approvalStatus || "draft",
+    prerequisiteCourseIds: course?.prerequisiteCourseIds || [],
+    trainerIds: course?.trainerIds || [],
+    requiresFeedback: Boolean(course?.requiresFeedback),
+    requiresCertificateApproval: course?.requiresCertificateApproval !== false,
     sdgGoals: course?.sdgGoals || [],
     topics: course?.topics || [],
     sections: course?.sections || course?.mea || [],
@@ -96,6 +115,7 @@ function getCourseForm(course?: Course | null): CourseForm {
 
 function getLessonForm(lesson?: Lesson | null): LessonForm {
   return {
+    moduleId: lesson?.moduleId || "",
     title: lesson?.title || "",
     description: lesson?.description || "",
     order: lesson?.order || 1,
@@ -142,7 +162,15 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
   const [courseForm, setCourseForm] = useState<CourseForm>(getCourseForm(courses[0]));
   const [createForm, setCreateForm] = useState<CourseForm>(getCourseForm(null));
   const [quizQuestions, setQuizQuestions] = useState<AuthoredQuizQuestion[]>([]);
+  const [modules, setModules] = useState<CourseModule[]>([]);
+  const [resources, setResources] = useState<CourseResource[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [assignmentSubmissions, setAssignmentSubmissions] = useState<AssignmentSubmission[]>([]);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState("");
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [moduleTitle, setModuleTitle] = useState("");
+  const [resourceForm, setResourceForm] = useState({ title: "", url: "", type: "download" });
+  const [assignmentForm, setAssignmentForm] = useState({ title: "", instructions: "", dueAt: "" });
   const [selectedLessonId, setSelectedLessonId] = useState("");
   const [lessonForm, setLessonForm] = useState<LessonForm>(getLessonForm());
   const [newLessonForm, setNewLessonForm] = useState<LessonForm>(getLessonForm());
@@ -233,6 +261,11 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
       setSelectedCourse(null);
       setCourseForm(getCourseForm(null));
       setQuizQuestions([]);
+      setModules([]);
+      setResources([]);
+      setAssignments([]);
+      setAssignmentSubmissions([]);
+      setSelectedAssignmentId("");
       setLessons([]);
       setSelectedLessonId("");
       return;
@@ -243,13 +276,21 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
 
     Promise.all([
       apiRequest<Course>(`/courses/manage/${encodeURIComponent(selectedCourseId)}`, token),
+      apiRequest<CourseModule[]>(`/modules/course/${encodeURIComponent(selectedCourseId)}`, token),
+      apiRequest<CourseResource[]>(`/resources/course/${encodeURIComponent(selectedCourseId)}`, token),
+      apiRequest<Assignment[]>(`/assignments/course/${encodeURIComponent(selectedCourseId)}`, token),
       apiRequest<Lesson[]>(`/lessons/manage/course/${encodeURIComponent(selectedCourseId)}`, token),
     ])
-      .then(([course, courseLessons]) => {
+      .then(([course, courseModules, courseResources, courseAssignments, courseLessons]) => {
         if (!active) return;
         setSelectedCourse(course);
         setCourseForm(getCourseForm(course));
         setQuizQuestions(course.quizQuestions || []);
+        setModules(courseModules);
+        setResources(courseResources);
+        setAssignments(courseAssignments);
+        setSelectedAssignmentId(courseAssignments[0]?.id || "");
+        setAssignmentSubmissions([]);
         setLessons(courseLessons);
         setSelectedLessonId(courseLessons[0]?._id || "");
         setLessonForm(getLessonForm(courseLessons[0]));
@@ -330,6 +371,7 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
       method: "POST",
       body: JSON.stringify({
         courseId: selectedCourseId,
+        moduleId: newLessonForm.moduleId || undefined,
         title: newLessonForm.title,
         description: newLessonForm.description,
         order: Number(newLessonForm.order || 1),
@@ -355,6 +397,7 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
         method: "PATCH",
         body: JSON.stringify({
           ...lessonForm,
+          moduleId: lessonForm.moduleId || undefined,
           order: Number(lessonForm.order || 0),
           duration: Number(lessonForm.duration || 0),
         }),
@@ -377,6 +420,78 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
       setPendingDelete(null);
     }, "Lesson deleted.");
   };
+
+  const createModule = () => run(async () => {
+    if (!selectedCourseId || !moduleTitle.trim()) return;
+    await apiRequest("/modules", token, {
+      method: "POST",
+      body: JSON.stringify({
+        courseId: selectedCourseId,
+        title: moduleTitle,
+        order: modules.length,
+        isPublished: true,
+      }),
+    });
+    setModules(await apiRequest<CourseModule[]>(`/modules/course/${encodeURIComponent(selectedCourseId)}`, token));
+    setModuleTitle("");
+  }, "Module created.");
+
+  const createResource = () => run(async () => {
+    if (!selectedCourseId || !resourceForm.title.trim() || !resourceForm.url.trim()) return;
+    await apiRequest("/resources", token, {
+      method: "POST",
+      body: JSON.stringify({
+        courseId: selectedCourseId,
+        ...resourceForm,
+        isPublished: true,
+      }),
+    });
+    setResources(await apiRequest<CourseResource[]>(`/resources/course/${encodeURIComponent(selectedCourseId)}`, token));
+    setResourceForm({ title: "", url: "", type: "download" });
+  }, "Resource created.");
+
+  const createAssignment = () => run(async () => {
+    if (!selectedCourseId || !assignmentForm.title.trim()) return;
+    const created = await apiRequest<Assignment>("/assignments", token, {
+      method: "POST",
+      body: JSON.stringify({
+        courseId: selectedCourseId,
+        ...assignmentForm,
+        status: "published",
+      }),
+    });
+    setAssignments(await apiRequest<Assignment[]>(`/assignments/course/${encodeURIComponent(selectedCourseId)}`, token));
+    setSelectedAssignmentId(created.id);
+    setAssignmentForm({ title: "", instructions: "", dueAt: "" });
+  }, "Assignment created.");
+
+  const loadAssignmentSubmissions = (assignmentId = selectedAssignmentId) => run(async () => {
+    if (!assignmentId) return;
+    setSelectedAssignmentId(assignmentId);
+    setAssignmentSubmissions(await apiRequest<AssignmentSubmission[]>(`/assignments/${encodeURIComponent(assignmentId)}/submissions`, token));
+  }, "Assignment submissions loaded.");
+
+  const reviewAssignmentSubmission = (submissionId: string, status: AssignmentSubmission["status"]) => run(async () => {
+    const comments = window.prompt("Review comments") || "";
+    await apiRequest<AssignmentSubmission>(`/assignments/submissions/${encodeURIComponent(submissionId)}/review`, token, {
+      method: "PATCH",
+      body: JSON.stringify({ status, comments }),
+    });
+    if (selectedAssignmentId) {
+      setAssignmentSubmissions(await apiRequest<AssignmentSubmission[]>(`/assignments/${encodeURIComponent(selectedAssignmentId)}/submissions`, token));
+    }
+  }, "Assignment review saved.");
+
+  const approvalAction = (action: "submit" | "approve" | "reject") => run(async () => {
+    if (!selectedCourseId) return;
+    const saved = await apiRequest<Course>(`/courses/${encodeURIComponent(selectedCourseId)}/approval`, token, {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    });
+    setSelectedCourse(saved);
+    setCourseForm(getCourseForm(saved));
+    setCourseList((current) => current.map((course) => (course.id === saved.id ? saved : course)));
+  }, action === "submit" ? "Course submitted for approval." : `Course ${action}d.`);
 
   const renderMultiSelect = (
     label: string,
@@ -596,8 +711,12 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
               <div className="flex gap-2 overflow-x-auto border-b border-slate-200 pb-2" role="tablist" aria-label="Course editor sections">
                 {[
                   ["details", "Details"],
+                  ["modules", "Modules"],
                   ["lessons", "Lessons"],
+                  ["resources", "Resources"],
+                  ["assignments", "Assignments"],
                   ["quiz", "Quiz"],
+                  ["governance", "Governance"],
                 ].map(([tab, label]) => (
                   <button
                     key={tab}
@@ -699,6 +818,10 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-600">Add lesson</h3>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <input value={newLessonForm.title} onChange={(event) => setNewLessonForm({ ...newLessonForm, title: event.target.value })} required placeholder="Lesson title" className={fieldClass()} />
+                        <select value={newLessonForm.moduleId} onChange={(event) => setNewLessonForm({ ...newLessonForm, moduleId: event.target.value })} className={fieldClass()}>
+                          <option value="">No module</option>
+                          {modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}
+                        </select>
                         <input value={newLessonForm.order} onChange={(event) => setNewLessonForm({ ...newLessonForm, order: Number(event.target.value) })} required type="number" min="0" className={fieldClass()} />
                         <input value={newLessonForm.duration} onChange={(event) => setNewLessonForm({ ...newLessonForm, duration: Number(event.target.value) })} type="number" min="0" placeholder="Duration seconds" className={fieldClass()} />
                       </div>
@@ -717,6 +840,10 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-600">Edit selected lesson</h3>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <input value={lessonForm.title} onChange={(event) => setLessonForm({ ...lessonForm, title: event.target.value })} disabled={!selectedLessonId} placeholder="Lesson title" className={fieldClass()} />
+                        <select value={lessonForm.moduleId} onChange={(event) => setLessonForm({ ...lessonForm, moduleId: event.target.value })} disabled={!selectedLessonId} className={fieldClass()}>
+                          <option value="">No module</option>
+                          {modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}
+                        </select>
                         <input value={lessonForm.order} onChange={(event) => setLessonForm({ ...lessonForm, order: Number(event.target.value) })} disabled={!selectedLessonId} type="number" min="0" className={fieldClass()} />
                         <input value={lessonForm.videoUrl} onChange={(event) => setLessonForm({ ...lessonForm, videoUrl: event.target.value })} disabled={!selectedLessonId} placeholder="/uploads/videos/example.mp4 or https://youtu.be/..." className={fieldClass()} />
                         <input value={lessonForm.duration} onChange={(event) => setLessonForm({ ...lessonForm, duration: Number(event.target.value) })} disabled={!selectedLessonId} type="number" min="0" className={fieldClass()} />
@@ -742,6 +869,96 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
                 </div>
               )}
 
+              {activeTab === "modules" && (
+                <div className="space-y-4">
+                  <form onSubmit={(event) => { event.preventDefault(); createModule(); }} className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                    <input value={moduleTitle} onChange={(event) => setModuleTitle(event.target.value)} placeholder="Module title" className={fieldClass()} />
+                    <button disabled={isPending || !selectedCourseId} className="btn-primary">Add module</button>
+                  </form>
+                  <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
+                    {modules.length === 0 ? <p className="p-3 text-sm font-semibold text-slate-500">No modules yet.</p> : modules.map((module) => (
+                      <div key={module.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+                        <span className="font-black text-slate-950">{module.order}. {module.title}</span>
+                        <span className="text-xs font-bold text-slate-500">{module.isPublished ? "Published" : "Draft"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "resources" && (
+                <div className="space-y-4">
+                  <form onSubmit={(event) => { event.preventDefault(); createResource(); }} className="grid gap-3 sm:grid-cols-3">
+                    <input value={resourceForm.title} onChange={(event) => setResourceForm({ ...resourceForm, title: event.target.value })} placeholder="Resource title" className={fieldClass()} />
+                    <input value={resourceForm.url} onChange={(event) => setResourceForm({ ...resourceForm, url: event.target.value })} placeholder="Resource URL" className={fieldClass()} />
+                    <button disabled={isPending || !selectedCourseId} className="btn-primary">Add resource</button>
+                  </form>
+                  <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
+                    {resources.length === 0 ? <p className="p-3 text-sm font-semibold text-slate-500">No resources yet.</p> : resources.map((resource) => (
+                      <div key={resource.id} className="p-3 text-sm">
+                        <p className="font-black text-slate-950">{resource.title}</p>
+                        <p className="truncate text-xs font-semibold text-slate-500">{resource.url}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "assignments" && (
+                <div className="space-y-4">
+                  <form onSubmit={(event) => { event.preventDefault(); createAssignment(); }} className="space-y-3">
+                    <input value={assignmentForm.title} onChange={(event) => setAssignmentForm({ ...assignmentForm, title: event.target.value })} placeholder="Assignment title" className={fieldClass()} />
+                    <textarea value={assignmentForm.instructions} onChange={(event) => setAssignmentForm({ ...assignmentForm, instructions: event.target.value })} placeholder="Instructions" rows={3} className={fieldClass()} />
+                    <button disabled={isPending || !selectedCourseId} className="btn-primary">Add assignment</button>
+                  </form>
+                  <div className="divide-y divide-slate-200 rounded-md border border-slate-200">
+                    {assignments.length === 0 ? <p className="p-3 text-sm font-semibold text-slate-500">No assignments yet.</p> : assignments.map((assignment) => (
+                      <div key={assignment.id} className="flex flex-col gap-3 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                        <button type="button" onClick={() => setSelectedAssignmentId(assignment.id)} className="text-left">
+                          <p className="font-black text-slate-950">{assignment.title}</p>
+                          <p className="text-xs font-semibold text-slate-500">{assignment.status}</p>
+                        </button>
+                        <button type="button" onClick={() => loadAssignmentSubmissions(assignment.id)} className="btn-secondary">Load submissions</button>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedAssignmentId && (
+                    <div className="rounded-md border border-slate-200 p-3">
+                      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm font-black text-slate-950">Trainer review</p>
+                        <button type="button" onClick={() => loadAssignmentSubmissions()} disabled={isPending} className="btn-secondary">Refresh submissions</button>
+                      </div>
+                      <div className="divide-y divide-slate-200">
+                        {assignmentSubmissions.length === 0 ? <p className="py-3 text-sm font-semibold text-slate-500">No submissions loaded.</p> : assignmentSubmissions.map((submission) => (
+                          <div key={submission.id} className="grid gap-3 py-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+                            <div className="min-w-0">
+                              <p className="text-sm font-black text-slate-950">{submission.learnerName || submission.learnerEmail || submission.learnerId}</p>
+                              <p className="text-xs font-semibold text-slate-500">{submission.status.replace(/_/g, " ")} / {submission.updatedAt ? new Date(submission.updatedAt).toLocaleString() : ""}</p>
+                              {submission.text && <p className="mt-2 text-sm font-semibold text-slate-700">{submission.text}</p>}
+                              {submission.linkUrl && <a href={submission.linkUrl} target="_blank" rel="noreferrer" className="mt-2 block truncate text-sm font-bold text-teal-700">{submission.linkUrl}</a>}
+                              {submission.fileName && (
+                                <a
+                                  href={`/api/admin/assignments/submissions/${encodeURIComponent(submission.id)}/file`}
+                                  className="mt-1 block text-xs font-bold text-teal-700"
+                                >
+                                  {submission.fileName}
+                                </a>
+                              )}
+                              {submission.reviewComments && <p className="mt-2 rounded-md bg-amber-50 p-2 text-xs font-bold text-amber-900">{submission.reviewComments}</p>}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button type="button" onClick={() => reviewAssignmentSubmission(submission.id, "approved")} className="btn-primary">Approve</button>
+                              <button type="button" onClick={() => reviewAssignmentSubmission(submission.id, "needs_revision")} className="btn-secondary">Revision</button>
+                              <button type="button" onClick={() => reviewAssignmentSubmission(submission.id, "rejected")} className="btn-danger">Reject</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeTab === "quiz" && (
                 <div className="space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -749,11 +966,38 @@ export default function ContentManagerPanel({ token, courses }: ContentManagerPa
                       Passing score
                       <input value={courseForm.quizPassingScore} onChange={(event) => updateCourseForm({ quizPassingScore: Number(event.target.value) })} type="number" min="0" max="100" className={fieldClass("mt-2 max-w-[9rem]")} />
                     </label>
+                    <label className="block text-sm font-bold text-slate-700">
+                      Max attempts
+                      <input value={courseForm.quizMaxAttempts} onChange={(event) => updateCourseForm({ quizMaxAttempts: Number(event.target.value) })} type="number" min="1" max="25" className={fieldClass("mt-2 max-w-[9rem]")} />
+                    </label>
                     <button type="button" onClick={saveCourse} disabled={isPending || !selectedCourseId} className="btn-primary">
                       Save quiz
                     </button>
                   </div>
                   <QuizAuthoringEditor questions={quizQuestions} onChange={setQuizQuestions} disabled={isPending || !selectedCourseId} />
+                </div>
+              )}
+
+              {activeTab === "governance" && (
+                <div className="space-y-5">
+                  <div className="rounded-md bg-slate-50 p-4">
+                    <p className="text-sm font-black text-slate-950">Status</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-600">Publish: {courseForm.publishStatus} / Approval: {courseForm.approvalStatus}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => approvalAction("submit")} disabled={isPending || !selectedCourseId} className="btn-secondary">Submit for approval</button>
+                      <button type="button" onClick={() => approvalAction("approve")} disabled={isPending || !selectedCourseId} className="btn-primary">Approve and publish</button>
+                      <button type="button" onClick={() => approvalAction("reject")} disabled={isPending || !selectedCourseId} className="btn-danger">Reject</button>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                      <input checked={courseForm.requiresFeedback} onChange={(event) => updateCourseForm({ requiresFeedback: event.target.checked })} type="checkbox" /> Require feedback
+                    </label>
+                    <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                      <input checked={courseForm.requiresCertificateApproval} onChange={(event) => updateCourseForm({ requiresCertificateApproval: event.target.checked })} type="checkbox" /> Require certificate approval
+                    </label>
+                  </div>
+                  <button type="button" onClick={saveCourse} disabled={isPending || !selectedCourseId} className="btn-primary">Save governance settings</button>
                 </div>
               )}
             </div>

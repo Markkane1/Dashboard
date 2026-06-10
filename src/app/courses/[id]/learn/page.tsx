@@ -1,6 +1,7 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
+import { fetchCourseAssignments } from "@/infrastructure/api/assignments";
 import { fetchCourseLessons } from "@/infrastructure/api/lessons";
 import CoursePlayer from "@/features/lessons/components/CoursePlayer";
 import { findUserByEmail } from "@/features/users/data/userDb";
@@ -9,22 +10,25 @@ import { logger } from '@/shared/logger';
 import { PageShell } from "@/shared/components/ui/DesignSystem";
 
 interface LearnPageProps {
-  params: {
+  params: Promise<{
     id: string; // The courseId
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     lesson?: string; // Optional active lessonId
-  };
+  }>;
 }
 
 export default async function LearnPage({ params, searchParams }: LearnPageProps) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+
   // 1. Authenticate user securely on the server
   const session = await auth();
   if (!session || !session.user || !session.user.email) {
     redirect("/auth/login");
   }
 
-  const courseId = params.id;
+  const courseId = resolvedParams.id;
   const dbUser = await findUserByEmail(session.user.email);
   if (!dbUser || !dbUser.enrolledCourses?.includes(courseId)) {
     redirect(`/courses/${courseId}?error=not-enrolled`);
@@ -37,8 +41,12 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
 
   // 3. Fetch all lessons belonging to this course
   let lessons = [];
+  let assignments = [];
   try {
-    lessons = await fetchCourseLessons(courseId, token);
+    [lessons, assignments] = await Promise.all([
+      fetchCourseLessons(courseId, token),
+      fetchCourseAssignments(courseId, token),
+    ]);
   } catch (error) {
     logger.error("Failed to load course lessons for player UI:", error);
     // If the error is 403 (unauthorized/not enrolled), we can redirect to course detail
@@ -52,8 +60,8 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
 
   // 4. Determine the active lesson
   // A. Use search parameter if present and valid
-  let activeLesson = searchParams.lesson
-    ? lessons.find((l) => l._id === searchParams.lesson)
+  let activeLesson = resolvedSearchParams.lesson
+    ? lessons.find((l) => l._id === resolvedSearchParams.lesson)
     : undefined;
 
   // B. Fallback 1: First incomplete lesson (progress.completed is false)
@@ -78,6 +86,7 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
       <CoursePlayer
         courseId={courseId}
         lessons={lessons}
+        assignments={assignments}
         initialLesson={activeLesson}
       />
     </PageShell>

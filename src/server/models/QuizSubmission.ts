@@ -20,6 +20,26 @@ const quizSubmissionSchema = new mongoose.Schema(
         selectedOptionIndex: { type: Number, required: true }
       }
     ],
+    questionSnapshot: [
+      {
+        id: { type: String, required: true },
+        prompt: { type: String, required: true },
+        options: [{ type: String, required: true }],
+        correctAnswerIndex: { type: Number, required: true },
+        explanation: { type: String }
+      }
+    ],
+    attemptNumber: {
+      type: Number,
+      required: true,
+      default: 1
+    },
+    status: {
+      type: String,
+      enum: ['submitted', 'passed', 'failed'],
+      default: 'submitted',
+      index: true
+    },
     score: {
       type: Number,
       required: true
@@ -43,6 +63,7 @@ const quizSubmissionSchema = new mongoose.Schema(
 );
 
 quizSubmissionSchema.index({ userId: 1, courseId: 1, createdAt: -1 });
+quizSubmissionSchema.index({ userId: 1, courseId: 1, attemptNumber: -1 });
 
 const QuizSubmission =
   mongoose.models.QuizSubmission || mongoose.model('QuizSubmission', quizSubmissionSchema);

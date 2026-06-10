@@ -28,6 +28,12 @@ export const PERMISSIONS = {
   MANAGE_PASSWORD_RESETS: "password-resets:manage",
   MANAGE_TAXONOMIES: "taxonomies:manage",
   ENROLL_COURSE: "courses:enroll",
+  APPROVE_COURSES: "courses:approve",
+  MANAGE_COHORTS: "cohorts:manage",
+  APPROVE_CERTIFICATES: "certificates:approve",
+  REVOKE_CERTIFICATES: "certificates:revoke",
+  EXPORT_REPORTS: "reports:export",
+  VIEW_AUDIT_LOGS: "audit-logs:view",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -118,9 +124,51 @@ export const PERMISSION_CATALOG: PermissionCatalogItem[] = [
   {
     id: PERMISSIONS.ENROLL_COURSE,
     label: "Enroll in courses",
-    description: "Enroll, unenroll, and complete learner courses.",
+    description: "Enroll and unenroll learner courses.",
     scope: "action",
     module: "Courses",
+  },
+  {
+    id: PERMISSIONS.APPROVE_COURSES,
+    label: "Approve courses",
+    description: "Approve or reject course publishing requests.",
+    scope: "action",
+    module: "Courses",
+  },
+  {
+    id: PERMISSIONS.MANAGE_COHORTS,
+    label: "Manage cohorts",
+    description: "Create training batches, assign trainers, and manage learner rosters.",
+    scope: "module",
+    module: "Cohorts",
+  },
+  {
+    id: PERMISSIONS.APPROVE_CERTIFICATES,
+    label: "Approve certificates",
+    description: "Approve official certificate issuance after course completion.",
+    scope: "action",
+    module: "Certificates",
+  },
+  {
+    id: PERMISSIONS.REVOKE_CERTIFICATES,
+    label: "Revoke certificates",
+    description: "Revoke issued certificates with an auditable reason.",
+    scope: "action",
+    module: "Certificates",
+  },
+  {
+    id: PERMISSIONS.EXPORT_REPORTS,
+    label: "Export reports",
+    description: "Download compliance reports as Excel-compatible CSV or PDF.",
+    scope: "action",
+    module: "Reports",
+  },
+  {
+    id: PERMISSIONS.VIEW_AUDIT_LOGS,
+    label: "View audit logs",
+    description: "Inspect security and compliance audit trails.",
+    scope: "module",
+    module: "Audit",
   },
 ];
 

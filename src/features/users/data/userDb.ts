@@ -14,8 +14,10 @@ export interface StoredUser {
   enrolledCourses?: string[];
   completedCourses?: string[];
   emailVerified?: boolean;
+  status?: "active" | "pending" | "disabled";
   emailVerificationTokenHash?: string;
   emailVerificationExpires?: string;
+  emailVerificationToken?: string;
   createdAt: string;
 }
 
@@ -42,7 +44,6 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
     return null;
   }
 }
-
 export async function findUserById(id: string): Promise<StoredUser | null> {
   try {
     const res = await fetch(`${getBaseUrl()}/api/users/${encodeURIComponent(id)}`, {
@@ -88,11 +89,14 @@ export async function updateUser(id: string, updatedFields: Partial<StoredUser>)
   }
 }
 
-export async function saveUser(user: StoredUser): Promise<StoredUser> {
+export async function saveUser(user: StoredUser): Promise<StoredUser & { emailVerificationToken?: string }> {
   try {
     const res = await fetch(`${getBaseUrl()}/api/users`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getServerAuthHeader()),
+      },
       body: JSON.stringify(user),
     });
     if (!res.ok) {
@@ -178,27 +182,76 @@ export async function enrollInCourseApi(userId: string, email: string, courseId:
 export async function unenrollFromCourseApi(userId: string, email: string, courseId: string): Promise<boolean> {
   try {
     const res = await fetch(`${getBaseUrl()}/api/users/unenroll`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(await getStudentAuthHeader(userId, email)) },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await getStudentAuthHeader(userId, email)) },
       body: JSON.stringify({ courseId }),
     });
     return res.ok;
   } catch (error) {
-    logger.error("Error in unenrollFromCourseApi:", error);
+    logger.error('Error in unenrollFromCourseApi:', error);
     return false;
   }
 }
 
-export async function completeCourseApi(userId: string, email: string, courseId: string): Promise<boolean> {
+export async function resendVerificationEmail(email: string): Promise<boolean> {
   try {
-    const res = await fetch(`${getBaseUrl()}/api/users/complete`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(await getStudentAuthHeader(userId, email)) },
-      body: JSON.stringify({ courseId }),
+    const res = await fetch(`${getBaseUrl()}/api/users/resend-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
     });
     return res.ok;
   } catch (error) {
-    logger.error("Error in completeCourseApi:", error);
+    logger.error('Error in resendVerificationEmail:', error);
     return false;
+  }
+}
+
+export async function requestEmailChange(userId: string, email: string, newEmail: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/email-change/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await getStudentAuthHeader(userId, email)) },
+      body: JSON.stringify({ newEmail }),
+    });
+    if (res.ok) return { ok: true };
+    const data = await res.json().catch(() => ({})) as { error?: string };
+    return { ok: false, error: data.error || 'Request failed.' };
+  } catch (error) {
+    logger.error('Error in requestEmailChange:', error);
+    return { ok: false, error: 'Network error.' };
+  }
+}
+
+export async function confirmEmailChange(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/email-change/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    return res.ok;
+  } catch (error) {
+    logger.error('Error in confirmEmailChange:', error);
+    return false;
+  }
+}
+
+export async function adminPasswordReset(
+  targetUserId?: string,
+  targetEmail?: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/api/users/admin-password-reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await getServerAuthHeader()) },
+      body: JSON.stringify({ userId: targetUserId, email: targetEmail }),
+    });
+    if (res.ok) return { ok: true };
+    const data = await res.json().catch(() => ({})) as { error?: string };
+    return { ok: false, error: data.error || 'Request failed.' };
+  } catch (error) {
+    logger.error('Error in adminPasswordReset:', error);
+    return { ok: false, error: 'Network error.' };
   }
 }

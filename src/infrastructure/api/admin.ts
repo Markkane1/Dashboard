@@ -102,7 +102,7 @@ export async function fetchManageableCourses(
   token: string,
   params: CoursePageParams = { limit: 50 }
 ): Promise<Course[]> {
-  const url = new URL(`${getBaseUrl()}/api/courses`);
+  const url = new URL(`${getBaseUrl()}/api/courses/manage`);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== "") {
       url.searchParams.set(key, String(value));

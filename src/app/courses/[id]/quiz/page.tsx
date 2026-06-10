@@ -8,18 +8,19 @@ import QuizForm from "@/features/lessons/components/QuizForm";
 import { Link } from "@/shared/navigation";
 
 interface QuizPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function QuizPage({ params }: QuizPageProps) {
+  const resolvedParams = await params;
   const session = await auth();
   if (!session?.user?.email) {
     redirect("/auth/login");
   }
 
-  const courseId = params.id;
+  const courseId = resolvedParams.id;
   const dbUser = await findUserByEmail(session.user.email);
   if (!dbUser || !dbUser.enrolledCourses?.includes(courseId)) {
     redirect(`/courses/${courseId}?error=not-enrolled`);

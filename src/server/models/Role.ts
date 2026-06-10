@@ -77,13 +77,21 @@ async function ensureDefaultRoles() {
     }
   ];
 
-  await Promise.all(defaults.map((role) =>
-    Role.updateOne(
-      { key: role.key },
-      { $setOnInsert: role },
-      { upsert: true, runValidators: true }
-    )
-  ));
+  await Promise.all(defaults.map(async (role) => {
+    const existingRole = await Role.findOne({ key: role.key });
+    if (existingRole) {
+      return;
+    }
+
+    try {
+      await Role.create(role);
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        return;
+      }
+      throw error;
+    }
+  }));
 }
 
 module.exports = Role;

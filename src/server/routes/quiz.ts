@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const auth = require('../middleware/auth');
-const { Course, Enrollment, Lesson, Progress, QuizSubmission } = require('../models');
+const { CertificateApproval, CertificateIssuance, Course, Lesson, Progress, QuizSubmission, User } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
+const { markExistingEnrollmentCompleted } = require('../services/courseCompletion');
+const { writeAuditLog } = require('../services/audit');
+const { generateCertificateSerial } = require('../services/certificateSerial');
 const { logger } = require('../logger');
 import type { Request, Response } from 'express';
 import type { QuizQuestion } from '../../shared/types';
@@ -77,6 +81,33 @@ function serializeQuestion(question: QuizQuestion): QuizQuestion {
   };
 }
 
+function shuffled<T>(items: T[]): T[] {
+  return [...items]
+    .map((item) => ({ item, sort: Math.random() }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ item }) => item);
+}
+
+function buildAttemptQuestions(course: any) {
+  const questions = getQuizQuestions(course);
+  return course.quizRandomizeQuestions === false ? questions : shuffled(questions);
+}
+
+async function getAttemptState(userId: unknown, courseId: string, course: any) {
+  const [attemptCount, latestPassed] = await Promise.all([
+    QuizSubmission.countDocuments({ userId, courseId }),
+    QuizSubmission.findOne({ userId, courseId, passed: true }).sort({ createdAt: -1 })
+  ]);
+  const maxAttempts = Number(course.quizMaxAttempts || 3);
+
+  return {
+    attemptCount,
+    maxAttempts,
+    attemptsRemaining: Math.max(maxAttempts - attemptCount, 0),
+    latestPassed
+  };
+}
+
 async function getCourseAccessState(courseId: string, user: NonNullable<Request['user']>) {
   if (!isValidObjectId(courseId)) {
     return { status: 404, error: "Course not found." };
@@ -131,7 +162,11 @@ router.get('/:courseId', auth, async (req: AuthenticatedRequest, res: Response) 
       });
     }
 
-    const questions = getQuizQuestions(access.course);
+    const attemptState = await getAttemptState(req.user.id, courseId, access.course);
+    if (!attemptState.latestPassed && attemptState.attemptsRemaining <= 0) {
+      return res.status(403).json({ error: "Maximum quiz attempts reached.", attemptsRemaining: 0 });
+    }
+    const questions = buildAttemptQuestions(access.course);
     const latestSubmission = await QuizSubmission.findOne({
       userId: req.user.id,
       courseId
@@ -141,6 +176,8 @@ router.get('/:courseId', auth, async (req: AuthenticatedRequest, res: Response) 
       courseId: access.course._id.toString(),
       courseTitle: access.course.title,
       passingScore: access.course.quizPassingScore || 70,
+      maxAttempts: attemptState.maxAttempts,
+      attemptsRemaining: attemptState.latestPassed ? 0 : attemptState.attemptsRemaining,
       questions: questions.map(serializeQuestion),
       latestSubmission
         : latestSubmission
@@ -148,6 +185,8 @@ router.get('/:courseId', auth, async (req: AuthenticatedRequest, res: Response) 
               score: latestSubmission.score,
               totalQuestions: latestSubmission.totalQuestions,
               passed: latestSubmission.passed,
+              attemptNumber: latestSubmission.attemptNumber || 1,
+              attemptsRemaining: attemptState.latestPassed ? 0 : attemptState.attemptsRemaining,
               submittedAt: latestSubmission.createdAt
             }
           : null
@@ -171,7 +210,11 @@ router.post('/:courseId/submit', auth, async (req: AuthenticatedRequest, res: Re
     }
 
     const submittedAnswers = Array.isArray(req.body.answers) ? req.body.answers : [];
-    const questions = getQuizQuestions(access.course);
+    const attemptState = await getAttemptState(req.user.id, courseId, access.course);
+    if (!attemptState.latestPassed && attemptState.attemptsRemaining <= 0) {
+      return res.status(403).json({ error: "Maximum quiz attempts reached.", attemptsRemaining: 0 });
+    }
+    const questions = buildAttemptQuestions(access.course);
     const answerMap = new Map(
       submittedAnswers.map((answer: any) => [answer.questionId, answer.selectedOptionIndex])
     );
@@ -196,16 +239,66 @@ router.post('/:courseId/submit', auth, async (req: AuthenticatedRequest, res: Re
       userId: req.user.id,
       courseId,
       answers: submittedAnswers,
+      questionSnapshot: questions,
+      attemptNumber: attemptState.attemptCount + 1,
       score,
       totalQuestions: questions.length,
-      passed
+      passed,
+      status: passed ? 'passed' : 'failed'
     });
 
     if (passed) {
-      await Enrollment.updateOne(
-        { userId: req.user.id, courseId },
-        { $set: { completed: true, completedAt: new Date() } }
-      );
+      const completion = await markExistingEnrollmentCompleted({ userId: req.user.id, courseId });
+      if (!completion.allowed) {
+        return res.status(400).json({ error: completion.error || 'Course completion rules were not met.' });
+      }
+      const learner = await User.findById(req.user.id).select('name');
+      const issuedAt = new Date();
+      const existingIssuance = await CertificateIssuance.findOne({ userId: req.user.id, courseId });
+      const issuance = existingIssuance || await CertificateIssuance.create({
+        certificateId: crypto.randomUUID(),
+        serialNumber: await generateCertificateSerial(access.course, issuedAt),
+        userId: req.user.id,
+        courseId,
+        recipientName: learner?.name || req.user.name || req.user.email || 'Learner',
+        courseTitle: access.course.title,
+        issuedAt,
+        approvalStatus: access.course.requiresCertificateApproval === false ? 'approved' : 'pending',
+        approvedAt: access.course.requiresCertificateApproval === false ? issuedAt : undefined
+      });
+      if (issuance.approvalStatus === 'pending') {
+        const approval = await CertificateApproval.findOne({ certificateIssuanceId: issuance._id });
+        if (!approval) {
+          await CertificateApproval.create({
+              userId: req.user.id,
+              courseId,
+              status: 'pending',
+              requestedBy: req.user.id
+          });
+        }
+      }
+      if (!existingIssuance) {
+        await writeAuditLog(req, {
+          action: 'certificate.generate',
+          entityType: 'CertificateIssuance',
+          entityId: issuance._id,
+          details: {
+            result: 'success',
+            oldValue: null,
+            newValue: {
+              certificateId: issuance.certificateId,
+              serialNumber: issuance.serialNumber,
+              userId: req.user.id,
+              courseId,
+              approvalStatus: issuance.approvalStatus,
+              issuedAt: issuance.issuedAt
+            }
+          }
+        });
+      }
+      await writeAuditLog(req, { action: 'quiz.pass', entityType: 'QuizSubmission', entityId: submission._id, details: { courseId, attemptNumber: submission.attemptNumber } });
+    } else {
+      await writeAuditLog(req, { action: 'quiz.fail', entityType: 'QuizSubmission', entityId: submission._id, details: { courseId, attemptNumber: submission.attemptNumber } });
     }
 
     res.json({
@@ -214,7 +307,9 @@ router.post('/:courseId/submit', auth, async (req: AuthenticatedRequest, res: Re
       passingScore,
       totalQuestions: questions.length,
       correctCount,
-      passed
+      passed,
+      attemptNumber: submission.attemptNumber,
+      attemptsRemaining: passed ? 0 : Math.max(attemptState.maxAttempts - submission.attemptNumber, 0)
     });
   } catch (error) {
     logger.error({ err: error }, 'Error submitting course quiz');

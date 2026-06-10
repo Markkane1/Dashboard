@@ -3,14 +3,13 @@
 import React, { useState } from "react";
 import { logger } from '@/shared/logger';
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { ConfirmDialog, StatusBanner } from "@/shared/components/ui/DesignSystem";
 
 interface ActionProps {
   courseId: string;
 }
 
-async function enrollmentAction(action: "complete" | "unenroll", courseId: string) {
+async function enrollmentAction(action: "unenroll", courseId: string) {
   const res = await fetch(`/api/enrollments/${action}`, {
     method: "POST",
     headers: {
@@ -23,41 +22,6 @@ async function enrollmentAction(action: "complete" | "unenroll", courseId: strin
     throw new Error(body.error || `Request failed with status ${res.status}`);
   }
   return body;
-}
-
-export function MarkCompleteButton({ courseId }: ActionProps) {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-
-  const handleComplete = async () => {
-    setIsLoading(true);
-    setErrorMessage("");
-    try {
-      await enrollmentAction("complete", courseId);
-      router.refresh();
-    } catch (error) {
-      logger.error("Complete course error:", error);
-      setErrorMessage(error instanceof Error ? error.message : "Failed to mark course as completed.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <>
-      {errorMessage ? (
-        <StatusBanner variant="error" title={errorMessage} className="col-span-full py-2 text-xs" />
-      ) : null}
-      <button
-        onClick={handleComplete}
-        disabled={isLoading}
-        className="btn-primary flex-1 px-3 py-2 text-xs"
-      >
-        {isLoading ? "Completing..." : "Mark complete"}
-      </button>
-    </>
-  );
 }
 
 export function UnenrollButton({ courseId }: ActionProps) {
@@ -123,21 +87,16 @@ export function AuthenticatedDownloadButton({
   fallbackFilename: string;
   className?: string;
 }) {
-  const { data: session } = useSession();
   const [isDownloading, setIsDownloading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleDownload = async () => {
-    if (!session?.apiAccessToken || isDownloading) return;
+    if (isDownloading) return;
 
     setIsDownloading(true);
     setErrorMessage("");
     try {
-      const res = await fetch(downloadUrl, {
-        headers: {
-          Authorization: `Bearer ${session.apiAccessToken}`,
-        },
-      });
+      const res = await fetch(downloadUrl);
       if (!res.ok) {
         throw new Error(`Download failed with status ${res.status}`);
       }
@@ -165,7 +124,7 @@ export function AuthenticatedDownloadButton({
       <button
         type="button"
         onClick={handleDownload}
-        disabled={isDownloading || !session?.apiAccessToken}
+        disabled={isDownloading}
         className={className || "btn-primary mt-3 w-full py-2 text-xs"}
       >
         {isDownloading ? "Downloading..." : label}

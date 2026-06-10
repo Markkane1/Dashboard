@@ -18,8 +18,9 @@ function getForwardedHeaders(req: NextRequest) {
   return headers;
 }
 
-export async function GET(req: NextRequest, { params }: { params: { certificateId: string } }) {
-  const backendUrl = buildBackendUrl(`/api/certificates/verify/${encodeURIComponent(params.certificateId)}`);
+export async function GET(req: NextRequest, { params }: { params: Promise<{ certificateId: string }> }) {
+  const resolvedParams = await params;
+  const backendUrl = buildBackendUrl(`/api/certificates/verify/${encodeURIComponent(resolvedParams.certificateId)}`);
   const response = await fetch(backendUrl, {
     headers: getForwardedHeaders(req),
     cache: "no-store"

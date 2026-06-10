@@ -8,6 +8,11 @@ const lessonSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    moduleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CourseModule',
+      index: true
+    },
     title: {
       type: String,
       required: true,
@@ -34,6 +39,18 @@ const lessonSchema = new mongoose.Schema(
         url: { type: String }
       }
     ],
+    resourceIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CourseResource'
+      }
+    ],
+    assignmentIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Assignment'
+      }
+    ],
     transcript: {
       type: String
     },
@@ -53,6 +70,7 @@ const lessonSchema = new mongoose.Schema(
 
 // Add a compound index on { courseId: 1, order: 1 }
 lessonSchema.index({ courseId: 1, order: 1 });
+lessonSchema.index({ courseId: 1, moduleId: 1, order: 1 });
 
 // Add a compound index on { courseId: 1, isPublished: 1, order: 1 } for published sorted queries
 lessonSchema.index({ courseId: 1, isPublished: 1, order: 1 });

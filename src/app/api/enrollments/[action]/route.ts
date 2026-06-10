@@ -5,7 +5,6 @@ export const runtime = "nodejs";
 
 const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const ACTIONS: Record<string, string> = {
-  complete: "/api/users/complete",
   enroll: "/api/users/enroll",
   unenroll: "/api/users/unenroll",
 };
@@ -14,9 +13,11 @@ function backendUrl(path: string) {
   return `${BACKEND_URL.replace(/\/$/, "")}${path}`;
 }
 
-export async function POST(req: NextRequest, { params }: { params: { action: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ action: string }> }) {
   const session = await auth();
-  const backendPath = ACTIONS[params.action];
+  const resolvedParams = await params;
+  const backendPath = ACTIONS[resolvedParams.action];
+
   if (!session?.apiAccessToken) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }

@@ -10,6 +10,13 @@ const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/roles');
 const { logger } = require('../logger');
+const { getMissingPrerequisiteIds, isCoursePublishable } = require('../services/courseAccessRules');
+const { writeAuditLog } = require('../services/audit');
+const { markExistingEnrollmentCompleted } = require('../services/courseCompletion');
+import { sendEmail } from '../../shared/email/sendEmail';
+import { buildVerificationEmail } from '../../shared/email/templates/verification';
+import { buildEmailChangeEmail } from '../../shared/email/templates/emailChange';
+import { buildAdminResetEmail } from '../../shared/email/templates/adminReset';
 const {
   isAssignableUserRole,
   hasPermission,
@@ -55,6 +62,7 @@ async function serializeUser(user: any): Promise<SharedUser & Record<string, unk
     enrolledCourses,
     completedCourses,
     emailVerified: plain.emailVerified === true,
+    status: plain.status || 'active',
     createdAt: plain.createdAt
   };
 }
@@ -204,6 +212,14 @@ router.post('/authenticate', async (req: Request, res: Response) => {
       return res.status(403).json({ error: "Please verify your email address before signing in." });
     }
 
+    if (user.status === "disabled") {
+      return res.status(403).json({ error: "Your account has been disabled." });
+    }
+
+    if (user.status === "pending") {
+      return res.status(403).json({ error: "Your account is pending administrator approval." });
+    }
+
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
@@ -265,6 +281,7 @@ router.post('/password-reset/request', auth, requirePermission(PERMISSIONS.MANAG
       return res.status(400).json({ error: "email, tokenHash, and expiresAt are required" });
     }
 
+    const existingUser = await User.findOne({ email }).select('_id email passwordResetExpires');
     await User.updateOne(
       { email },
       {
@@ -275,6 +292,17 @@ router.post('/password-reset/request', auth, requirePermission(PERMISSIONS.MANAG
       }
     );
 
+    await writeAuditLog(req, {
+      action: 'user.password-reset-issued',
+      entityType: 'User',
+      entityId: existingUser?._id || email,
+      details: {
+        result: 'success',
+        targetEmail: email,
+        oldValue: { passwordResetExpires: existingUser?.passwordResetExpires || null },
+        newValue: { passwordResetIssued: true, passwordResetExpires: expiresAt }
+      }
+    });
     res.json({ success: true });
   } catch (error) {
     logger.error({ err: error }, 'Error creating password reset token');
@@ -330,23 +358,24 @@ router.post('/enroll', auth, async (req: AuthenticatedRequest, res: Response) =>
     if (!course) {
       return res.status(404).json({ error: "Course not found" });
     }
+    if (!isCoursePublishable(course)) {
+      return res.status(403).json({ error: "Course is not approved for enrollment." });
+    }
+    const missingPrerequisiteIds = await getMissingPrerequisiteIds(userId, course);
+    if (missingPrerequisiteIds.length > 0) {
+      return res.status(403).json({
+        error: "Complete prerequisite courses before enrollment.",
+        missingPrerequisiteIds
+      });
+    }
 
-    const existingEnrollment = await Enrollment.findOne({ userId, courseId }).select('completed');
-    const result = await Enrollment.findOneAndUpdate(
-      { userId, courseId },
-      { $setOnInsert: { userId, courseId, completed: false } },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-        includeResultMetadata: true
-      }
-    );
-
-    if (!result.lastErrorObject?.updatedExisting) {
+    let enrollment = await Enrollment.findOne({ userId, courseId }).select('completed');
+    const createdEnrollment = !enrollment;
+    if (!enrollment) {
+      enrollment = await Enrollment.create({ userId, courseId, completed: false });
       await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
     }
-    if (!existingEnrollment) {
+    if (createdEnrollment) {
       await Notification.create({
         userId,
         type: 'course',
@@ -355,6 +384,12 @@ router.post('/enroll', auth, async (req: AuthenticatedRequest, res: Response) =>
         linkUrl: `/courses/${course._id}`
       });
     }
+    await writeAuditLog(req, {
+      action: createdEnrollment ? 'enrollment.create' : 'enrollment.exists',
+      entityType: 'Enrollment',
+      entityId: enrollment._id,
+      details: { courseId, userId, created: createdEnrollment }
+    });
 
     const user = await User.findById(userId);
     res.json(await serializeUser(user));
@@ -382,6 +417,7 @@ router.post('/unenroll', auth, async (req: AuthenticatedRequest, res: Response) 
         { _id: courseId, enrolledCount: { $gt: 0 } },
         { $inc: { enrolledCount: -1 } }
       );
+      await writeAuditLog(req, { action: 'enrollment.delete', entityType: 'Enrollment', entityId: deleted._id, details: { courseId, userId } });
     }
 
     const user = await User.findById(userId);
@@ -393,37 +429,45 @@ router.post('/unenroll', auth, async (req: AuthenticatedRequest, res: Response) 
 });
 
 // POST /api/users/complete
-// Mark a course as completed for the authenticated user
+// Mark a course as completed (restricted to admins, instructors, or internal service)
 router.post('/complete', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { courseId } = req.body;
+    const isService = req.user.id === 'internal-service';
+    const isAdmin = hasPermission(req.user, PERMISSIONS.MANAGE_USERS);
+    const isInstructor = req.user.role === USER_ROLES.INSTRUCTOR || req.user.roles?.includes(USER_ROLES.INSTRUCTOR);
+
+    if (!isService && !isAdmin && !isInstructor) {
+      return res.status(403).json({ error: "Access denied. Only admins or instructors can manually mark a course as complete." });
+    }
+
+    const { courseId, userId: targetUserId } = req.body;
     if (!courseId) {
       return res.status(400).json({ error: "courseId is required" });
     }
 
-    const userId = req.user.id;
+    const userId = targetUserId || req.user.id;
 
-    const course = await Course.findById(courseId);
+    const [course, targetUser] = await Promise.all([
+      Course.findById(courseId),
+      User.findById(userId)
+    ]);
+
     if (!course) {
       return res.status(404).json({ error: "Course not found" });
     }
+    if (!targetUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-    const result = await Enrollment.findOneAndUpdate(
-      { userId, courseId },
-      {
-        $set: { completed: true, completedAt: new Date() },
-        $setOnInsert: { userId, courseId }
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-        includeResultMetadata: true
-      }
-    );
+    // Require an existing enrollment and verify completion rules before updating.
+    const enrollment = await Enrollment.findOne({ userId, courseId });
+    if (!enrollment) {
+      return res.status(400).json({ error: "Enrollment is required to mark course complete." });
+    }
 
-    if (!result.lastErrorObject?.updatedExisting) {
-      await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
+    const completionCheck = await markExistingEnrollmentCompleted({ userId, courseId });
+    if (!completionCheck.allowed) {
+      return res.status(400).json({ error: completionCheck.error });
     }
 
     await Notification.create({
@@ -434,8 +478,19 @@ router.post('/complete', auth, async (req: AuthenticatedRequest, res: Response) 
       linkUrl: '/dashboard'
     });
 
-    const user = await User.findById(userId);
-    res.json(await serializeUser(user));
+    await writeAuditLog(req, {
+      action: 'enrollment.manual-complete',
+      entityType: 'Enrollment',
+      entityId: completionCheck.enrollment._id,
+      details: {
+        courseId,
+        userId,
+        forcedBy: req.user.id,
+        forcedAt: new Date(),
+        notes: 'Admin manual course completion completion'
+      }
+    });
+    res.json(await serializeUser(targetUser));
   } catch (error) {
     logger.error({ err: error }, 'Error marking course as complete');
     res.status(500).json({ error: "Failed to mark course complete" });
@@ -488,6 +543,14 @@ router.patch('/:id/role', auth, requireAdmin, async (req: AuthenticatedRequest, 
     }
     const legacyRole = validRoleKeys.find(isAssignableUserRole) || USER_ROLES.STUDENT;
 
+    const existingUser = await User.findById(req.params.id).select('role roles permissions');
+    if (!existingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    const oldRoles = existingUser.roles || [];
+    const oldRole = existingUser.role;
+    const oldPermissions = normalizePermissions(existingUser.permissions);
+
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
       {
@@ -503,6 +566,24 @@ router.patch('/:id/role', auth, requireAdmin, async (req: AuthenticatedRequest, 
       return res.status(404).json({ error: "User not found" });
     }
 
+    await writeAuditLog(req, {
+      action: 'user.role-change',
+      entityType: 'User',
+      entityId: req.params.id,
+      details: {
+        result: 'success',
+        oldValue: {
+          role: oldRole,
+          roles: oldRoles,
+          directPermissions: oldPermissions
+        },
+        newValue: {
+          role: legacyRole,
+          roles: validRoleKeys,
+          directPermissions
+        }
+      }
+    });
     res.json(await serializeUser(updatedUser));
   } catch (error) {
     logger.error({ err: error }, 'Error updating user roles');
@@ -541,19 +622,33 @@ router.put('/:id', auth, async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // POST /api/users
-// Create a new user
-router.post('/', async (req: Request, res: Response) => {
+// Create a new user (internal-service signup or admin creation)
+router.post('/', auth, async (req: Request, res: Response) => {
   try {
+    if (req.user?.id !== 'internal-service' && !hasPermission(req.user, PERMISSIONS.MANAGE_USERS)) {
+      return res.status(403).json({ error: "Access denied. Insufficient permissions." });
+    }
+
     const {
       name,
       email,
       password,
-      avatar,
-      emailVerified,
-      emailVerificationTokenHash,
-      emailVerificationExpires
+      avatar
     } = req.body;
-    
+
+    // Generate secure email verification token on backend
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    const emailVerified = req.user?.id === 'internal-service' && req.body.emailVerified !== undefined
+      ? req.body.emailVerified
+      : false;
+
+    const status = req.body.status !== undefined
+      ? req.body.status
+      : 'active';
+
     const userData = {
       name,
       email,
@@ -562,14 +657,21 @@ router.post('/', async (req: Request, res: Response) => {
       roles: [USER_ROLES.STUDENT],
       permissions: [],
       avatar: avatar || '',
-      emailVerified: emailVerified === true,
+      emailVerified,
+      status,
       emailVerificationTokenHash,
       emailVerificationExpires
     };
-    
+
     const user = new User(userData);
     await user.save();
-    res.status(201).json(await serializeUser(user));
+
+    await writeAuditLog(req, { action: 'user.create', entityType: 'User', entityId: user._id, details: { email, name } });
+    const serialized = await serializeUser(user);
+    res.status(201).json({
+      ...serialized,
+      emailVerificationToken: verificationToken
+    });
   } catch (error) {
     logger.error({ err: error }, 'Error creating user');
     if ((error as { code?: number }).code === 11000) {
@@ -580,5 +682,193 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 module.exports = router;
+
+// ---------------------------------------------------------------------------
+// POST /api/users/resend-verification
+// Re-issue and resend an email verification token for unverified accounts.
+// Rate-limited: max 3 requests per email address per hour.
+// ---------------------------------------------------------------------------
+const resendVerificationCount = new Map<string, { count: number; resetAt: number }>();
+
+router.post('/resend-verification', async (req: Request, res: Response) => {
+  try {
+    const email = String(req.body.email || '').toLowerCase().trim();
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email address is required.' });
+    }
+
+    // Rate-limit: max 3 resends per email per hour
+    const now = Date.now();
+    const rateKey = email;
+    const entry = resendVerificationCount.get(rateKey);
+    if (entry && entry.resetAt > now) {
+      if (entry.count >= 3) {
+        return res.status(429).json({ error: 'Too many resend requests. Please wait before trying again.' });
+      }
+      entry.count++;
+    } else {
+      resendVerificationCount.set(rateKey, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    }
+
+    // Find user — always return success to avoid email enumeration
+    const user = await User.findOne({ email });
+    if (!user || user.emailVerified) {
+      return res.json({ success: true });
+    }
+
+    // Generate a fresh token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    user.emailVerificationTokenHash = tokenHash;
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const verificationUrl = `${appUrl}/auth/verify-email?token=${verificationToken}`;
+    const emailContent = buildVerificationEmail(user.name, verificationUrl);
+    await sendEmail({ ...emailContent, to: email });
+    await writeAuditLog(req, { action: 'email.resend-verification', entityType: 'User', entityId: user._id, details: { email } });
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error({ err: error }, 'Error resending verification email');
+    res.status(500).json({ error: 'Failed to resend verification email.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/users/email-change/request
+// Authenticated user requests an email address change.
+// Sends a confirmation link to the NEW address.
+// ---------------------------------------------------------------------------
+router.post('/email-change/request', auth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const newEmail = String(req.body.newEmail || '').toLowerCase().trim();
+    if (!newEmail || !newEmail.includes('@')) {
+      return res.status(400).json({ error: 'Valid new email address is required.' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    if (newEmail === user.email) {
+      return res.status(400).json({ error: 'New email address must be different from current address.' });
+    }
+
+    // Ensure the new address is not already taken
+    const existing = await User.findOne({ email: newEmail });
+    if (existing) {
+      return res.status(409).json({ error: 'That email address is already in use.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    user.pendingEmail = newEmail;
+    user.pendingEmailTokenHash = tokenHash;
+    user.pendingEmailExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const confirmUrl = `${appUrl}/auth/change-email/confirm?token=${token}`;
+    const emailContent = buildEmailChangeEmail(user.name, newEmail, confirmUrl);
+    await sendEmail(emailContent);
+    await writeAuditLog(req, { action: 'user.email-change-requested', entityType: 'User', entityId: user._id, details: { currentEmail: user.email, newEmail } });
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error({ err: error }, 'Error requesting email change');
+    res.status(500).json({ error: 'Failed to request email change.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/users/email-change/confirm
+// Token-based confirmation that swaps email ← pendingEmail.
+// ---------------------------------------------------------------------------
+router.post('/email-change/confirm', async (req: Request, res: Response) => {
+  try {
+    const token = String(req.body.token || '');
+    if (!token) return res.status(400).json({ error: 'Confirmation token is required.' });
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      pendingEmailTokenHash: tokenHash,
+      pendingEmailExpires: { $gt: new Date() }
+    });
+    if (!user || !user.pendingEmail) {
+      return res.status(400).json({ error: 'Confirmation link is invalid or expired.' });
+    }
+
+    // Check the new address is still not taken (race condition guard)
+    const conflict = await User.findOne({ email: user.pendingEmail, _id: { $ne: user._id } });
+    if (conflict) {
+      return res.status(409).json({ error: 'That email address has since been taken. Please request a new change.' });
+    }
+
+    const oldEmail = user.email;
+    user.email = user.pendingEmail;
+    user.pendingEmail = undefined;
+    user.pendingEmailTokenHash = undefined;
+    user.pendingEmailExpires = undefined;
+    await user.save();
+    await writeAuditLog(req, { action: 'user.email-changed', entityType: 'User', entityId: user._id, details: { oldEmail, newEmail: user.email } });
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error({ err: error }, 'Error confirming email change');
+    res.status(500).json({ error: 'Failed to confirm email change.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/users/admin-password-reset
+// Admin triggers a password reset email on behalf of a specific user.
+// Requires MANAGE_PASSWORD_RESETS permission.
+// ---------------------------------------------------------------------------
+router.post('/admin-password-reset', auth, requirePermission(PERMISSIONS.MANAGE_PASSWORD_RESETS), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { userId, email: targetEmail } = req.body;
+    if (!userId && !targetEmail) {
+      return res.status(400).json({ error: 'Either userId or email is required.' });
+    }
+
+    const user = userId
+      ? await User.findById(userId)
+      : await User.findOne({ email: String(targetEmail).toLowerCase().trim() });
+
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const oldPasswordResetExpires = user.passwordResetExpires;
+
+    // Generate reset token
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    user.passwordResetTokenHash = tokenHash;
+    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000);
+    await user.save();
+
+    const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const resetUrl = `${appUrl}/auth/reset-password?token=${token}`;
+    const adminName = req.user.name || req.user.email || undefined;
+    const emailContent = buildAdminResetEmail(user.name, resetUrl, adminName);
+    await sendEmail({ ...emailContent, to: user.email });
+    await writeAuditLog(req, {
+      action: 'user.admin-password-reset-issued',
+      entityType: 'User',
+      entityId: user._id,
+      details: {
+        result: 'success',
+        targetEmail: user.email,
+        issuedBy: req.user.id,
+        oldValue: { passwordResetExpires: oldPasswordResetExpires || null },
+        newValue: { passwordResetIssued: true, passwordResetExpires: user.passwordResetExpires }
+      }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error({ err: error }, 'Error issuing admin password reset');
+    res.status(500).json({ error: 'Failed to issue admin password reset.' });
+  }
+});
 
 export {};

@@ -8,19 +8,20 @@ const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "h
 function getForwardedHeaders(req: NextRequest) {
   const headers = new Headers();
   for (const [key, value] of req.headers.entries()) {
-    if (["host", "connection", "content-length"].includes(key)) continue;
+    if (["host", "connection", "content-length", "authorization"].includes(key)) continue;
     headers.set(key, value);
   }
   return headers;
 }
 
-export async function GET(req: NextRequest, { params }: { params: { courseId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ courseId: string }> }) {
   const session = await auth();
   if (!session?.apiAccessToken) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  const backendUrl = `${BACKEND_URL.replace(/\/$/, "")}/api/docs/${encodeURIComponent(params.courseId)}/download`;
+  const resolvedParams = await params;
+  const backendUrl = `${BACKEND_URL.replace(/\/$/, "")}/api/docs/${encodeURIComponent(resolvedParams.courseId)}/download`;
 
   try {
     const response = await fetch(backendUrl, {

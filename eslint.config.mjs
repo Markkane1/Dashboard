@@ -5,10 +5,19 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  {
+    ignores: [
+      "src/server/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "test/**",
+    ],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     files: ["**/*.{ts,tsx}"],
-    ignores: ["src/server/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -41,16 +50,6 @@ const eslintConfig = [
         },
       ],
     },
-  },
-  // Override default ignores of eslint-config-next.
-  {
-    ignores: [
-      // Default ignores of eslint-config-next:
-      ".next/**",
-      "out/**",
-      "build/**",
-      "next-env.d.ts",
-    ],
   },
 ];
 

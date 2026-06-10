@@ -8,6 +8,12 @@ const certificateIssuanceSchema = new mongoose.Schema(
       unique: true,
       index: true
     },
+    serialNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -35,8 +41,33 @@ const certificateIssuanceSchema = new mongoose.Schema(
       required: true,
       default: Date.now
     },
+    approvalStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'approved',
+      index: true
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    approvedAt: {
+      type: Date
+    },
+    approvalComments: {
+      type: String,
+      default: ''
+    },
     revokedAt: {
       type: Date
+    },
+    revokedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    revocationReason: {
+      type: String,
+      default: ''
     }
   },
   {
@@ -46,6 +77,7 @@ const certificateIssuanceSchema = new mongoose.Schema(
 
 certificateIssuanceSchema.index({ userId: 1, courseId: 1 }, { unique: true });
 certificateIssuanceSchema.index({ courseId: 1, issuedAt: -1 });
+certificateIssuanceSchema.index({ approvalStatus: 1, issuedAt: -1 });
 
 const CertificateIssuance =
   mongoose.models.CertificateIssuance || mongoose.model('CertificateIssuance', certificateIssuanceSchema);

@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const { requirePermission } = require('../middleware/roles');
 const { Notification, User } = require('../models');
 const { logger } = require('../logger');
+const { writeAuditLog } = require('../services/audit');
 const { PERMISSIONS } = require('../../shared/permissions');
 import type { Request, Response } from 'express';
 
@@ -81,6 +82,21 @@ router.post('/announce', auth, requirePermission(PERMISSIONS.ANNOUNCE_NOTIFICATI
       { ordered: false }
     );
 
+    await writeAuditLog(req, {
+      action: 'notification.announce',
+      entityType: 'Notification',
+      entityId: 'broadcast',
+      details: {
+        result: 'success',
+        oldValue: null,
+        newValue: {
+          title,
+          message,
+          linkUrl,
+          recipientCount: result.length
+        }
+      }
+    });
     res.status(201).json({ createdCount: result.length });
   } catch (error) {
     logger.error({ err: error }, 'Error creating announcement');

@@ -6,6 +6,7 @@ const Role = require('../models/Role');
 const User = require('../models/User');
 const { requirePermission } = require('../middleware/roles');
 const { logger } = require('../logger');
+const { writeAuditLog } = require('../services/audit');
 const {
   ALL_PERMISSIONS,
   PERMISSION_CATALOG,
@@ -83,6 +84,22 @@ router.post('/', auth, requirePermission(PERMISSIONS.MANAGE_USERS), async (req: 
       active: req.body.active !== false,
     });
 
+    await writeAuditLog(req, {
+      action: 'role.create',
+      entityType: 'Role',
+      entityId: role._id,
+      details: {
+        result: 'success',
+        oldValue: null,
+        newValue: {
+          key: role.key,
+          name: role.name,
+          description: role.description,
+          permissions: role.permissions,
+          active: role.active
+        }
+      }
+    });
     res.status(201).json(serializeRole(role));
   } catch (error) {
     logger.error({ err: error }, 'Error creating role');
@@ -103,6 +120,14 @@ router.patch('/:id', auth, requirePermission(PERMISSIONS.MANAGE_USERS), async (r
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });
     }
+
+    const oldValue = {
+      key: role.key,
+      name: role.name,
+      description: role.description,
+      permissions: [...(role.permissions || [])],
+      active: role.active
+    };
 
     if (Object.prototype.hasOwnProperty.call(req.body, 'name')) {
       role.name = String(req.body.name || '').trim();
@@ -131,6 +156,22 @@ router.patch('/:id', auth, requirePermission(PERMISSIONS.MANAGE_USERS), async (r
     }
 
     await role.save();
+    await writeAuditLog(req, {
+      action: 'role.update',
+      entityType: 'Role',
+      entityId: role._id,
+      details: {
+        result: 'success',
+        oldValue,
+        newValue: {
+          key: role.key,
+          name: role.name,
+          description: role.description,
+          permissions: role.permissions,
+          active: role.active
+        }
+      }
+    });
     res.json(serializeRole(role));
   } catch (error) {
     logger.error({ err: error }, 'Error updating role');
@@ -160,6 +201,22 @@ router.delete('/:id', auth, requirePermission(PERMISSIONS.MANAGE_USERS), async (
       { $pull: { roles: role.key } }
     );
     await role.deleteOne();
+    await writeAuditLog(req, {
+      action: 'role.delete',
+      entityType: 'Role',
+      entityId: role._id,
+      details: {
+        result: 'success',
+        oldValue: {
+          key: role.key,
+          name: role.name,
+          description: role.description,
+          permissions: role.permissions,
+          active: role.active
+        },
+        newValue: null
+      }
+    });
     res.status(204).end();
   } catch (error) {
     logger.error({ err: error }, 'Error deleting role');

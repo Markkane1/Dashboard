@@ -47,6 +47,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    status: {
+      type: String,
+      enum: ['active', 'pending', 'disabled'],
+      default: 'active',
+      index: true
+    },
     emailVerificationTokenHash: {
       type: String
     },
@@ -64,6 +70,18 @@ const userSchema = new mongoose.Schema(
       default: 0
     },
     lockUntil: {
+      type: Date
+    },
+    // Email change flow: stores the new address until confirmed
+    pendingEmail: {
+      type: String,
+      trim: true,
+      lowercase: true
+    },
+    pendingEmailTokenHash: {
+      type: String
+    },
+    pendingEmailExpires: {
       type: Date
     },
     demoKey: {

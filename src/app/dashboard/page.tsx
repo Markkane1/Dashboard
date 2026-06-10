@@ -15,20 +15,20 @@ import {
   StatCard,
 } from "@/shared/components/ui/DesignSystem";
 import {
-  MarkCompleteButton,
   UnenrollButton,
   DownloadCertificateButton,
 } from "@/features/users/components/DashboardActions";
 import { headers } from "next/headers";
 import { getTranslationsServer } from "@/shared/i18n-server";
 
-export default async function DashboardPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const resolvedSearchParams = await searchParams;
   const session = await auth();
   if (!session || !session.user || !session.user.email) {
     redirect("/auth/login");
   }
 
-  const locale = headers().get("x-next-locale") || "en";
+  const locale = (await headers()).get("x-next-locale") || "en";
   const t = getTranslationsServer(locale);
 
   const token = session.apiAccessToken;
@@ -60,7 +60,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
       ? 100
       : 0;
 
-  const section = typeof searchParams.section === "string" ? searchParams.section : "overview";
+  const section = typeof resolvedSearchParams.section === "string" ? resolvedSearchParams.section : "overview";
   const tabs = [
     { key: "overview", label: t("dashboard.overview") },
     { key: "courses", label: t("dashboard.myCourses") },
@@ -235,8 +235,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        <MarkCompleteButton courseId={course.id} />
+                      <div className="mt-4">
                         <UnenrollButton courseId={course.id} />
                       </div>
                     </CourseCard>

@@ -23,8 +23,8 @@ function toOrigin(value: string | null) {
   }
 }
 
-export function validateServerActionOrigin() {
-  const requestHeaders = headers();
+export async function validateServerActionOrigin() {
+  const requestHeaders = await headers();
   const allowedOrigin = getAllowedOrigin();
   const origin = toOrigin(requestHeaders.get("origin"));
   const referer = toOrigin(requestHeaders.get("referer"));

@@ -28,8 +28,9 @@ async function getForwardedHeaders(req: NextRequest) {
   return headers;
 }
 
-async function proxy(req: NextRequest, { params }: { params: { path: string[] } }) {
-  const response = await fetch(getBackendUrl(params.path, req.nextUrl.search), {
+async function proxy(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const resolvedParams = await params;
+  const response = await fetch(getBackendUrl(resolvedParams.path, req.nextUrl.search), {
     method: req.method,
     headers: await getForwardedHeaders(req),
     body: ["GET", "HEAD"].includes(req.method) ? undefined : req.body,

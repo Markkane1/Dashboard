@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { logger } from "@/shared/logger";
 import { useRouter } from "next/navigation";
+import { Link } from "@/shared/navigation";
 import { enrollInCourse } from "@/features/auth/actions";
 
 interface EnrollButtonProps {
@@ -45,8 +46,13 @@ export default function EnrollButton({ courseId, isAuthenticated, initialEnrolle
 
   if (isEnrolled) {
     return (
-      <div className="inline-flex w-full items-center justify-center rounded-md border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-black text-teal-700 sm:w-auto">
-        Already enrolled
+      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+        <div className="inline-flex items-center justify-center rounded-md border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-black text-teal-700">
+          Already enrolled
+        </div>
+        <Link href={`/courses/${encodeURIComponent(courseId)}/learn`} className="btn-primary">
+          Continue learning
+        </Link>
       </div>
     );
   }

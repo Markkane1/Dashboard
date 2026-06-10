@@ -38,7 +38,10 @@ export async function GET(req: NextRequest, { params }: { params: { lessonId: st
 
   const location = response.headers.get("location");
   if (response.status >= 300 && response.status < 400 && location) {
-    return NextResponse.redirect(location, response.status);
+    const redirect = NextResponse.redirect(location, response.status);
+    redirect.headers.set("Cache-Control", "no-store");
+    redirect.headers.set("Referrer-Policy", "no-referrer");
+    return redirect;
   }
 
   const headers = new Headers();
@@ -55,6 +58,8 @@ export async function GET(req: NextRequest, { params }: { params: { lessonId: st
     if (value) headers.set(header, value);
   }
   headers.set("Cache-Control", "no-store");
+  headers.set("Referrer-Policy", "no-referrer");
+  headers.set("X-Content-Type-Options", "nosniff");
 
   return new NextResponse(response.body, {
     status: response.status,

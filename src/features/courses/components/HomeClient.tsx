@@ -13,6 +13,7 @@ import {
   PageHeader,
   PageShell,
 } from "@/shared/components/ui/DesignSystem";
+import { useTranslations } from "next-intl";
 
 type TaxonomyOption = {
   key: string;
@@ -39,6 +40,8 @@ export default function HomeClient({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("home");
+  const tc = useTranslations("common");
   const categoryOptions = categories?.length ? categories : fallbackCategories;
   const topicOptions = topics?.length
     ? topics
@@ -101,11 +104,11 @@ export default function HomeClient({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div>
           <PageHeader
-            title="Environmental courses"
-            description="Browse self-paced courses by theme, SDG, topic, or treaty section."
+            title={t("title")}
+            description={t("subtitle")}
             actions={(
               <Link href="/courses" className="btn-secondary">
-                Open full catalog
+                {tc("openCatalog")}
               </Link>
             )}
           />
@@ -114,13 +117,13 @@ export default function HomeClient({
         <DashboardCard className="p-6">
           <div className="grid gap-4">
             <div>
-              <p className="text-sm font-semibold text-text-muted">Catalog overview</p>
+              <p className="text-sm font-semibold text-text-muted">{t("catalogOverview")}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                [courses.length, "Courses"],
-                [categoryOptions.length, "Themes"],
-                [visibleSdgGoals.length, "SDGs"],
+                [courses.length, tc("courses")],
+                [categoryOptions.length, t("themes")],
+                [visibleSdgGoals.length, t("sdgs")],
               ].map(([value, label]) => (
                 <div key={label} className="rounded-2xl bg-surface p-4 text-center shadow-sm">
                   <p className="text-2xl font-black text-text-primary">{value}</p>
@@ -136,27 +139,27 @@ export default function HomeClient({
         <form onSubmit={handleSubmit} className="space-y-4">
           <FilterBar>
             <div className="filter-bar-group">
-              <input name="q" defaultValue={activeSearch} placeholder="Search courses" className="control min-w-[14rem]" />
+              <input name="q" defaultValue={activeSearch} placeholder={tc("searchCourses")} className="control min-w-[14rem]" />
               <select name="category" defaultValue={activeCategory} className="control min-w-[14rem]">
-                <option value="">All themes</option>
+                <option value="">{tc("allThemes")}</option>
                 {categoryOptions.map((category) => (
                   <option key={category.id} value={category.id}>{category.label}</option>
                 ))}
               </select>
               <select name="sdg" defaultValue={activeSdg} className="control min-w-[12rem]">
-                <option value="">All SDGs</option>
+                <option value="">{tc("allSdgs")}</option>
                 {visibleSdgGoals.map((goal) => (
                   <option key={goal} value={goal}>SDG {goal}</option>
                 ))}
               </select>
               <select name="topic" defaultValue={activeTopic} className="control min-w-[12rem]">
-                <option value="">All topics</option>
+                <option value="">{tc("allTopics")}</option>
                 {topicOptions.map((topic) => (
                   <option key={topic.key} value={topic.key}>{topic.label}</option>
                 ))}
               </select>
               <select name="section" defaultValue={activeSection} className="control min-w-[12rem]">
-                <option value="">All sections</option>
+                <option value="">{tc("allSections")}</option>
                 {sectionOptions.map((section) => (
                   <option key={section.key} value={section.key}>{section.label}</option>
                 ))}
@@ -164,10 +167,10 @@ export default function HomeClient({
             </div>
             <div className="flex flex-wrap gap-3">
               <button type="submit" className="btn-primary">
-                Apply filters
+                {tc("applyFilters")}
               </button>
               <button type="button" onClick={clearAllFilters} className="btn-secondary">
-                Clear filters
+                {tc("clearFilters")}
               </button>
             </div>
           </FilterBar>
@@ -176,11 +179,11 @@ export default function HomeClient({
 
       {courses.length === 0 ? (
         <EmptyState
-          title="No courses match your filters"
-          description="Try adjusting your search or catalog filters."
+          title={t("noMatches")}
+          description={t("noMatchesDesc")}
           actions={(
             <button type="button" onClick={clearAllFilters} className="btn-primary">
-              Reset filters
+              {tc("resetFilters")}
             </button>
           )}
           className="mt-6"
@@ -191,8 +194,8 @@ export default function HomeClient({
             <section>
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-black text-text-primary">Courses</h2>
-                  <p className="mt-1 text-sm text-text-muted">{regularCourses.length} available</p>
+                  <h2 className="text-xl font-black text-text-primary">{tc("courses")}</h2>
+                  <p className="mt-1 text-sm text-text-muted">{regularCourses.length} {tc("available")}</p>
                 </div>
               </div>
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -207,8 +210,8 @@ export default function HomeClient({
             <section>
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-black text-text-primary">Diploma pathways</h2>
-                  <p className="mt-1 text-sm text-text-muted">{diplomaCourses.length} available</p>
+                  <h2 className="text-xl font-black text-text-primary">{t("diplomaPathways")}</h2>
+                  <p className="mt-1 text-sm text-text-muted">{diplomaCourses.length} {tc("available")}</p>
                 </div>
               </div>
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -224,8 +227,8 @@ export default function HomeClient({
               <DashboardCard className="p-6">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-black text-text-primary">External courses</h2>
-                    <p className="mt-1 text-sm text-text-muted">Curated course links from trusted partners.</p>
+                    <h2 className="text-xl font-black text-text-primary">{t("externalCourses")}</h2>
+                    <p className="mt-1 text-sm text-text-muted">{t("externalDesc")}</p>
                   </div>
                 </div>
                 <div className="grid gap-3">
@@ -249,7 +252,7 @@ export default function HomeClient({
 
       <div className="mt-6 flex justify-end">
         <Link href="/courses" className="btn-secondary">
-          Open full catalog
+          {tc("openCatalog")}
         </Link>
       </div>
     </PageShell>

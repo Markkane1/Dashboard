@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const { env } = require('../config/env');
 const { logger } = require('../logger');
 const { getPermissionsForRole, normalizePermissions, normalizeUserRole } = require('../../shared/permissions');
+const Enrollment = require('../models/Enrollment');
+const mongoose = require('mongoose');
 import type { NextFunction, Request, Response } from 'express';
 import type { JwtPayload } from 'jsonwebtoken';
 
@@ -13,7 +15,7 @@ const API_TOKEN_USE = 'api';
  * Express Authentication Middleware.
  * Decodes the JWT from the Authorization Header (Bearer token), and sets req.user.
  */
-module.exports = function (req: Request, res: Response, next: NextFunction) {
+module.exports = async function (req: Request, res: Response, next: NextFunction) {
   let token: string | null = null;
   const authHeader = req.headers.authorization;
 
@@ -46,10 +48,26 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
     if (payload.tokenUse !== API_TOKEN_USE) {
       return res.status(401).json({ error: 'Authentication failed. Token is not an API access token.' });
     }
-    
+
+    const userId = String(payload.id || payload.sub || '');
+
+    let enrolledCourses: string[] = [];
+    let completedCourses: string[] = [];
+
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      const enrollments = await Enrollment.find({ userId });
+      enrolledCourses = enrollments
+        .map((enrollment: any) => String(enrollment.courseId))
+        .filter(Boolean);
+      completedCourses = enrollments
+        .filter((enrollment: any) => enrollment.completed)
+        .map((enrollment: any) => String(enrollment.courseId))
+        .filter(Boolean);
+    }
+
     req.user = {
       ...payload,
-      id: String(payload.id || payload.sub || ''),
+      id: userId,
       email: payload.email,
       role: normalizeUserRole(payload.role),
       roles: Array.isArray(payload.roles)
@@ -58,14 +76,10 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
       permissions: normalizePermissions(payload.permissions).length > 0
         ? normalizePermissions(payload.permissions)
         : getPermissionsForRole(payload.role),
-      enrolledCourses: Array.isArray(payload.enrolledCourses)
-        ? payload.enrolledCourses.map((courseId) => String(courseId))
-        : [],
-      completedCourses: Array.isArray(payload.completedCourses)
-        ? payload.completedCourses.map((courseId) => String(courseId))
-        : []
+      enrolledCourses,
+      completedCourses
     };
-    
+
     next();
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -73,5 +87,6 @@ module.exports = function (req: Request, res: Response, next: NextFunction) {
     res.status(401).json({ error: 'Authentication failed. Token is invalid or expired.' });
   }
 };
+
 
 export {};

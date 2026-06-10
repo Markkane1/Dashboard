@@ -34,13 +34,13 @@ export default function QuizForm({ quiz }: { quiz: CourseQuiz }) {
         throw new Error("Your session expired. Please sign in again.");
       }
 
-      const res = await fetch(`/api/admin/quiz/${encodeURIComponent(quiz.courseId)}/submit`, {
+      const res = await fetch("/api/courses/quiz-submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.apiAccessToken}`,
         },
         body: JSON.stringify({
+          courseId: quiz.courseId,
           answers: Object.entries(answers).map(([questionId, selectedOptionIndex]) => ({
             questionId,
             selectedOptionIndex

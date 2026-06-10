@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 import { connectMongo } from '../src/server/db/mongoose';
 import models from '../src/server/models';
 import { USER_ROLES } from '../src/shared/permissions';
-const { logger } = require('../src/server/logger');
+import loggerModule from '../src/server/logger';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
@@ -21,8 +21,11 @@ const {
   QuizSubmission,
   User
 } = models;
+const { logger } = loggerModule;
 
 const DEMO_KEY = 'demo-content-v1';
+const LESSON_BACKFILL_KEY = 'demo-lesson-backfill-v1';
+const DEMO_VIDEO_URL = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
 
 type CourseSeed = {
   key: string;
@@ -52,6 +55,14 @@ type SeededCourse = {
   };
 };
 
+type CourseWithId = {
+  _id: {
+    toString(): string;
+  };
+  title: string;
+  description?: string;
+};
+
 const courses: CourseSeed[] = [
   {
     key: 'climate-governance',
@@ -67,17 +78,17 @@ const courses: CourseSeed[] = [
       {
         title: 'Paris Agreement foundations',
         description: 'How nationally determined contributions connect to treaty implementation.',
-        order: 1,
+        order: 0,
         duration: 420,
-        videoUrl: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+        videoUrl: DEMO_VIDEO_URL,
         transcript: 'Demo transcript: introduction to Paris Agreement architecture, ambition cycles, and reporting duties.'
       },
       {
         title: 'Transparency and compliance',
         description: 'Follow the enhanced transparency framework from reporting to review.',
-        order: 2,
+        order: 1,
         duration: 510,
-        videoUrl: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+        videoUrl: DEMO_VIDEO_URL,
         transcript: 'Demo transcript: transparency, review, facilitative compliance, and implementation support.'
       }
     ]
@@ -96,17 +107,17 @@ const courses: CourseSeed[] = [
       {
         title: 'CBD institutions and national focal points',
         description: 'Map the CBD institutional structure and implementation cycle.',
-        order: 1,
+        order: 0,
         duration: 390,
-        videoUrl: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+        videoUrl: DEMO_VIDEO_URL,
         transcript: 'Demo transcript: CBD bodies, national focal points, and reporting structures.'
       },
       {
         title: 'Prior informed consent in practice',
         description: 'Apply access and benefit-sharing safeguards to a practical case.',
-        order: 2,
+        order: 1,
         duration: 480,
-        videoUrl: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+        videoUrl: DEMO_VIDEO_URL,
         transcript: 'Demo transcript: PIC, MAT, community safeguards, and benefit sharing.'
       }
     ]
@@ -125,17 +136,17 @@ const courses: CourseSeed[] = [
       {
         title: 'Hazardous waste movement controls',
         description: 'Understand notification, consent, and environmentally sound management.',
-        order: 1,
+        order: 0,
         duration: 360,
-        videoUrl: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+        videoUrl: DEMO_VIDEO_URL,
         transcript: 'Demo transcript: prior informed consent and movement documentation.'
       },
       {
         title: 'POPs and national implementation plans',
         description: 'Review Stockholm Convention planning requirements.',
-        order: 2,
+        order: 1,
         duration: 450,
-        videoUrl: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+        videoUrl: DEMO_VIDEO_URL,
         transcript: 'Demo transcript: POPs inventories, phase-out measures, and implementation plans.'
       }
     ]
@@ -172,6 +183,86 @@ function quizQuestions(prefix: string) {
       explanation: 'Quiz access is intended after lesson completion.'
     }
   ];
+}
+
+function backfillLessonsForCourse(course: CourseWithId) {
+  const summary = course.description || course.title;
+
+  return [
+    {
+      courseId: course._id,
+      title: `${course.title}: orientation`,
+      description: `Start ${course.title} with the core learning goals and course structure.`,
+      order: 0,
+      duration: 420,
+      videoUrl: DEMO_VIDEO_URL,
+      resources: [
+        { label: 'Course overview', url: `/courses/${course._id}` },
+        { label: 'Learner checklist', url: '/dashboard' }
+      ],
+      transcript: `Demo transcript for ${course.title}. This lesson introduces the topic, expected outcomes, and how the course connects to ${summary}.`,
+      isPublished: true,
+      demoKey: LESSON_BACKFILL_KEY
+    },
+    {
+      courseId: course._id,
+      title: `${course.title}: applied practice`,
+      description: `Apply the course concepts through a short guided scenario.`,
+      order: 1,
+      duration: 540,
+      videoUrl: DEMO_VIDEO_URL,
+      resources: [
+        { label: 'Practice notes', url: `/courses/${course._id}` },
+        { label: 'Support', url: '/about' }
+      ],
+      transcript: `Demo transcript for ${course.title}. This lesson walks through an applied scenario and highlights the decisions learners should be able to make after completion.`,
+      isPublished: true,
+      demoKey: LESSON_BACKFILL_KEY
+    }
+  ];
+}
+
+async function syncCourseLessonCount(courseId: unknown) {
+  const lessonCount = await Lesson.countDocuments({ courseId });
+  await Course.findByIdAndUpdate(courseId, { lessonsCount: lessonCount });
+}
+
+async function seedLessonsForExistingCourses() {
+  const coursesWithoutEmbeddedTracks = await Course.find({
+    isDiploma: { $ne: true },
+    isExternal: { $ne: true }
+  }).select('_id title description');
+
+  let createdLessonCount = 0;
+  let skippedCourseCount = 0;
+
+  for (const course of coursesWithoutEmbeddedTracks) {
+    const existingCount = await Lesson.countDocuments({ courseId: course._id });
+    if (existingCount > 0) {
+      skippedCourseCount += 1;
+      await Course.findByIdAndUpdate(course._id, { lessonsCount: existingCount });
+      continue;
+    }
+
+    const lessons = backfillLessonsForCourse(course);
+    await Lesson.insertMany(lessons);
+    await Course.findByIdAndUpdate(course._id, { lessonsCount: lessons.length });
+    createdLessonCount += lessons.length;
+  }
+
+  logger.info(
+    { createdLessonCount, skippedCourseCount, scannedCourseCount: coursesWithoutEmbeddedTracks.length },
+    'Lesson backfill complete.'
+  );
+}
+
+async function removeSeededLessons() {
+  const seededCourseIds = await Lesson.distinct('courseId', { demoKey: LESSON_BACKFILL_KEY });
+  const result = await Lesson.deleteMany({ demoKey: LESSON_BACKFILL_KEY });
+
+  await Promise.all(seededCourseIds.map((courseId: unknown) => syncCourseLessonCount(courseId)));
+
+  logger.info({ deletedLessonCount: result.deletedCount || 0 }, 'Lesson backfill removed.');
 }
 
 async function removeDemoData() {
@@ -351,8 +442,12 @@ async function main() {
     logger.info('Demo data removed.');
   } else if (command === 'seed') {
     await seedDemoData();
+  } else if (command === 'lessons') {
+    await seedLessonsForExistingCourses();
+  } else if (command === 'remove-lessons') {
+    await removeSeededLessons();
   } else {
-    throw new Error(`Unknown command "${command}". Use "seed" or "remove".`);
+    throw new Error(`Unknown command "${command}". Use "seed", "remove", "lessons", or "remove-lessons".`);
   }
 
   await mongoose.connection.close();

@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { env } from "@/env";
+import { defaultLocale, locales } from "@/shared/i18n-config";
 import { hasAnyPermission, normalizePermissions, normalizeRoles, normalizeUserRole, PERMISSIONS, type Permission } from "@/shared/permissions";
 
 const AUTH_SECRET = env.AUTH_SECRET;
-const LOCALES = ["en", "pak"];
 const AUTHENTICATED_ROUTES = ["/dashboard"];
 // Map route prefixes to required permission for access
 const PERMISSION_ROUTES = [
@@ -37,16 +37,11 @@ function unauthorizedRedirect(request: NextRequest, hasLocalePrefix: boolean, lo
 
 export async function middleware(request: NextRequest) {
   let pathname = request.nextUrl.pathname;
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "127.0.0.1";
-
   // 2. Internationalization / Locale Prefix Handling
-  let locale = "en";
+  let locale = defaultLocale;
   let hasLocalePrefix = false;
 
-  const matchedLocale = LOCALES.find(
+  const matchedLocale = locales.find(
     (loc) => pathname === `/${loc}` || pathname.startsWith(`/${loc}/`)
   );
 

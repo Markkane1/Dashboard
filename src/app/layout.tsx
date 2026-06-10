@@ -3,6 +3,7 @@ import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
 import Providers from "./Providers";
 import { headers } from "next/headers";
+import { defaultLocale, getTextDirection, isAppLocale } from "@/shared/i18n-config";
 import "@fontsource-variable/inter";
 import "./globals.css";
 
@@ -13,15 +14,16 @@ export const metadata: Metadata = {
 
 async function loadMessages(locale: string) {
   try {
-    return (await import(`../../messages/${locale}.json`)).default;
+    return (await import(`../messages/${locale}.json`)).default;
   } catch {
-    return (await import("../../messages/en.json")).default;
+    return (await import("../messages/en.json")).default;
   }
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = headers().get("x-next-locale") || "en";
-  const direction = locale === "pak" ? "rtl" : "ltr";
+  const requestedLocale = headers().get("x-next-locale");
+  const locale = isAppLocale(requestedLocale) ? requestedLocale : defaultLocale;
+  const direction = getTextDirection(locale);
   const messages = await loadMessages(locale);
 
   return (

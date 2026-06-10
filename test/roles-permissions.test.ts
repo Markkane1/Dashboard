@@ -149,3 +149,5 @@ function getSystemMongoBinary() {
 
   return candidates.find((candidate) => fs.existsSync(candidate));
 }
+
+export {};

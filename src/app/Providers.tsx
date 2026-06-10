@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { SessionProvider } from 'next-auth/react';
-import { NextIntlClientProvider } from 'next-intl';
+import { NextIntlClientProvider, type AbstractIntlMessages } from 'next-intl';
+import type { AppLocale } from '@/shared/i18n-config';
 
 export default function Providers({
   children,
@@ -10,8 +11,8 @@ export default function Providers({
   messages,
 }: {
   children: React.ReactNode;
-  locale: string;
-  messages: Record<string, string>;
+  locale: AppLocale;
+  messages: AbstractIntlMessages;
 }) {
   return (
     <SessionProvider>

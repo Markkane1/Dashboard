@@ -19,12 +19,17 @@ import {
   UnenrollButton,
   DownloadCertificateButton,
 } from "@/features/users/components/DashboardActions";
+import { headers } from "next/headers";
+import { getTranslationsServer } from "@/shared/i18n-server";
 
 export default async function DashboardPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   const session = await auth();
   if (!session || !session.user || !session.user.email) {
     redirect("/auth/login");
   }
+
+  const locale = headers().get("x-next-locale") || "en";
+  const t = getTranslationsServer(locale);
 
   const token = session.apiAccessToken;
   const user = await findUserByEmail(session.user.email);
@@ -57,25 +62,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
 
   const section = typeof searchParams.section === "string" ? searchParams.section : "overview";
   const tabs = [
-    { key: "overview", label: "Overview" },
-    { key: "courses", label: "My courses" },
-    { key: "certificates", label: "Certificates" },
+    { key: "overview", label: t("dashboard.overview") },
+    { key: "courses", label: t("dashboard.myCourses") },
+    { key: "certificates", label: t("dashboard.certificates") },
   ];
 
   const stats = [
-    { name: "Active", value: inProgressIds.length },
-    { name: "Completed", value: completedIds.length },
-    { name: "Average progress", value: `${averageProgress}%` },
+    { name: t("dashboard.active"), value: inProgressIds.length },
+    { name: t("common.completed"), value: completedIds.length },
+    { name: t("dashboard.averageProgress"), value: `${averageProgress}%` },
   ];
 
   return (
     <PageShell>
       <PageHeader
-        title={`Welcome back, ${session.user.name}`}
-        description="Track current courses, completion status, and certificate actions."
+        title={`${t("common.welcomeBack")}, ${session.user.name}`}
+        description={t("dashboard.desc")}
         actions={(
           <Link href="/courses" className="btn-primary">
-            Browse courses
+            {t("common.browseCatalog")}
           </Link>
         )}
       />
@@ -108,25 +113,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
             <DashboardCard className="p-6">
               <div className="flex flex-col gap-3">
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">Learning snapshot</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-600">Get a quick view of active progress and recent completions.</p>
+                  <h2 className="text-lg font-black text-slate-950">{t("dashboard.learningSnapshot")}</h2>
+                  <p className="mt-1 text-sm font-semibold text-slate-600">{t("dashboard.snapshotDesc")}</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">Active courses</p>
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">{t("dashboard.activeCourses")}</p>
                     <p className="mt-2 text-3xl font-black text-slate-950">{inProgressCourses.length}</p>
                   </div>
                   <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">Courses completed</p>
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">{t("dashboard.coursesCompleted")}</p>
                     <p className="mt-2 text-3xl font-black text-slate-950">{completedCourses.length}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Link href="/courses" className="btn-secondary">
-                    Browse courses
+                    {t("common.browseCatalog")}
                   </Link>
                   <Link href="/diploma" className="btn-primary">
-                    View diploma progress
+                    {t("dashboard.viewDiploma")}
                   </Link>
                 </div>
               </div>
@@ -135,17 +140,55 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
             <DashboardCard className="p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">Diploma pathways</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-600">Review multi-course requirements and eligibility for your diploma.</p>
+                  <h2 className="text-lg font-black text-slate-950">{t("dashboard.diplomaPathways")}</h2>
+                  <p className="mt-1 text-sm font-semibold text-slate-600">{t("dashboard.pathwaysDesc")}</p>
                 </div>
-                <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-forest">{completedIds.length} complete</span>
+                <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-forest">{completedIds.length} {t("common.completed")}</span>
               </div>
               <div className="mt-5 space-y-3 text-sm text-slate-600">
-                <p>Track your diploma progress across required courses and download your certificate when eligible.</p>
-                <p className="font-semibold text-slate-900">Need a full diploma view? Open the diploma page.</p>
+                <p>{t("dashboard.pathwaysTrack")}</p>
+                <p className="font-semibold text-slate-900">{t("dashboard.pathwaysNeedFull")}</p>
               </div>
             </DashboardCard>
           </section>
+
+          {inProgressCourses.length > 0 && (
+            <section className="mt-6">
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-black text-slate-950">{t("dashboard.continueLearning")}</h2>
+                  <p className="text-sm font-semibold text-slate-500">{t("dashboard.jumpBack")}</p>
+                </div>
+                <Link href="/dashboard?section=courses" className="btn-secondary">
+                  {t("dashboard.viewAll")}
+                </Link>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {inProgressCourses.slice(0, 3).map((course) => {
+                  const percentComplete = progressByCourseId.get(course.id) ?? 0;
+
+                  return (
+                    <CourseCard key={course.id} course={course}>
+                      {!course.isExternal ? (
+                        <Link href={`/courses/${course.id}/learn`} className="btn-primary mt-4 w-full">
+                          {t("dashboard.continueLearning")}
+                        </Link>
+                      ) : null}
+                      <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
+                        <div className="flex justify-between text-xs font-bold text-slate-500">
+                          <span>{t("common.progress")}</span>
+                          <span className="text-teal-700">{percentComplete}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full bg-teal-700" style={{ width: `${percentComplete}%` }} />
+                        </div>
+                      </div>
+                    </CourseCard>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </>
       )}
 
@@ -154,18 +197,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
           <section className="mt-6">
             <div className="mb-3 flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-slate-950">Continue learning</h2>
-                <p className="text-sm font-semibold text-slate-500">{inProgressCourses.length} active course(s)</p>
+                <h2 className="text-lg font-black text-slate-950">{t("dashboard.continueLearning")}</h2>
+                <p className="text-sm font-semibold text-slate-500">{inProgressCourses.length} {t("dashboard.activeCourses")}</p>
               </div>
             </div>
 
             {inProgressCourses.length === 0 ? (
               <EmptyState
-                title="No active courses"
-                description="Enroll in a course to start tracking progress here."
+                title={t("dashboard.noActive")}
+                description={t("dashboard.noActiveDesc")}
                 actions={(
                   <Link href="/courses" className="btn-primary">
-                    Browse catalog
+                    {t("common.browseCatalog")}
                   </Link>
                 )}
               />
@@ -178,13 +221,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
                     <CourseCard key={course.id} course={course}>
                       {!course.isExternal && (
                         <Link href={`/courses/${course.id}/learn`} className="btn-secondary mt-4 w-full">
-                          Continue learning
+                          {t("dashboard.continueLearning")}
                         </Link>
                       )}
 
                       <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
                         <div className="flex justify-between text-xs font-bold text-slate-500">
-                          <span>Progress</span>
+                          <span>{t("common.progress")}</span>
                           <span className="text-teal-700">{percentComplete}%</span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-slate-100">
@@ -206,15 +249,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
           <section className="mt-6">
             <div className="mb-3 flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-slate-950">Completed courses</h2>
-                <p className="text-sm font-semibold text-slate-500">{completedCourses.length} completed courses</p>
+                <h2 className="text-lg font-black text-slate-950">{t("dashboard.completedCourses")}</h2>
+                <p className="text-sm font-semibold text-slate-500">{completedCourses.length} {t("dashboard.completedCourses")}</p>
               </div>
             </div>
 
             {completedCourses.length === 0 ? (
               <EmptyState
-                title="No completed courses yet"
-                description="Complete courses to access certificates and achievements."
+                title={t("dashboard.noCompleted")}
+                description={t("dashboard.noCompletedDesc")}
               />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -222,9 +265,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
                   <CourseCard key={course.id} course={course}>
                     <div className="mt-4 border-t border-slate-200 pt-4">
                       <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-bold text-teal-700">
-                        Completed
+                        {t("common.completed")}
                       </span>
-                      <DownloadCertificateButton downloadUrl={`/api/certificates/${course.id}/download`} />
+                      <DownloadCertificateButton courseId={course.id} />
                     </div>
                   </CourseCard>
                 ))}
@@ -238,11 +281,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
         <section className="mt-6 space-y-6">
           {completedCourses.length === 0 ? (
             <EmptyState
-              title="No certificates earned yet"
-              description="Complete a course to generate your first certificate."
+              title={t("dashboard.noCertificates")}
+              description={t("dashboard.noCertificatesDesc")}
               actions={(
                 <Link href="/courses" className="btn-primary">
-                  Browse courses
+                  {t("common.browseCatalog")}
                 </Link>
               )}
             />
@@ -251,8 +294,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
               {completedCourses.map((course) => (
                 <CourseCard key={course.id} course={course}>
                   <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4">
-                    <DownloadCertificateButton downloadUrl={`/api/certificates/${course.id}/download`} />
-                    <span className="text-sm font-semibold text-slate-600">Certificate available for download.</span>
+                    <DownloadCertificateButton courseId={course.id} />
+                    <span className="text-sm font-semibold text-slate-600">{t("dashboard.certAvailable")}</span>
                   </div>
                 </CourseCard>
               ))}
@@ -262,11 +305,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Re
           <DashboardCard className="p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-black text-slate-950">Diploma pathway</h2>
-                <p className="mt-1 text-sm font-semibold text-slate-600">View diploma eligibility and download your diploma certificate when ready.</p>
+                <h2 className="text-lg font-black text-slate-950">{t("dashboard.diplomaPathways")}</h2>
+                <p className="mt-1 text-sm font-semibold text-slate-600">{t("dashboard.pathwaysTrack")}</p>
               </div>
               <Link href="/diploma" className="btn-secondary">
-                View diploma progress
+                {t("dashboard.viewDiploma")}
               </Link>
             </div>
           </DashboardCard>

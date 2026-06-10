@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Link } from "@/shared/navigation";
 import { Lesson } from "@/shared/types";
@@ -20,18 +20,60 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const allLessonsCompleted = lessonList.length > 0 && lessonList.every((lesson) => lesson.progress.completed);
 
+  // Sync state with props when server-side updates occur
+  useEffect(() => {
+    setLessonList(lessons);
+    setActiveLesson((prev) => {
+      const updated = lessons.find((l) => l._id === prev._id);
+      return updated ? updated : prev;
+    });
+  }, [lessons]);
+
   // Sync lesson switch state with URL search param without triggers scroll resets
-  const handleSelectLesson = (lesson: Lesson) => {
+  const handleSelectLesson = useCallback((lesson: Lesson) => {
     setActiveLesson(lesson);
     setIsMobileSidebarOpen(false);
     router.replace(
       `/courses/${encodeURIComponent(courseId)}/learn?lesson=${encodeURIComponent(lesson._id)}`,
       { scroll: false }
     );
-  };
+  }, [courseId, router]);
+
+  // Keep local state updated during playback progress syncing
+  const handleProgressUpdate = useCallback((watchedSeconds: number, completed: boolean) => {
+    const seconds = Math.floor(watchedSeconds);
+
+    setLessonList((prevList) =>
+      prevList.map((l) => {
+        if (l._id === activeLesson._id) {
+          return {
+            ...l,
+            progress: {
+              watchedSeconds: seconds,
+              completed: completed || l.progress.completed
+            }
+          };
+        }
+        return l;
+      })
+    );
+
+    setActiveLesson((prev) => {
+      if (prev._id === activeLesson._id) {
+        return {
+          ...prev,
+          progress: {
+            watchedSeconds: seconds,
+            completed: completed || prev.progress.completed
+          }
+        };
+      }
+      return prev;
+    });
+  }, [activeLesson._id]);
 
   // Called when active lesson video reaches natural playback completion
-  const handleLessonComplete = () => {
+  const handleLessonComplete = useCallback(() => {
     // 1. Mark current lesson locally as completed for fluid visual feedback
     const updatedLessons = lessonList.map(l => {
       if (l._id === activeLesson._id) {
@@ -44,6 +86,20 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
     });
     setLessonList(updatedLessons);
 
+    // Sync activeLesson state
+    setActiveLesson(prev => {
+      if (prev._id === activeLesson._id) {
+        return {
+          ...prev,
+          progress: { watchedSeconds: prev.duration, completed: true }
+        };
+      }
+      return prev;
+    });
+
+    // Refresh server state asynchronously
+    router.refresh();
+
     // 2. Automatically navigate to the next incomplete or adjacent lesson in order
     const currentIndex = updatedLessons.findIndex((l) => l._id === activeLesson._id);
     const nextLesson = updatedLessons[currentIndex + 1] || updatedLessons[0];
@@ -51,7 +107,7 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
     if (nextLesson && nextLesson._id !== activeLesson._id) {
       handleSelectLesson(nextLesson);
     }
-  };
+  }, [activeLesson._id, handleSelectLesson, lessonList, router]);
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[1600px] min-w-0 flex-col overflow-hidden border-x border-slate-200 bg-white md:flex-row">
@@ -106,6 +162,7 @@ export default function CoursePlayer({ courseId, lessons, initialLesson }: Cours
         <VideoPlayer
           lesson={activeLesson}
           onComplete={handleLessonComplete}
+          onProgressUpdate={handleProgressUpdate}
         />
       </main>
     </div>

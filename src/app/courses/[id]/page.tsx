@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: CourseDetailPageProps): Promi
   let course;
   try {
     course = await fetchCourseById(params.id);
-  } catch (error) {
+  } catch {
     return {
       title: "Course Not Found | EPA Elearning",
     };
@@ -57,7 +57,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
   let course;
   try {
     course = await fetchCourseById(params.id);
-  } catch (error) {
+  } catch {
     notFound();
   }
 
@@ -92,7 +92,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
     related = relatedPage.courses
       .filter((c) => c.category === course.category && c.id !== course.id)
       .slice(0, 4);
-  } catch (error) {}
+  } catch {}
 
   return (
     <PageShell>
@@ -126,11 +126,6 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
         actions={(
           <div className="flex flex-wrap gap-3">
             <EnrollButton courseId={course.id} isAuthenticated={isAuthenticated} initialEnrolled={initialEnrolled} />
-            {initialEnrolled && !course.isExternal && (
-              <Link href={`/courses/${course.id}/learn`} className="btn-primary">
-                Continue learning
-              </Link>
-            )}
             {course.syllabusUrl && (
               <a href={course.syllabusUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
                 View syllabus

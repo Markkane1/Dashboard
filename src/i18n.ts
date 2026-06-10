@@ -1,17 +1,20 @@
 import { getRequestConfig } from "next-intl/server";
+import { defaultLocale, isAppLocale } from "@/shared/i18n-config";
 
 export default getRequestConfig(async ({ locale }) => {
-  const activeLocale = locale || "en";
-  let messages;
+  const activeLocale = isAppLocale(locale) ? locale : defaultLocale;
 
   try {
-    messages = (await import(`../messages/${activeLocale}.json`)).default;
-  } catch (error) {
-    messages = (await import("../messages/en.json")).default;
+    const messages = (await import(`./messages/${activeLocale}.json`)).default;
+    return {
+      locale: activeLocale,
+      messages,
+    };
+  } catch {
+    const messages = (await import(`./messages/${defaultLocale}.json`)).default;
+    return {
+      locale: defaultLocale,
+      messages,
+    };
   }
-
-  return {
-    locale: activeLocale,
-    messages,
-  };
 });

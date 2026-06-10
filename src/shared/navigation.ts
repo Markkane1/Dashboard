@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+export { defaultLocale, locales, type AppLocale } from "@/shared/i18n-config";
 
-export const locales = ["en", "pak"] as const;
-export const defaultLocale = "en";
 export { Link, redirect };

@@ -174,10 +174,10 @@ export function AuthenticatedDownloadButton({
   );
 }
 
-export function DownloadCertificateButton({ downloadUrl }: { downloadUrl: string }) {
+export function DownloadCertificateButton({ courseId }: { courseId: string }) {
   return (
     <AuthenticatedDownloadButton
-      downloadUrl={downloadUrl}
+      downloadUrl={`/api/docs/certificate/${encodeURIComponent(courseId)}`}
       label="Download Certificate"
       fallbackFilename="certificate.pdf"
     />

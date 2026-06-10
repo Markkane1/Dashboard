@@ -9,6 +9,7 @@ import { logger } from '@/shared/logger';
 interface VideoPlayerProps {
   lesson: Lesson;
   onComplete: () => void;
+  onProgressUpdate?: (watchedSeconds: number, completed: boolean) => void;
 }
 
 function getYouTubeEmbedUrl(value: string) {
@@ -38,10 +39,14 @@ function getYouTubeEmbedUrl(value: string) {
   }
 }
 
-export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
+export default function VideoPlayer({ lesson, onComplete, onProgressUpdate }: VideoPlayerProps) {
   const { data: session } = useSession();
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentTimeRef = useRef(0);
+  const resumeProgressRef = useRef({
+    duration: lesson.duration,
+    watchedSeconds: lesson.progress?.watchedSeconds || 0,
+  });
   const transcriptRef = useRef<HTMLDivElement>(null);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
@@ -55,6 +60,13 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
     setIsVideoReady(false);
     setVideoError("");
   }, [lesson._id, apiToken, youtubeEmbedUrl]);
+
+  useEffect(() => {
+    resumeProgressRef.current = {
+      duration: lesson.duration,
+      watchedSeconds: lesson.progress?.watchedSeconds || 0,
+    };
+  }, [lesson.duration, lesson.progress?.watchedSeconds]);
 
   // 1. Sync progress coordinates to backend Express API
   const syncProgress = useCallback(async (watched: number, total: number, showError = false) => {
@@ -78,6 +90,12 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
         const responseBody = await res.json().catch(() => ({}));
         throw new Error(responseBody.error || `Progress sync failed with status ${res.status}`);
       }
+
+      // Notify parent of progress update
+      if (onProgressUpdate) {
+        onProgressUpdate(watched, watched >= total);
+      }
+
       return true;
     } catch (err) {
       logger.error("Failed to sync video playback progress to database:", err);
@@ -86,7 +104,7 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
       }
       return false;
     }
-  }, [apiToken, lesson._id]);
+  }, [apiToken, lesson._id, onProgressUpdate]);
 
   // 2. Resume playback and reset state on lesson switch
   useEffect(() => {
@@ -100,8 +118,8 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
     video.load();
 
     const handleLoadedMetadata = () => {
-      const watched = lesson.progress?.watchedSeconds || 0;
-      const total = lesson.duration || video.duration || 0;
+      const watched = resumeProgressRef.current.watchedSeconds;
+      const total = resumeProgressRef.current.duration || video.duration || 0;
       
       // Resume from last watched position if valid (omit if watched is near the very end)
       if (watched > 0 && watched < total - 10) {
@@ -114,7 +132,8 @@ export default function VideoPlayer({ lesson, onComplete }: VideoPlayerProps) {
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
-  }, [lesson._id, lesson.duration, lesson.progress?.watchedSeconds]);
+  }, [lesson._id]);
+
 
   const handleVideoReady = () => {
     setIsVideoReady(true);

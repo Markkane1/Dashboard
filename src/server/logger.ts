@@ -4,6 +4,15 @@ const path = require('path');
 const fs = require('fs');
 
 const level = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
+const redact = {
+  paths: [
+    'req.headers.authorization',
+    'req.headers.cookie',
+    'req.headers["set-cookie"]',
+    'res.headers["set-cookie"]'
+  ],
+  censor: '[REDACTED]'
+};
 
 let logger;
 
@@ -27,10 +36,10 @@ if (process.env.NODE_ENV === 'production') {
       { stream: fileStream }
     ];
 
-    logger = pino({ level }, pino.multistream(streams));
+    logger = pino({ level, redact }, pino.multistream(streams));
   } catch (err) {
     // Fallback to stdout logger if rotation setup fails
-    logger = pino({ level });
+    logger = pino({ level, redact });
     logger.warn({ err }, 'Failed to initialize rotating file stream, falling back to stdout');
   }
 } else {
@@ -38,7 +47,7 @@ if (process.env.NODE_ENV === 'production') {
     target: 'pino-pretty',
     options: { colorize: true, translateTime: 'SYS:standard', ignore: 'pid,hostname' }
   };
-  logger = pino({ level, transport });
+  logger = pino({ level, redact, transport });
 }
 
 module.exports = {

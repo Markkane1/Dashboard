@@ -2,27 +2,26 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { defaultLocale, locales, type AppLocale } from "@/shared/i18n-config";
 
 export default function LanguageSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
-  const [currentLocale, setCurrentLocale] = useState("en");
+  const [currentLocale, setCurrentLocale] = useState<AppLocale>(defaultLocale);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const path = window.location.pathname;
-      if (path.startsWith("/pak") || path === "/pak") {
-        setCurrentLocale("pak");
-      } else {
-        setCurrentLocale("en");
-      }
+      const matchedLocale = locales.find((locale) => path === `/${locale}` || path.startsWith(`/${locale}/`));
+      setCurrentLocale(matchedLocale || defaultLocale);
     }
   }, [pathname]);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const nextLocale = e.target.value;
-    const pathWithoutLocale = pathname.replace(/^\/(en|pak)(?=\/|$)/, "") || "/";
-    const nextPath = nextLocale === "en" ? pathWithoutLocale : `/pak${pathWithoutLocale === "/" ? "" : pathWithoutLocale}`;
+    const nextLocale = e.target.value as AppLocale;
+    const localePattern = new RegExp(`^/(${locales.join("|")})(?=/|$)`);
+    const pathWithoutLocale = pathname.replace(localePattern, "") || "/";
+    const nextPath = nextLocale === defaultLocale ? pathWithoutLocale : `/${nextLocale}${pathWithoutLocale === "/" ? "" : pathWithoutLocale}`;
     const search = typeof window !== "undefined" ? window.location.search : "";
 
     setCurrentLocale(nextLocale);
@@ -44,7 +43,7 @@ export default function LanguageSwitcher() {
         }}
       >
         <option value="en">English (en)</option>
-        <option value="pak">Urdu (pak)</option>
+        <option value="ur">Urdu (ur)</option>
       </select>
     </div>
   );

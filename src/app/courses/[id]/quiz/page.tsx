@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
 import { findUserByEmail } from "@/features/users/data/userDb";
 import { fetchCourseById } from "@/infrastructure/api/courses";
-import { fetchCourseQuiz, QuizApiError } from "@/infrastructure/api/quizzes";
+import { fetchCourseQuizFromUiApi, QuizApiError } from "@/infrastructure/api/quizzes";
 import QuizForm from "@/features/lessons/components/QuizForm";
 import { Link } from "@/shared/navigation";
 
@@ -25,8 +25,7 @@ export default async function QuizPage({ params }: QuizPageProps) {
     redirect(`/courses/${courseId}?error=not-enrolled`);
   }
 
-  const token = session.apiAccessToken;
-  if (!token) {
+  if (!session.apiAccessToken) {
     redirect("/auth/login");
   }
 
@@ -37,7 +36,7 @@ export default async function QuizPage({ params }: QuizPageProps) {
   } catch {}
 
   try {
-    const quiz = await fetchCourseQuiz(courseId, token);
+    const quiz = await fetchCourseQuizFromUiApi(courseId);
 
     return (
       <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
@@ -49,7 +48,7 @@ export default async function QuizPage({ params }: QuizPageProps) {
             Final Quiz
           </h1>
           <p className="mt-2 text-sm font-semibold text-slate-600">
-            {quiz.courseTitle} · Passing score: {quiz.passingScore}%
+            {quiz.courseTitle} &middot; Passing score: {quiz.passingScore}%
           </p>
         </div>
 

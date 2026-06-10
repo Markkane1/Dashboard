@@ -5,7 +5,7 @@ import EnrollButton from "@/features/enrollments/components/EnrollButton";
 import { categories } from "@/features/courses/data/categories";
 import { fetchCourseById, fetchCoursePage } from "@/infrastructure/api/courses";
 import { auth } from "@/../auth";
-import { findUserByEmail } from "@/features/users/data/userDb";
+import { findUserByEmail, checkCourseAccess } from "@/features/users/data/userDb";
 import { Metadata } from "next";
 import { Course } from "@/shared/types";
 import {
@@ -72,8 +72,8 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
   let initialEnrolled = false;
   if (session?.user?.email) {
     const dbUser = await findUserByEmail(session.user.email);
-    if (dbUser && dbUser.enrolledCourses) {
-      initialEnrolled = dbUser.enrolledCourses.includes(resolvedParams.id);
+    if (dbUser) {
+      initialEnrolled = checkCourseAccess(dbUser, resolvedParams.id);
     }
   }
 

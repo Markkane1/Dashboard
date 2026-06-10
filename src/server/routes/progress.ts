@@ -14,8 +14,7 @@ const progressSchema = z.object({
   lessonId: z.string().refine((value: string) => mongoose.Types.ObjectId.isValid(value), {
     message: 'A valid ObjectId lessonId is required.'
   }),
-  watchedSeconds: z.number().finite().min(0),
-  duration: z.number().finite().positive().optional()
+  watchedSeconds: z.number().finite().min(0)
 });
 
 /**

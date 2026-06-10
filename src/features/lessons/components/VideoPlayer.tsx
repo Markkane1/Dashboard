@@ -82,8 +82,7 @@ export default function VideoPlayer({ lesson, onComplete, onProgressUpdate }: Vi
         },
         body: JSON.stringify({
           lessonId: lesson._id,
-          watchedSeconds: Math.floor(watched),
-          duration: Math.floor(total)
+          watchedSeconds: Math.floor(watched)
         })
       });
       if (!res.ok) {

@@ -25,7 +25,10 @@ async function hasCourseAccess(user: NonNullable<Request['user']>, courseId: unk
   const normalizedCourseId = String(courseId);
   const enrollment = await getEnrollment(user.id, normalizedCourseId);
   if (!enrollment) {
-    return false;
+    const completed = await hasCompletedCourse(user.id, normalizedCourseId);
+    if (!completed) {
+      return false;
+    }
   }
   const course = await Course.findById(normalizedCourseId).select('prerequisiteCourseIds publishStatus approvalStatus');
   if (!course || course.publishStatus !== 'published' || course.approvalStatus !== 'approved') {

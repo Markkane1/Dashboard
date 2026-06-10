@@ -1051,6 +1051,130 @@ describe('role and permission administration', () => {
       assert.equal(created.emailVerified, true);
     });
   });
+
+  describe('lesson progress tracking API', () => {
+    it('saves lesson progress and handles course/lesson completion using database duration', async () => {
+      const learner = await User.create({
+        name: 'Progress Learner',
+        email: 'progress-learner@example.test',
+        password: await bcrypt.hash('password123', 12),
+        role: USER_ROLES.STUDENT,
+        roles: [USER_ROLES.STUDENT],
+        permissions: []
+      });
+
+      const course = await Course.create({
+        title: 'Progress Course',
+        description: 'Testing progress tracking API.',
+        price: 0,
+        category: 'policy',
+        lessonsCount: 1,
+        publishStatus: 'published',
+        approvalStatus: 'approved'
+      });
+
+      const lesson = await Lesson.create({
+        courseId: course._id,
+        title: 'Progress Lesson 1',
+        order: 1,
+        duration: 100,
+        isPublished: true
+      });
+
+      await Enrollment.create({
+        userId: learner._id,
+        courseId: course._id
+      });
+
+      const headers = {
+        ...authHeaderFor(learner, []),
+        'Content-Type': 'application/json'
+      };
+
+      const res1 = await fetch(`${baseUrl}/api/progress`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          lessonId: lesson._id.toString(),
+          watchedSeconds: 50
+        })
+      });
+
+      assert.equal(res1.status, 200);
+      const data1 = await res1.json() as any;
+      assert.equal(data1.watchedSeconds, 50);
+      assert.equal(data1.duration, 100);
+      assert.equal(data1.completed, false);
+
+      const res2 = await fetch(`${baseUrl}/api/progress`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          lessonId: lesson._id.toString(),
+          watchedSeconds: 95
+        })
+      });
+
+      assert.equal(res2.status, 200);
+      const data2 = await res2.json() as any;
+      assert.equal(data2.watchedSeconds, 95);
+      assert.equal(data2.duration, 100);
+      assert.equal(data2.completed, true);
+    });
+
+    it('ignores client-sent duration and uses trusted database lesson duration', async () => {
+      const learner = await User.create({
+        name: 'Progress Learner 2',
+        email: 'progress-learner-2@example.test',
+        password: await bcrypt.hash('password123', 12),
+        role: USER_ROLES.STUDENT,
+        roles: [USER_ROLES.STUDENT],
+        permissions: []
+      });
+
+      const course = await Course.create({
+        title: 'Progress Course 2',
+        description: 'Testing progress tracking duration.',
+        price: 0,
+        category: 'policy',
+        lessonsCount: 1,
+        publishStatus: 'published',
+        approvalStatus: 'approved'
+      });
+
+      const lesson = await Lesson.create({
+        courseId: course._id,
+        title: 'Progress Lesson 2',
+        order: 1,
+        duration: 100,
+        isPublished: true
+      });
+
+      await Enrollment.create({
+        userId: learner._id,
+        courseId: course._id
+      });
+
+      const headers = {
+        ...authHeaderFor(learner, []),
+        'Content-Type': 'application/json'
+      };
+
+      const res = await fetch(`${baseUrl}/api/progress`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          lessonId: lesson._id.toString(),
+          watchedSeconds: 50,
+          duration: 1000
+        })
+      });
+
+      assert.equal(res.status, 200);
+      const data = await res.json() as any;
+      assert.equal(data.duration, 100);
+    });
+  });
 });
 
 function authHeaderFor(

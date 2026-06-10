@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { authenticateUser, findUserByEmail, saveUser, StoredUser } from "@/features/users/data/userDb";
 import { env } from "@/env";
 import { signApiAccessToken } from "@/shared/auth/apiToken";
+import { isOAuthDomainAllowed } from "@/shared/auth/oauthAccess";
 import { getPermissionsForRole, normalizeRoles, normalizeUserRole, USER_ROLES, type Permission } from "@/shared/permissions";
 
 async function findOrCreateOAuthUser(input: {
@@ -22,14 +23,7 @@ async function findOrCreateOAuthUser(input: {
     return existingUser;
   }
 
-  const domain = email.split("@")[1];
-  const allowedDomainsStr = env.OAUTH_ALLOWED_DOMAINS || "";
-  const allowedDomains = allowedDomainsStr
-    .split(",")
-    .map((d: string) => d.trim().toLowerCase())
-    .filter(Boolean);
-
-  const isAllowed = allowedDomains.length === 0 || allowedDomains.includes(domain);
+  const isAllowed = isOAuthDomainAllowed(email, env.OAUTH_ALLOWED_DOMAINS);
 
   const newUser: StoredUser = {
     id: crypto.randomUUID(),
@@ -95,13 +89,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const email = user.email.toLowerCase().trim();
-        const domain = email.split("@")[1];
-        const allowedDomainsStr = env.OAUTH_ALLOWED_DOMAINS || "";
-        const allowedDomains = allowedDomainsStr
-          .split(",")
-          .map((d: string) => d.trim().toLowerCase())
-          .filter(Boolean);
-
         const dbUser = await findUserByEmail(email);
         if (dbUser) {
           if (dbUser.status === "disabled") {
@@ -111,7 +98,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return `/auth/login?error=PendingApproval`;
           }
         } else {
-          const isAllowed = allowedDomains.length === 0 || allowedDomains.includes(domain);
+          const isAllowed = isOAuthDomainAllowed(email, env.OAUTH_ALLOWED_DOMAINS);
           if (!isAllowed) {
             // Option B - Pending approval flow:
             // Create the user with status: "pending"

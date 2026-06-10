@@ -1,6 +1,7 @@
 import { signApiAccessToken } from "@/shared/auth/apiToken";
 import { logger } from '@/shared/logger';
 import { USER_ROLES, type Permission, type UserRole } from "@/shared/permissions";
+export { checkCourseAccess } from "./courseAccess";
 
 export interface StoredUser {
   id: string;

@@ -1,7 +1,7 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/../auth";
-import { findUserByEmail } from "@/features/users/data/userDb";
+import { findUserByEmail, checkCourseAccess } from "@/features/users/data/userDb";
 import { fetchCourseById } from "@/infrastructure/api/courses";
 import { fetchCourseQuizFromUiApi, QuizApiError } from "@/infrastructure/api/quizzes";
 import QuizForm from "@/features/lessons/components/QuizForm";
@@ -22,7 +22,7 @@ export default async function QuizPage({ params }: QuizPageProps) {
 
   const courseId = resolvedParams.id;
   const dbUser = await findUserByEmail(session.user.email);
-  if (!dbUser || !dbUser.enrolledCourses?.includes(courseId)) {
+  if (!dbUser || !checkCourseAccess(dbUser, courseId)) {
     redirect(`/courses/${courseId}?error=not-enrolled`);
   }
 

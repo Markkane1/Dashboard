@@ -4,7 +4,6 @@ import { auth } from "@/../auth";
 import { fetchCourseAssignments } from "@/infrastructure/api/assignments";
 import { fetchCourseLessons } from "@/infrastructure/api/lessons";
 import CoursePlayer from "@/features/lessons/components/CoursePlayer";
-import { findUserByEmail } from "@/features/users/data/userDb";
 import { Link } from "@/shared/navigation";
 import { logger } from '@/shared/logger';
 import { PageShell } from "@/shared/components/ui/DesignSystem";
@@ -29,17 +28,12 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
   }
 
   const courseId = resolvedParams.id;
-  const dbUser = await findUserByEmail(session.user.email);
-  if (!dbUser || !dbUser.enrolledCourses?.includes(courseId)) {
-    redirect(`/courses/${courseId}?error=not-enrolled`);
-  }
-
   const token = session.apiAccessToken;
   if (!token) {
     redirect("/auth/login");
   }
 
-  // 3. Fetch all lessons belonging to this course
+  // Course access is enforced by the Express lesson/assignment APIs via hasCourseAccess.
   let lessons = [];
   let assignments = [];
   try {

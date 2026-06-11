@@ -78,12 +78,22 @@ router.post('/:courseId/approval', auth, requirePermission(PERMISSIONS.APPROVE_C
       approvalStatus: issuance.approvalStatus,
       approvedBy: issuance.approvedBy,
       approvedAt: issuance.approvedAt,
-      approvalComments: issuance.approvalComments || ''
+      approvalComments: issuance.approvalComments || '',
+      status: issuance.status || 'valid',
+      issuedBy: issuance.issuedBy
     };
     issuance.approvalStatus = status;
     issuance.approvedBy = status === 'approved' ? req.user?.id : undefined;
     issuance.approvedAt = status === 'approved' ? new Date() : undefined;
     issuance.approvalComments = String(comments || '');
+    if (status === 'approved') {
+      issuance.issuedBy = req.user?.id;
+      issuance.status = 'valid';
+      if (!issuance.verificationCode) {
+        const crypto = require('crypto');
+        issuance.verificationCode = crypto.randomBytes(8).toString('hex').toUpperCase();
+      }
+    }
     await issuance.save();
     let approval = await CertificateApproval.findOne({ certificateIssuanceId: issuance._id });
     if (approval) {
@@ -118,7 +128,9 @@ router.post('/:courseId/approval', auth, requirePermission(PERMISSIONS.APPROVE_C
           approvalStatus: issuance.approvalStatus,
           approvedBy: issuance.approvedBy,
           approvedAt: issuance.approvedAt,
-          approvalComments: issuance.approvalComments || ''
+          approvalComments: issuance.approvalComments || '',
+          status: issuance.status,
+          issuedBy: issuance.issuedBy
         }
       }
     });
@@ -138,11 +150,13 @@ router.post('/:certificateId/revoke', auth, requirePermission(PERMISSIONS.REVOKE
     const oldValue = {
       revokedAt: issuance.revokedAt,
       revokedBy: issuance.revokedBy,
-      revocationReason: issuance.revocationReason || ''
+      revocationReason: issuance.revocationReason || '',
+      status: issuance.status || 'valid'
     };
     issuance.revokedAt = new Date();
     issuance.revokedBy = req.user?.id;
     issuance.revocationReason = reason;
+    issuance.status = 'revoked';
     await issuance.save();
     await writeAuditLog(req, {
       action: 'certificate.revoke',
@@ -155,7 +169,8 @@ router.post('/:certificateId/revoke', auth, requirePermission(PERMISSIONS.REVOKE
         newValue: {
           revokedAt: issuance.revokedAt,
           revokedBy: issuance.revokedBy,
-          revocationReason: issuance.revocationReason
+          revocationReason: issuance.revocationReason,
+          status: issuance.status
         }
       }
     });

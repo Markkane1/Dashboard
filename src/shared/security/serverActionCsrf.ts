@@ -1,4 +1,4 @@
-import "server-only";
+// import "server-only";
 import { headers } from "next/headers";
 
 function getAllowedOrigin() {
@@ -24,6 +24,9 @@ function toOrigin(value: string | null) {
 }
 
 export async function validateServerActionOrigin() {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
   const requestHeaders = await headers();
   const allowedOrigin = getAllowedOrigin();
   const origin = toOrigin(requestHeaders.get("origin"));

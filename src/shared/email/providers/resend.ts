@@ -37,4 +37,22 @@ export class ResendProvider implements EmailProvider {
     const body = await res.json().catch(() => ({})) as { id?: string };
     return { messageId: body.id, provider: 'resend' };
   }
+
+  async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy'; error?: string }> {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        return { status: 'unhealthy', error: `Resend API returned HTTP ${res.status}: ${body}` };
+      }
+      return { status: 'healthy' };
+    } catch (error: unknown) {
+      return { status: 'unhealthy', error: error instanceof Error ? error.message : String(error) };
+    }
+  }
 }

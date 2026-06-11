@@ -138,12 +138,13 @@ describe('course access authorization', () => {
         assert.equal(String(id), 'course-1');
         return {
           select: (fields: string) => {
-            assert.equal(fields, 'prerequisiteCourseIds publishStatus approvalStatus');
+            assert.equal(fields, 'prerequisiteCourseIds status publishStatus approvalStatus');
             return Promise.resolve({
               id: 'course-1',
               prerequisiteCourseIds: [],
               publishStatus: 'published',
-              approvalStatus: 'approved'
+              approvalStatus: 'approved',
+              status: 'published'
             });
           }
         };

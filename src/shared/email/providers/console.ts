@@ -23,4 +23,8 @@ export class ConsoleProvider implements EmailProvider {
     );
     return { provider: 'console' };
   }
+
+  async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy'; error?: string }> {
+    return { status: 'healthy' };
+  }
 }

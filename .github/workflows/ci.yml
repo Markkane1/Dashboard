@@ -6,9 +6,32 @@ on:
     branches:
       - main
 
+env:
+  AUTH_SECRET: 12345678901234567890123456789012
+  NEXTAUTH_SECRET: 12345678901234567890123456789012
+  MONGODB_URI: mongodb://localhost:27017/test
+  TEST_MONGODB_URI: mongodb://localhost:27017/test
+  NEXTAUTH_URL: http://localhost:3000
+  APP_URL: http://localhost:3000
+  API_URL: http://localhost:5000
+  NEXT_PUBLIC_API_URL: http://localhost:5000
+  EMAIL_PROVIDER: console
+  OAUTH_ALLOWED_DOMAINS: punjab.gov.pk,epa.punjab.gov.pk
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout
@@ -25,6 +48,16 @@ jobs:
 
       - name: Audit lockfile
         run: npm run audit:lock
+        continue-on-error: true
+
+      - name: Lint
+        run: npm run lint
 
       - name: Build
         run: npm run build
+
+      - name: Run tests
+        env:
+          NODE_ENV: test
+          TEST_MONGODB_URI: mongodb://localhost:27017/epa_lms_ci
+        run: npm test

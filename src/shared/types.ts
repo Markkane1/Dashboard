@@ -39,6 +39,16 @@ export type Course = {
   requiresVerifiedProgress?: boolean;
   requiresCertificateApproval?: boolean;
   diplomaRequiredCourseIds?: string[];
+  status?: "draft" | "submitted_for_review" | "approved" | "published" | "archived";
+  createdBy?: string;
+  submittedBy?: string;
+  submittedAt?: Date | string;
+  approvedBy?: string;
+  approvedAt?: Date | string;
+  publishedBy?: string;
+  publishedAt?: Date | string;
+  archivedBy?: string;
+  archivedAt?: Date | string;
 };
 
 export type User = {
@@ -222,9 +232,15 @@ export type AuditLog = {
   id: string;
   actorId?: string;
   actorEmail?: string;
+  actorRole?: string;
   action: string;
   entityType: string;
   entityId?: string;
+  oldValue?: unknown;
+  newValue?: unknown;
+  result?: "success" | "failure";
+  ipAddress?: string;
+  userAgent?: string;
   details?: Record<string, unknown>;
   createdAt?: string;
 };

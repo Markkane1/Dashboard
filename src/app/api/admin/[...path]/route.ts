@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/../auth";
+import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,14 @@ async function getForwardedHeaders(req: NextRequest) {
 }
 
 async function proxy(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  if (!["GET", "HEAD"].includes(req.method)) {
+    try {
+      await validateServerActionOrigin();
+    } catch {
+      return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    }
+  }
+
   const resolvedParams = await params;
   const response = await fetch(getBackendUrl(resolvedParams.path, req.nextUrl.search), {
     method: req.method,

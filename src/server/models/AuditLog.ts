@@ -12,6 +12,11 @@ const auditLogSchema = new mongoose.Schema(
       default: '',
       index: true
     },
+    actorRole: {
+      type: String,
+      default: '',
+      index: true
+    },
     action: {
       type: String,
       required: true,
@@ -31,7 +36,25 @@ const auditLogSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {}
     },
+    oldValue: {
+      type: mongoose.Schema.Types.Mixed,
+      default: undefined
+    },
+    newValue: {
+      type: mongoose.Schema.Types.Mixed,
+      default: undefined
+    },
+    result: {
+      type: String,
+      enum: ['success', 'failure'],
+      default: 'success',
+      index: true
+    },
     ip: {
+      type: String,
+      default: ''
+    },
+    ipAddress: {
       type: String,
       default: ''
     },

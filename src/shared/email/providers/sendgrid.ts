@@ -41,4 +41,22 @@ export class SendGridProvider implements EmailProvider {
     const messageId = res.headers.get('x-message-id') ?? undefined;
     return { messageId, provider: 'sendgrid' };
   }
+
+  async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy'; error?: string }> {
+    try {
+      const res = await fetch('https://api.sendgrid.com/v3/scopes', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        return { status: 'unhealthy', error: `SendGrid API returned HTTP ${res.status}: ${body}` };
+      }
+      return { status: 'healthy' };
+    } catch (error: unknown) {
+      return { status: 'unhealthy', error: error instanceof Error ? error.message : String(error) };
+    }
+  }
 }

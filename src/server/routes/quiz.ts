@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const crypto = require('crypto');
+const { z } = require('zod');
 const auth = require('../middleware/auth');
 const { CertificateApproval, CertificateIssuance, Course, Lesson, Progress, QuizSubmission, User } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
@@ -9,10 +10,20 @@ const { markExistingEnrollmentCompleted } = require('../services/courseCompletio
 const { writeAuditLog } = require('../services/audit');
 const { generateCertificateSerial } = require('../services/certificateSerial');
 const { logger } = require('../logger');
+const { findCohortIdForUserCourse } = require('../services/cohortLookup');
 import type { Request, Response } from 'express';
 import type { QuizQuestion } from '../../shared/types';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
+
+const quizSubmitSchema = z.object({
+  answers: z.array(
+    z.object({
+      questionId: z.string().min(1, 'questionId is required'),
+      selectedOptionIndex: z.number().int().min(0, 'selectedOptionIndex must be a non-negative integer')
+    })
+  )
+}).strict();
 
 function isValidObjectId(id: unknown): id is string {
   return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id);
@@ -203,13 +214,18 @@ router.get('/:courseId', auth, async (req: AuthenticatedRequest, res: Response) 
  */
 router.post('/:courseId/submit', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    const parsed = quizSubmitSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid quiz submission payload.' });
+    }
+
     const courseId = String(req.params.courseId);
     const access = await getCourseAccessState(courseId, req.user);
     if (access.status !== 200) {
       return res.status(access.status).json({ error: access.error });
     }
 
-    const submittedAnswers = Array.isArray(req.body.answers) ? req.body.answers : [];
+    const submittedAnswers = parsed.data.answers;
     const attemptState = await getAttemptState(req.user.id, courseId, access.course);
     if (!attemptState.latestPassed && attemptState.attemptsRemaining <= 0) {
       return res.status(403).json({ error: "Maximum quiz attempts reached.", attemptsRemaining: 0 });
@@ -255,6 +271,13 @@ router.post('/:courseId/submit', auth, async (req: AuthenticatedRequest, res: Re
       const learner = await User.findById(req.user.id).select('name');
       const issuedAt = new Date();
       const existingIssuance = await CertificateIssuance.findOne({ userId: req.user.id, courseId });
+      
+      const cohortId = await findCohortIdForUserCourse(req.user.id, courseId);
+      const verificationCode = crypto.randomBytes(8).toString('hex').toUpperCase();
+
+      const isValidInstructor = access.course.instructorId && mongoose.Types.ObjectId.isValid(access.course.instructorId);
+      const instructorIdVal = isValidInstructor ? access.course.instructorId : undefined;
+
       const issuance = existingIssuance || await CertificateIssuance.create({
         certificateId: crypto.randomUUID(),
         serialNumber: await generateCertificateSerial(access.course, issuedAt),
@@ -264,7 +287,12 @@ router.post('/:courseId/submit', auth, async (req: AuthenticatedRequest, res: Re
         courseTitle: access.course.title,
         issuedAt,
         approvalStatus: access.course.requiresCertificateApproval === false ? 'approved' : 'pending',
-        approvedAt: access.course.requiresCertificateApproval === false ? issuedAt : undefined
+        approvedAt: access.course.requiresCertificateApproval === false ? issuedAt : undefined,
+        approvedBy: access.course.requiresCertificateApproval === false ? instructorIdVal : undefined,
+        issuedBy: access.course.requiresCertificateApproval === false ? instructorIdVal : undefined,
+        cohortId: cohortId || undefined,
+        status: 'valid',
+        verificationCode
       });
       if (issuance.approvalStatus === 'pending') {
         const approval = await CertificateApproval.findOne({ certificateIssuanceId: issuance._id });

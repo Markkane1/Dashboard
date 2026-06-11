@@ -26,12 +26,17 @@ async function getPublishedCourseById(courseId: unknown) {
 
   return Course.findOne({
     _id: courseId,
-    publishStatus: 'published',
-    approvalStatus: 'approved'
+    $or: [
+      { status: 'published' },
+      { status: { $exists: false }, publishStatus: 'published', approvalStatus: 'approved' }
+    ]
   });
 }
 
 function isCoursePublishable(course: any) {
+  if (course?.status) {
+    return course.status === 'published';
+  }
   return course?.approvalStatus === 'approved' && course?.publishStatus === 'published';
 }
 

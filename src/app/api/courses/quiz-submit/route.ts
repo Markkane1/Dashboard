@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/../auth";
+import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
 
 export const runtime = "nodejs";
 
 const BACKEND_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export async function POST(req: NextRequest) {
+  try {
+    await validateServerActionOrigin();
+  } catch {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
+
   const session = await auth();
   if (!session?.apiAccessToken) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });

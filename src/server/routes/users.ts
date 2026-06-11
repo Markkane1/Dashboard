@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { z } = require('zod');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const Enrollment = require('../models/Enrollment');
@@ -10,6 +11,7 @@ const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/roles');
 const { logger } = require('../logger');
+const { validateBody } = require('../middleware/validate');
 const { getMissingPrerequisiteIds, isCoursePublishable } = require('../services/courseAccessRules');
 const { writeAuditLog } = require('../services/audit');
 const { markExistingEnrollmentCompleted } = require('../services/courseCompletion');
@@ -30,9 +32,49 @@ import type { Request, Response } from 'express';
 import type { User as SharedUser } from '../../shared/types';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
+type EmailHealthResult = { status: 'healthy' | 'unhealthy'; error?: string };
 
 const MAX_FAILED_LOGIN_ATTEMPTS = Number(process.env.MAX_FAILED_LOGIN_ATTEMPTS || 5);
 const ACCOUNT_LOCKOUT_MS = Number(process.env.ACCOUNT_LOCKOUT_MS || 15 * 60 * 1000);
+const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Must be a valid ObjectId');
+const emailSchema = z.string().email().transform((value: string) => value.toLowerCase().trim());
+const tokenSchema = z.string().min(16, 'Token is required');
+const authenticateSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, 'Password is required'),
+});
+const verifyEmailSchema = z.object({ token: tokenSchema });
+const passwordResetRequestSchema = z.object({
+  email: emailSchema,
+  tokenHash: z.string().regex(/^[a-f\d]{64}$/i, 'tokenHash must be a SHA-256 hex digest'),
+  expiresAt: z.coerce.date(),
+});
+const passwordResetConfirmSchema = z.object({
+  token: tokenSchema,
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+const courseIdBodySchema = z.object({ courseId: objectIdSchema });
+const completeCourseSchema = z.object({
+  courseId: objectIdSchema,
+  userId: objectIdSchema.optional(),
+});
+const createUserSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120),
+  email: emailSchema,
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  avatar: z.string().max(2048).optional().default(''),
+  emailVerified: z.boolean().optional(),
+  status: z.enum(['active', 'pending', 'disabled']).optional(),
+});
+const resendVerificationSchema = z.object({ email: emailSchema });
+const emailChangeRequestSchema = z.object({ newEmail: emailSchema });
+const emailChangeConfirmSchema = z.object({ token: tokenSchema });
+const adminPasswordResetSchema = z.object({
+  userId: objectIdSchema.optional(),
+  email: emailSchema.optional(),
+}).refine((value: { userId?: string; email?: string }) => Boolean(value.userId || value.email), {
+  message: 'Either userId or email is required.',
+});
 
 /**
  * Serializes a user using pre-fetched user enrollment records.
@@ -111,7 +153,11 @@ function canAccessUser(req: AuthenticatedRequest, user: any): boolean {
 
 function pickAllowedUserUpdates(req: Request): Record<string, unknown> {
   const allowed: Record<string, unknown> = {};
-  for (const key of ['name', 'avatar']) {
+  const keys = ['name', 'avatar'];
+  if ((req as any).user && hasPermission((req as any).user, PERMISSIONS.MANAGE_USERS)) {
+    keys.push('status');
+  }
+  for (const key of keys) {
     if (Object.prototype.hasOwnProperty.call(req.body, key)) {
       allowed[key] = req.body[key];
     }
@@ -119,6 +165,7 @@ function pickAllowedUserUpdates(req: Request): Record<string, unknown> {
 
   return allowed;
 }
+
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -136,6 +183,38 @@ function getListLimit(value: unknown) {
 
   return Math.min(Math.max(Math.floor(limit), 1), 100);
 }
+
+// GET /api/users/email/health
+// Retrieve current email provider configuration health status.
+// Restricted to admin users.
+router.get('/email/health', auth, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { getProvider } = require('../../shared/email/getProvider');
+    const provider = getProvider();
+    const providerName = provider.constructor.name.replace('Provider', '').toLowerCase();
+
+    let checkResult: EmailHealthResult = { status: 'healthy' };
+    if (typeof provider.healthCheck === 'function') {
+      checkResult = await provider.healthCheck();
+    }
+
+    if (checkResult.status === 'unhealthy') {
+      return res.status(503).json({
+        status: 'unhealthy',
+        provider: providerName,
+        error: checkResult.error,
+      });
+    }
+
+    res.json({
+      status: 'healthy',
+      provider: providerName,
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Email health check failed');
+    res.status(500).json({ error: 'Failed to perform email health check.' });
+  }
+});
 
 // GET /api/users/email/:email
 // Find a user by email
@@ -230,30 +309,57 @@ router.get('/', auth, requireAdmin, async (req: AuthenticatedRequest, res: Respo
 // Verify credentials without exposing password hashes
 router.post('/authenticate', async (req: Request, res: Response) => {
   try {
-    const email = String(req.body.email || '').toLowerCase().trim();
-    const password = String(req.body.password || '');
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
+    const body = validateBody(authenticateSchema, req, res);
+    if (!body) return;
+    const { email, password } = body;
 
     const user = await User.findOne({ email });
     if (!user || !user.password) {
+      await writeAuditLog(req, {
+        action: 'user.login-failure',
+        entityType: 'User',
+        details: { result: 'failure', reason: 'invalid_credentials', email }
+      });
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     if (user.lockUntil && user.lockUntil.getTime() > Date.now()) {
+      await writeAuditLog(req, {
+        action: 'user.login-failure',
+        entityType: 'User',
+        entityId: user._id,
+        details: { result: 'failure', reason: 'account_locked', email }
+      });
       return res.status(423).json({ error: "Account is temporarily locked. Please try again later." });
     }
 
     if (user.emailVerified !== true) {
+      await writeAuditLog(req, {
+        action: 'user.login-failure',
+        entityType: 'User',
+        entityId: user._id,
+        details: { result: 'failure', reason: 'email_unverified', email }
+      });
       return res.status(403).json({ error: "Please verify your email address before signing in." });
     }
 
     if (user.status === "disabled") {
+      await writeAuditLog(req, {
+        action: 'user.login-failure',
+        entityType: 'User',
+        entityId: user._id,
+        details: { result: 'failure', reason: 'account_disabled', email }
+      });
       return res.status(403).json({ error: "Your account has been disabled." });
     }
 
     if (user.status === "pending") {
+      await writeAuditLog(req, {
+        action: 'user.login-failure',
+        entityType: 'User',
+        entityId: user._id,
+        details: { result: 'failure', reason: 'pending_approval', email }
+      });
       return res.status(403).json({ error: "Your account is pending administrator approval." });
     }
 
@@ -264,12 +370,32 @@ router.post('/authenticate', async (req: Request, res: Response) => {
         user.lockUntil = new Date(Date.now() + ACCOUNT_LOCKOUT_MS);
       }
       await user.save();
+      await writeAuditLog(req, {
+        action: 'user.login-failure',
+        entityType: 'User',
+        entityId: user._id,
+        details: { result: 'failure', reason: 'invalid_credentials', email }
+      });
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
     await user.save();
+
+    // Attach req.user for audit logging of success
+    (req as any).user = {
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      roles: user.roles
+    };
+    await writeAuditLog(req, {
+      action: 'user.login-success',
+      entityType: 'User',
+      entityId: user._id,
+      details: { result: 'success' }
+    });
 
     res.json(await serializeUser(user));
   } catch (error) {
@@ -282,10 +408,9 @@ router.post('/authenticate', async (req: Request, res: Response) => {
 // Verify a newly registered email address using a time-limited token.
 router.post('/verify-email', async (req: Request, res: Response) => {
   try {
-    const token = String(req.body.token || '');
-    if (!token) {
-      return res.status(400).json({ error: "Verification token is required" });
-    }
+    const body = validateBody(verifyEmailSchema, req, res);
+    if (!body) return;
+    const { token } = body;
 
     const user = await User.findOne({
       emailVerificationTokenHash: hashToken(token),
@@ -311,12 +436,9 @@ router.post('/verify-email', async (req: Request, res: Response) => {
 // Store a hashed reset token. The caller sends the email to avoid token leakage.
 router.post('/password-reset/request', auth, requirePermission(PERMISSIONS.MANAGE_PASSWORD_RESETS), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const email = String(req.body.email || '').toLowerCase().trim();
-    const tokenHash = String(req.body.tokenHash || '');
-    const expiresAt = req.body.expiresAt ? new Date(req.body.expiresAt) : null;
-    if (!email || !tokenHash || !expiresAt || Number.isNaN(expiresAt.getTime())) {
-      return res.status(400).json({ error: "email, tokenHash, and expiresAt are required" });
-    }
+    const body = validateBody(passwordResetRequestSchema, req, res);
+    if (!body) return;
+    const { email, tokenHash, expiresAt } = body;
 
     const existingUser = await User.findOne({ email }).select('_id email passwordResetExpires');
     await User.updateOne(
@@ -351,11 +473,9 @@ router.post('/password-reset/request', auth, requirePermission(PERMISSIONS.MANAG
 // Reset a password using a time-limited token.
 router.post('/password-reset/confirm', async (req: Request, res: Response) => {
   try {
-    const token = String(req.body.token || '');
-    const password = String(req.body.password || '');
-    if (!token || password.length < 8) {
-      return res.status(400).json({ error: "A valid token and password are required" });
-    }
+    const body = validateBody(passwordResetConfirmSchema, req, res);
+    if (!body) return;
+    const { token, password } = body;
 
     const user = await User.findOne({
       passwordResetTokenHash: hashToken(token),
@@ -372,6 +492,20 @@ router.post('/password-reset/confirm', async (req: Request, res: Response) => {
     user.lockUntil = undefined;
     await user.save();
 
+    // Temporarily attach target user to req.user for logging purposes
+    (req as any).user = {
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      roles: user.roles
+    };
+    await writeAuditLog(req, {
+      action: 'user.password-reset-completed',
+      entityType: 'User',
+      entityId: user._id,
+      details: { result: 'success' }
+    });
+
     res.json({ success: true });
   } catch (error) {
     logger.error({ err: error }, 'Error resetting password');
@@ -383,10 +517,9 @@ router.post('/password-reset/confirm', async (req: Request, res: Response) => {
 // Enroll the authenticated user in a course
 router.post('/enroll', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { courseId } = req.body;
-    if (!courseId) {
-      return res.status(400).json({ error: "courseId is required" });
-    }
+    const body = validateBody(courseIdBodySchema, req, res);
+    if (!body) return;
+    const { courseId } = body;
 
     const userId = req.user.id;
 
@@ -440,10 +573,9 @@ router.post('/enroll', auth, async (req: AuthenticatedRequest, res: Response) =>
 // Unenroll the authenticated user from a course
 router.post('/unenroll', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { courseId } = req.body;
-    if (!courseId) {
-      return res.status(400).json({ error: "courseId is required" });
-    }
+    const body = validateBody(courseIdBodySchema, req, res);
+    if (!body) return;
+    const { courseId } = body;
 
     const userId = req.user.id;
 
@@ -477,10 +609,9 @@ router.post('/complete', auth, async (req: AuthenticatedRequest, res: Response) 
       return res.status(403).json({ error: "Access denied. Only admins or instructors can manually mark a course as complete." });
     }
 
-    const { courseId, userId: targetUserId } = req.body;
-    if (!courseId) {
-      return res.status(400).json({ error: "courseId is required" });
-    }
+    const body = validateBody(completeCourseSchema, req, res);
+    if (!body) return;
+    const { courseId, userId: targetUserId } = body;
 
     const userId = targetUserId || req.user.id;
 
@@ -643,6 +774,8 @@ router.put('/:id', auth, async (req: AuthenticatedRequest, res: Response) => {
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: "No allowed user fields provided" });
     }
+
+    const oldValue = { status: targetUser.status || 'active' };
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
       { $set: updates },
@@ -651,6 +784,20 @@ router.put('/:id', auth, async (req: AuthenticatedRequest, res: Response) => {
     if (!updatedUser) {
       return res.status(404).json({ error: "User not found" });
     }
+
+    if (updates.status !== undefined && updates.status !== oldValue.status) {
+      await writeAuditLog(req, {
+        action: 'user.status-change',
+        entityType: 'User',
+        entityId: req.params.id,
+        details: {
+          result: 'success',
+          oldValue,
+          newValue: { status: updatedUser.status }
+        }
+      });
+    }
+
     res.json(await serializeUser(updatedUser));
   } catch (error) {
     logger.error({ err: error }, 'Error updating user');
@@ -666,24 +813,21 @@ router.post('/', auth, async (req: Request, res: Response) => {
       return res.status(403).json({ error: "Access denied. Insufficient permissions." });
     }
 
-    const {
-      name,
-      email,
-      password,
-      avatar
-    } = req.body;
+    const body = validateBody(createUserSchema, req, res);
+    if (!body) return;
+    const { name, email, password, avatar, emailVerified: requestedEmailVerified, status: requestedStatus } = body;
 
     // Generate secure email verification token on backend
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const emailVerificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
     const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    const emailVerified = req.user?.id === 'internal-service' && req.body.emailVerified !== undefined
-      ? req.body.emailVerified
+    const emailVerified = req.user?.id === 'internal-service' && requestedEmailVerified !== undefined
+      ? requestedEmailVerified
       : false;
 
-    const status = req.body.status !== undefined
-      ? req.body.status
+    const status = requestedStatus !== undefined
+      ? requestedStatus
       : 'active';
 
     const userData = {
@@ -729,10 +873,9 @@ const resendVerificationCount = new Map<string, { count: number; resetAt: number
 
 router.post('/resend-verification', async (req: Request, res: Response) => {
   try {
-    const email = String(req.body.email || '').toLowerCase().trim();
-    if (!email || !email.includes('@')) {
-      return res.status(400).json({ error: 'Valid email address is required.' });
-    }
+    const body = validateBody(resendVerificationSchema, req, res);
+    if (!body) return;
+    const { email } = body;
 
     // Rate-limit: max 3 resends per email per hour
     const now = Date.now();
@@ -780,10 +923,9 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 router.post('/email-change/request', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const newEmail = String(req.body.newEmail || '').toLowerCase().trim();
-    if (!newEmail || !newEmail.includes('@')) {
-      return res.status(400).json({ error: 'Valid new email address is required.' });
-    }
+    const body = validateBody(emailChangeRequestSchema, req, res);
+    if (!body) return;
+    const { newEmail } = body;
 
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
@@ -823,8 +965,9 @@ router.post('/email-change/request', auth, async (req: AuthenticatedRequest, res
 // ---------------------------------------------------------------------------
 router.post('/email-change/confirm', async (req: Request, res: Response) => {
   try {
-    const token = String(req.body.token || '');
-    if (!token) return res.status(400).json({ error: 'Confirmation token is required.' });
+    const body = validateBody(emailChangeConfirmSchema, req, res);
+    if (!body) return;
+    const { token } = body;
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const user = await User.findOne({
@@ -863,14 +1006,13 @@ router.post('/email-change/confirm', async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 router.post('/admin-password-reset', auth, requirePermission(PERMISSIONS.MANAGE_PASSWORD_RESETS), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { userId, email: targetEmail } = req.body;
-    if (!userId && !targetEmail) {
-      return res.status(400).json({ error: 'Either userId or email is required.' });
-    }
+    const body = validateBody(adminPasswordResetSchema, req, res);
+    if (!body) return;
+    const { userId, email: targetEmail } = body;
 
     const user = userId
       ? await User.findById(userId)
-      : await User.findOne({ email: String(targetEmail).toLowerCase().trim() });
+      : await User.findOne({ email: targetEmail });
 
     if (!user) return res.status(404).json({ error: 'User not found.' });
 

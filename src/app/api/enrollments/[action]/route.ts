@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/../auth";
+import { validateServerActionOrigin } from "@/shared/security/serverActionCsrf";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,12 @@ function backendUrl(path: string) {
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ action: string }> }) {
+  try {
+    await validateServerActionOrigin();
+  } catch {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
+
   const session = await auth();
   const resolvedParams = await params;
   const backendPath = ACTIONS[resolvedParams.action];

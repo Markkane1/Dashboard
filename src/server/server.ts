@@ -6,14 +6,16 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { connectMongo } = require('./db/mongoose');
+const { env } = require('./config/env');
+const { requireAllowedMutationOrigin } = require('./middleware/security');
 import type { NextFunction, Request, Response } from 'express';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const { logger, pinoHttp } = require('./logger');
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000')
+const allowedOrigins = (env.CORS_ALLOWED_ORIGINS || process.env.APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin: string) => origin.trim())
   .filter(Boolean);
 const isDev = process.env.NODE_ENV !== 'production';
 const cspConnectSources = ["'self'", ...allowedOrigins, 'https://challenges.cloudflare.com'];
@@ -28,13 +30,28 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-const authLimiter = rateLimit({
+
+const createAuthLimiter = () => rateLimit({
   windowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
   limit: Number(process.env.AUTH_RATE_LIMIT_MAX || 10),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many authentication attempts. Please try again later.' }
 });
+
+const clientLogLimiter = rateLimit({
+  windowMs: Number(process.env.CLIENT_LOG_RATE_LIMIT_WINDOW_MS || 60 * 1000),
+  limit: Number(process.env.CLIENT_LOG_RATE_LIMIT_MAX || 30),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many log requests. Please try again later.' }
+});
+
+const authLimiter = createAuthLimiter();
+const verifyEmailLimiter = createAuthLimiter();
+const passwordResetLimiter = createAuthLimiter();
+const emailChangeLimiter = createAuthLimiter();
+const resendVerificationLimiter = createAuthLimiter();
 
 // 1. Core middlewares
 app.use(helmet({
@@ -68,14 +85,20 @@ app.use(cors({
       return;
     }
 
-    callback(new Error('Not allowed by CORS'));
+    callback(null, false);
   }
 }));
 app.use(express.json());
 app.use(pinoHttp);
 app.use(cookieParser());
 app.use('/api', apiLimiter);
+app.use('/api', requireAllowedMutationOrigin);
 app.use('/api/users/authenticate', authLimiter);
+app.use('/api/users/verify-email', verifyEmailLimiter);
+app.use('/api/users/password-reset/confirm', passwordResetLimiter);
+app.use('/api/users/email-change/confirm', emailChangeLimiter);
+app.use('/api/users/resend-verification', resendVerificationLimiter);
+app.use('/api/client-logs', clientLogLimiter);
 app.use('/api/users', (req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'POST' && req.path === '/') {
     return authLimiter(req, res, next);

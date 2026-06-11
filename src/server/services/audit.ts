@@ -9,6 +9,50 @@ interface WriteAuditLogOptions {
   details?: Record<string, unknown>;
 }
 
+const REDACTED = '[REDACTED]';
+
+function isSensitiveAuditKey(key: string): boolean {
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return normalized === 'password'
+    || normalized.includes('passwordhash')
+    || normalized.includes('passwordresettoken')
+    || normalized.includes('tokenhash')
+    || normalized.endsWith('token')
+    || normalized.includes('secret')
+    || normalized.includes('credential')
+    || normalized.includes('authorization')
+    || normalized.includes('cookie')
+    || normalized.includes('apikey')
+    || normalized.includes('verificationtoken');
+}
+
+function sanitizeAuditValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeAuditValue(item));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  const output: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+    output[key] = isSensitiveAuditKey(key) ? REDACTED : sanitizeAuditValue(nestedValue);
+  }
+  return output;
+}
+
+function getPrimaryRole(user: any): string {
+  if (!user) return '';
+  if (typeof user.role === 'string' && user.role) return user.role;
+  if (Array.isArray(user.roles) && user.roles.length > 0) return String(user.roles[0] || '');
+  return '';
+}
+
 /**
  * Government-grade audit logger.
  * Captures: actor (id + email), target record (type + id),
@@ -19,6 +63,9 @@ async function writeAuditLog(req: Request, opts: WriteAuditLogOptions): Promise<
   try {
     const actorId = req.user?.id;
     const actorEmail = req.user?.email || '';
+    const actorRole = getPrimaryRole(req.user);
+    const sanitizedDetails = sanitizeAuditValue(opts.details || {}) as Record<string, unknown>;
+    const result = sanitizedDetails.result === 'failure' ? 'failure' : 'success';
 
     // Resolve client IP, respecting reverse-proxy headers
     const rawIp =
@@ -39,14 +86,19 @@ async function writeAuditLog(req: Request, opts: WriteAuditLogOptions): Promise<
     await AuditLog.create({
       actorId: actorId && actorId !== 'internal-service' ? actorId : undefined,
       actorEmail,
+      actorRole,
       action: opts.action,
       entityType: opts.entityType,
       entityId,
       details: {
-        result: 'success',
-        ...(opts.details || {})
+        result,
+        ...sanitizedDetails
       },
+      oldValue: sanitizedDetails.oldValue,
+      newValue: sanitizedDetails.newValue,
+      result,
       ip,
+      ipAddress: ip,
       userAgent,
     });
   } catch (error) {

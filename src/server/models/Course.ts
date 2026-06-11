@@ -103,6 +103,22 @@ const courseSchema = new mongoose.Schema(
       default: 'approved',
       index: true
     },
+    status: {
+      type: String,
+      enum: ['draft', 'submitted_for_review', 'approved', 'published', 'archived'],
+      index: true
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    submittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    submittedAt: {
+      type: Date
+    },
     submittedForApprovalAt: {
       type: Date
     },
@@ -112,6 +128,20 @@ const courseSchema = new mongoose.Schema(
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
+    },
+    publishedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    publishedAt: {
+      type: Date
+    },
+    archivedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    archivedAt: {
+      type: Date
     },
     rejectedAt: {
       type: Date
@@ -200,6 +230,7 @@ const courseSchema = new mongoose.Schema(
 courseSchema.index({ createdAt: -1 });
 courseSchema.index({ category: 1, createdAt: -1 });
 courseSchema.index({ publishStatus: 1, approvalStatus: 1, createdAt: -1 });
+courseSchema.index({ status: 1, createdAt: -1 });
 courseSchema.index({ trainerIds: 1 });
 courseSchema.index({ sdgGoals: 1 });
 courseSchema.index({ sections: 1 });

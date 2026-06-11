@@ -43,6 +43,16 @@ const COURSE_CARD_FIELDS = [
   'quizRandomizeOptions',
   'publishStatus',
   'approvalStatus',
+  'status',
+  'createdBy',
+  'submittedBy',
+  'submittedAt',
+  'approvedBy',
+  'approvedAt',
+  'publishedBy',
+  'publishedAt',
+  'archivedBy',
+  'archivedAt',
   'prerequisiteCourseIds',
   'trainerIds',
   'requiresFeedback',
@@ -121,6 +131,16 @@ function serializeCourse(course: any): SharedCourse {
     quizRandomizeOptions: plain.quizRandomizeOptions !== false,
     publishStatus: plain.publishStatus || 'published',
     approvalStatus: plain.approvalStatus || 'approved',
+    status: plain.status || (plain.publishStatus === 'published' && plain.approvalStatus === 'approved' ? 'published' : 'draft'),
+    createdBy: plain.createdBy ? String(plain.createdBy) : undefined,
+    submittedBy: plain.submittedBy ? String(plain.submittedBy) : undefined,
+    submittedAt: plain.submittedAt,
+    approvedBy: plain.approvedBy ? String(plain.approvedBy) : undefined,
+    approvedAt: plain.approvedAt,
+    publishedBy: plain.publishedBy ? String(plain.publishedBy) : undefined,
+    publishedAt: plain.publishedAt,
+    archivedBy: plain.archivedBy ? String(plain.archivedBy) : undefined,
+    archivedAt: plain.archivedAt,
     prerequisiteCourseIds: (plain.prerequisiteCourseIds || []).map(String),
     trainerIds: (plain.trainerIds || []).map(String),
     requiresFeedback: plain.requiresFeedback === true,
@@ -166,6 +186,16 @@ function auditCourseSnapshot(course: any) {
     category: plain.category,
     publishStatus: plain.publishStatus,
     approvalStatus: plain.approvalStatus,
+    status: plain.status || 'draft',
+    createdBy: plain.createdBy ? String(plain.createdBy) : undefined,
+    submittedBy: plain.submittedBy ? String(plain.submittedBy) : undefined,
+    submittedAt: plain.submittedAt,
+    approvedBy: plain.approvedBy ? String(plain.approvedBy) : undefined,
+    approvedAt: plain.approvedAt,
+    publishedBy: plain.publishedBy ? String(plain.publishedBy) : undefined,
+    publishedAt: plain.publishedAt,
+    archivedBy: plain.archivedBy ? String(plain.archivedBy) : undefined,
+    archivedAt: plain.archivedAt,
     trainerIds: (plain.trainerIds || []).map(String),
     prerequisiteCourseIds: (plain.prerequisiteCourseIds || []).map(String),
     quizPassingScore: plain.quizPassingScore,
@@ -267,7 +297,12 @@ function buildCourseFilter(query: Request['query']) {
   if (isExternal !== undefined) {
     filters.push({ isExternal });
   }
-  filters.push({ publishStatus: 'published', approvalStatus: 'approved' });
+  filters.push({
+    $or: [
+      { status: 'published' },
+      { status: { $exists: false }, publishStatus: 'published', approvalStatus: 'approved' }
+    ]
+  });
   const filterSection = section || mea;
   if (filterSection) {
     const normalizedSection = filterSection.toUpperCase();
@@ -407,8 +442,8 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const limit = getCourseLimit(req.query.limit);
     const page = getCoursePage(req.query.page);
-    const cursor = decodeCursor(req.query.cursor);
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const cursor = q ? null : decodeCursor(req.query.cursor);
     const filter = buildCourseFilter(req.query);
     const pageFilter = cursor
       ? {
@@ -525,6 +560,8 @@ router.post('/', auth, requireContentManager, async (req: Request, res: Response
 
     payload.publishStatus = 'draft';
     payload.approvalStatus = 'draft';
+    payload.status = 'draft';
+    payload.createdBy = req.user?.id;
     const course = await Course.create(payload);
     await writeAuditLog(req, { action: 'course.create', entityType: 'Course', entityId: course._id });
     res.status(201).json(serializeCourse(course));
@@ -539,8 +576,15 @@ router.get('/approvals', auth, requirePermission(PERMISSIONS.APPROVE_COURSES), a
     const status = typeof req.query.status === 'string' && req.query.status
       ? req.query.status
       : 'pending';
-    const filter: Record<string, unknown> = {};
-    if (['draft', 'pending', 'approved', 'rejected', 'published'].includes(status)) {
+    const filter: Record<string, any> = {};
+    if (['draft', 'submitted_for_review', 'approved', 'published', 'archived'].includes(status)) {
+      filter.status = status;
+    } else if (status === 'pending') {
+      filter.$or = [
+        { status: 'submitted_for_review' },
+        { status: { $exists: false }, approvalStatus: 'pending' }
+      ];
+    } else {
       filter.approvalStatus = status === 'published' ? 'approved' : status;
     }
     const courses = await Course.find(filter)
@@ -573,8 +617,10 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const course = await Course.findOne({
       _id: req.params.id,
-      publishStatus: 'published',
-      approvalStatus: 'approved'
+      $or: [
+        { status: 'published' },
+        { status: { $exists: false }, publishStatus: 'published', approvalStatus: 'approved' }
+      ]
     }).select(COURSE_CARD_FIELDS);
     if (!course) {
       return res.status(404).json({ error: "Course not found" });
@@ -607,6 +653,13 @@ router.patch('/:id', auth, requireContentManager, async (req: Request, res: Resp
     const before = await Course.findById(req.params.id).select(`${COURSE_CARD_FIELDS} quizQuestions`);
     if (!before) {
       return res.status(404).json({ error: 'Course not found' });
+    }
+
+    const { hasPermission } = require('../../shared/permissions');
+    const hasApprovePermission = hasPermission(req.user, PERMISSIONS.APPROVE_COURSES);
+    const currentStatus = before.status || 'draft';
+    if (!hasApprovePermission && currentStatus !== 'draft') {
+      return res.status(403).json({ error: 'Only courses in draft status can be edited by instructors.' });
     }
 
     const course = await Course.findByIdAndUpdate(
@@ -642,7 +695,7 @@ router.patch('/:id', auth, requireContentManager, async (req: Request, res: Resp
 router.post('/:id/approval', auth, async (req: Request, res: Response, next: NextFunction) => {
   const action = String(req.body?.action || '').toLowerCase();
   if (action === 'submit') {
-    return next();
+    return requirePermission(PERMISSIONS.MANAGE_CONTENT)(req as any, res, next);
   }
 
   return requirePermission(PERMISSIONS.APPROVE_COURSES)(req as any, res, next);
@@ -653,33 +706,65 @@ router.post('/:id/approval', auth, async (req: Request, res: Response, next: Nex
     }
     const action = String(req.body?.action || '').toLowerCase();
     const comments = String(req.body?.comments || '').trim();
-    if (!['submit', 'approve', 'reject'].includes(action)) {
-      return res.status(400).json({ error: 'action must be submit, approve, or reject.' });
+    if (!['submit', 'approve', 'reject', 'publish', 'archive'].includes(action)) {
+      return res.status(400).json({ error: 'action must be submit, approve, reject, publish, or archive.' });
     }
 
     const course = await Course.findById(req.params.id);
     if (!course) return res.status(404).json({ error: 'Course not found.' });
 
     const oldValue = auditCourseSnapshot(course);
+    const currentStatus = course.status || 'draft';
+
     if (action === 'submit') {
+      if (currentStatus !== 'draft') {
+        return res.status(400).json({ error: 'Only courses in draft status can be submitted for review.' });
+      }
+      course.status = 'submitted_for_review';
+      course.submittedBy = req.user?.id;
+      course.submittedAt = new Date();
       course.publishStatus = 'pending';
       course.approvalStatus = 'pending';
       course.submittedForApprovalAt = new Date();
       await CourseApproval.create({ courseId: course._id, status: 'pending', submittedBy: req.user?.id, comments });
     } else if (action === 'approve') {
-      course.publishStatus = 'published';
-      course.approvalStatus = 'approved';
+      if (currentStatus !== 'submitted_for_review') {
+        return res.status(400).json({ error: 'Only courses submitted for review can be approved.' });
+      }
+      course.status = 'approved';
       course.approvedAt = new Date();
       course.approvedBy = req.user?.id;
       course.rejectedAt = undefined;
       course.rejectedBy = undefined;
+      course.approvalStatus = 'approved';
+      course.publishStatus = 'draft';
       await CourseApproval.create({ courseId: course._id, status: 'approved', reviewedBy: req.user?.id, reviewedAt: new Date(), comments });
-    } else {
-      course.publishStatus = 'rejected';
-      course.approvalStatus = 'rejected';
+    } else if (action === 'reject') {
+      if (currentStatus !== 'submitted_for_review') {
+        return res.status(400).json({ error: 'Only courses submitted for review can be rejected.' });
+      }
+      course.status = 'draft';
       course.rejectedAt = new Date();
       course.rejectedBy = req.user?.id;
+      course.publishStatus = 'rejected';
+      course.approvalStatus = 'rejected';
       await CourseApproval.create({ courseId: course._id, status: 'rejected', reviewedBy: req.user?.id, reviewedAt: new Date(), comments });
+    } else if (action === 'publish') {
+      if (currentStatus !== 'approved') {
+        return res.status(400).json({ error: 'Only approved courses can be published.' });
+      }
+      course.status = 'published';
+      course.publishedAt = new Date();
+      course.publishedBy = req.user?.id;
+      course.publishStatus = 'published';
+      course.approvalStatus = 'approved';
+      await CourseApproval.create({ courseId: course._id, status: 'approved', reviewedBy: req.user?.id, reviewedAt: new Date(), comments: comments || 'Course published' });
+    } else if (action === 'archive') {
+      course.status = 'archived';
+      course.archivedAt = new Date();
+      course.archivedBy = req.user?.id;
+      course.publishStatus = 'draft';
+      await CourseApproval.create({ courseId: course._id, status: 'rejected', reviewedBy: req.user?.id, reviewedAt: new Date(), comments: comments || 'Course archived' });
     }
 
     course.approvalComments = comments;

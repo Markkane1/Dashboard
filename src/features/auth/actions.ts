@@ -140,6 +140,9 @@ export async function registerUser(input: SignupInput) {
     return { success: false, error: "Something went wrong. Please try again." };
   }
 }
+
+const passwordResetCount = new Map<string, { count: number; resetAt: number }>();
+
 export async function requestPasswordReset(input: { email: string }) {
   try {
     await validateServerActionOrigin();
@@ -150,6 +153,18 @@ export async function requestPasswordReset(input: { email: string }) {
   const email = String(input.email || "").toLowerCase().trim();
   if (!email || !email.includes("@")) {
     return { success: false, error: "Please enter a valid email address." };
+  }
+
+  const now = Date.now();
+  const rateKey = email;
+  const entry = passwordResetCount.get(rateKey);
+  if (entry && entry.resetAt > now) {
+    if (entry.count >= 3) {
+      return { success: false, error: "Too many password reset requests. Please wait before trying again." };
+    }
+    entry.count++;
+  } else {
+    passwordResetCount.set(rateKey, { count: 1, resetAt: now + 60 * 60 * 1000 });
   }
 
   try {
@@ -256,12 +271,14 @@ export async function resendVerification(input: { email: string }) {
   }
 
   try {
-    await resendVerificationEmailDb(email);
-    // Always return success to prevent email enumeration
+    const res = await resendVerificationEmailDb(email);
+    if (!res.ok) {
+      return { success: false, error: res.error || "Failed to resend verification email." };
+    }
     return { success: true };
   } catch (error) {
     logger.error("Error in resendVerification server action:", error);
-    return { success: true }; // Still mask the error externally
+    return { success: false, error: "Something went wrong. Please try again." };
   }
 }
 

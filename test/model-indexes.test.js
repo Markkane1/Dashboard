@@ -40,18 +40,22 @@ const ids = {
 };
 
 before(async () => {
-  const systemBinary = getSystemMongoBinary();
-  if (systemBinary) {
+  const testMongoUri = process.env.TEST_MONGODB_URI
+    ? withDatabaseName(process.env.TEST_MONGODB_URI, 'model_indexes')
+    : '';
+  if (testMongoUri) {
+    await mongoose.connect(testMongoUri);
+  } else {
+    const systemBinary = getSystemMongoBinary();
+    if (!systemBinary) {
+      throw new Error('TEST_MONGODB_URI is required when no local MongoDB system binary is available.');
+    }
     mongoServer = await MongoMemoryServer.create({
       binary: {
         systemBinary
       }
     });
     await mongoose.connect(mongoServer.getUri());
-  } else {
-    const fallbackUri = process.env.TEST_MONGODB_URI || 'mongodb://127.0.0.1:27017/test_model_indexes';
-    console.warn(`[TEST] No MongoDB system binary found for memory server. Falling back to local MongoDB at: ${fallbackUri}`);
-    await mongoose.connect(fallbackUri);
   }
 
   await mongoose.connection.db.dropDatabase();
@@ -326,6 +330,12 @@ function getSystemMongoBinary() {
   } catch (error) {}
 
   return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+function withDatabaseName(uri, dbName) {
+  const parsed = new URL(uri);
+  parsed.pathname = `/${dbName}`;
+  return parsed.toString();
 }
 
 function uniqueById(docs) {

@@ -24,9 +24,15 @@ router.get('/', auth, requirePermission(PERMISSIONS.VIEW_AUDIT_LOGS), async (req
       id: String(log._id),
       actorId: log.actorId ? String(log.actorId) : '',
       actorEmail: log.actorEmail || '',
+      actorRole: log.actorRole || '',
       action: log.action,
       entityType: log.entityType,
       entityId: log.entityId || '',
+      oldValue: log.oldValue,
+      newValue: log.newValue,
+      result: log.result || log.details?.result || 'success',
+      ipAddress: log.ipAddress || log.ip || '',
+      userAgent: log.userAgent || '',
       details: log.details || {},
       createdAt: log.createdAt
     })));

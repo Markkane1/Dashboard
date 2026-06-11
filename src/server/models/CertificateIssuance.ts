@@ -68,6 +68,27 @@ const certificateIssuanceSchema = new mongoose.Schema(
     revocationReason: {
       type: String,
       default: ''
+    },
+    status: {
+      type: String,
+      enum: ['valid', 'revoked'],
+      default: 'valid',
+      index: true
+    },
+    verificationCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true
+    },
+    cohortId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Cohort',
+      index: true
+    },
+    issuedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     }
   },
   {

@@ -18,7 +18,7 @@ async function generateCertificateSerial(course: any, issuedAt = new Date()) {
     issuedAt: { $gte: yearStart, $lt: yearEnd }
   }) + 1;
 
-  return `EPA-PB-${year}-${courseCode}-${String(sequence).padStart(6, '0')}`;
+  return `EPA-CKEPD-${year}-${courseCode}-${String(sequence).padStart(6, '0')}`;
 }
 
 module.exports = { generateCertificateSerial };

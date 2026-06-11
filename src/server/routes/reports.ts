@@ -183,17 +183,23 @@ async function buildRows(type: string, req: Request) {
   }
 
   if (type === 'courses') {
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, any> = {};
     const status = queryString(req, 'status');
     const approvalStatus = queryString(req, 'approvalStatus');
-    if (status) filter.publishStatus = status;
+    if (status) {
+      if (['draft', 'submitted_for_review', 'approved', 'published', 'archived'].includes(status)) {
+        filter.status = status;
+      } else {
+        filter.publishStatus = status;
+      }
+    }
     if (approvalStatus) filter.approvalStatus = approvalStatus;
     applyDateRange(filter, 'createdAt', req);
     const courses = await Course.find(filter).sort({ createdAt: -1 });
     return courses.map((course: any) => ({
       title: course.title,
-      status: course.publishStatus,
-      approval: course.approvalStatus,
+      status: course.status || course.publishStatus,
+      approval: course.status ? (course.status === 'approved' || course.status === 'published' ? 'approved' : 'pending') : course.approvalStatus,
       category: course.category,
       enrolledCount: course.enrolledCount,
       lessonsCount: course.lessonsCount

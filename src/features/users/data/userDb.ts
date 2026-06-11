@@ -63,7 +63,7 @@ export async function authenticateUser(email: string, password: string): Promise
   try {
     const res = await fetch(`${getBaseUrl()}/api/users/authenticate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await getServerAuthHeader()) },
       body: JSON.stringify({ email, password }),
       cache: "no-store",
     });
@@ -133,7 +133,7 @@ export async function resetPasswordWithToken(token: string, password: string): P
   try {
     const res = await fetch(`${getBaseUrl()}/api/users/password-reset/confirm`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await getServerAuthHeader()) },
       body: JSON.stringify({ token, password }),
     });
     return res.ok;
@@ -147,7 +147,7 @@ export async function verifyEmailToken(token: string): Promise<boolean> {
   try {
     const res = await fetch(`${getBaseUrl()}/api/users/verify-email`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await getServerAuthHeader()) },
       body: JSON.stringify({ token }),
       cache: "no-store",
     });
@@ -194,17 +194,21 @@ export async function unenrollFromCourseApi(userId: string, email: string, cours
   }
 }
 
-export async function resendVerificationEmail(email: string): Promise<boolean> {
+export async function resendVerificationEmail(email: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(`${getBaseUrl()}/api/users/resend-verification`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await getServerAuthHeader()) },
       body: JSON.stringify({ email }),
     });
-    return res.ok;
+    if (res.ok) {
+      return { ok: true };
+    }
+    const data = await res.json().catch(() => ({}));
+    return { ok: false, error: data.error || 'Failed to resend verification email.' };
   } catch (error) {
     logger.error('Error in resendVerificationEmail:', error);
-    return false;
+    return { ok: false, error: 'Network error.' };
   }
 }
 
@@ -228,7 +232,7 @@ export async function confirmEmailChange(token: string): Promise<boolean> {
   try {
     const res = await fetch(`${getBaseUrl()}/api/users/email-change/confirm`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await getServerAuthHeader()) },
       body: JSON.stringify({ token }),
     });
     return res.ok;

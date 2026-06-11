@@ -8,6 +8,7 @@ const { generateCertificateSerial } = require('../services/certificateSerial');
 const { writeAuditLog } = require('../services/audit');
 const { formatIssuedOn, getOrCreateDocumentPdf } = require('../services/documentPdf');
 const { logger } = require('../logger');
+const { findCohortIdForUserCourse } = require('../services/cohortLookup');
 import type { Request, Response } from 'express';
 
 type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
@@ -55,11 +56,19 @@ async function getOrCreateCertificateIssuance(input: {
   courseTitle: string;
   issuedAt: Date;
   approvalStatus?: 'pending' | 'approved';
+  issuedBy?: string;
 }) {
   const existing = await CertificateIssuance.findOne({ userId: input.userId, courseId: input.courseId });
   if (existing) return existing;
   const course = await Course.findById(input.courseId);
   const serialNumber = await generateCertificateSerial(course, input.issuedAt);
+  const cohortId = await findCohortIdForUserCourse(input.userId, input.courseId);
+  const verificationCode = crypto.randomBytes(8).toString('hex').toUpperCase();
+
+  const mongoose = require('mongoose');
+  const isValidIssuer = input.issuedBy && mongoose.Types.ObjectId.isValid(input.issuedBy);
+  const issuedByVal = isValidIssuer ? input.issuedBy : undefined;
+  const approvedByVal = (input.approvalStatus !== 'pending' && isValidIssuer) ? input.issuedBy : undefined;
 
   return CertificateIssuance.create({
     certificateId: crypto.randomUUID(),
@@ -70,7 +79,12 @@ async function getOrCreateCertificateIssuance(input: {
     courseTitle: input.courseTitle,
     issuedAt: input.issuedAt,
     approvalStatus: input.approvalStatus || 'approved',
-    approvedAt: input.approvalStatus === 'pending' ? undefined : new Date()
+    approvedAt: input.approvalStatus === 'pending' ? undefined : new Date(),
+    approvedBy: approvedByVal,
+    issuedBy: issuedByVal,
+    cohortId: cohortId || undefined,
+    status: 'valid',
+    verificationCode
   });
 }
 
@@ -96,7 +110,8 @@ async function generateCertificate(req: AuthenticatedRequest, res: Response) {
       recipientName,
       courseTitle: course.title,
       issuedAt,
-      approvalStatus: course.requiresCertificateApproval === false ? 'approved' : 'pending'
+      approvalStatus: course.requiresCertificateApproval === false ? 'approved' : 'pending',
+      issuedBy: course.requiresCertificateApproval === false ? course.instructorId : undefined
     });
     if (issuance.revokedAt) {
       return res.status(403).json({ error: 'Certificate has been revoked.' });
@@ -165,14 +180,21 @@ async function generateCertificate(req: AuthenticatedRequest, res: Response) {
 
 router.get('/verify/:certificateId', async (req: Request, res: Response) => {
   try {
+    const identifier = String(req.params.certificateId);
     const issuance = await CertificateIssuance.findOne({
-      certificateId: String(req.params.certificateId)
-    }).select('certificateId recipientName courseTitle issuedAt revokedAt');
+      $or: [
+        { certificateId: identifier },
+        { serialNumber: identifier },
+        { verificationCode: identifier }
+      ]
+    }).select('certificateId serialNumber verificationCode recipientName courseTitle issuedAt revokedAt status revocationReason cohortId issuedBy');
 
     if (!issuance) {
       return res.status(404).json({
         valid: false,
         certificateId: '',
+        serialNumber: '',
+        verificationCode: '',
         recipientName: '',
         courseTitle: '',
         issuedAt: '',
@@ -181,22 +203,35 @@ router.get('/verify/:certificateId', async (req: Request, res: Response) => {
       });
     }
 
-    const isRevoked = !!issuance.revokedAt;
+    const isRevoked = issuance.status === 'revoked' || !!issuance.revokedAt;
+    const serialNumber = issuance.serialNumber || `EPA-CKEPD-MIGRATED-${issuance.certificateId.slice(0, 8).toUpperCase()}`;
+    const verificationCode = issuance.verificationCode || issuance.certificateId.slice(0, 8).toUpperCase();
+    const status = isRevoked ? 'revoked' : 'valid';
 
-    res.json({
+    const responseData: Record<string, any> = {
       valid: !isRevoked,
       certificateId: issuance.certificateId,
+      serialNumber,
+      verificationCode,
       recipientName: issuance.recipientName,
       courseTitle: issuance.courseTitle,
       issuedAt: issuance.issuedAt.toISOString(),
       revokedAt: issuance.revokedAt ? issuance.revokedAt.toISOString() : null,
-      status: isRevoked ? 'revoked' : 'valid'
-    });
+      status
+    };
+
+    if (isRevoked) {
+      responseData.revocationReason = issuance.revocationReason || '';
+    }
+
+    res.json(responseData);
   } catch (error) {
     logger.error({ err: error }, 'Error verifying certificate');
     res.status(500).json({
       valid: false,
       certificateId: '',
+      serialNumber: '',
+      verificationCode: '',
       recipientName: '',
       courseTitle: '',
       issuedAt: '',

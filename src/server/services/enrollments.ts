@@ -30,8 +30,15 @@ async function hasCourseAccess(user: NonNullable<Request['user']>, courseId: unk
       return false;
     }
   }
-  const course = await Course.findById(normalizedCourseId).select('prerequisiteCourseIds publishStatus approvalStatus');
-  if (!course || course.publishStatus !== 'published' || course.approvalStatus !== 'approved') {
+  const course = await Course.findById(normalizedCourseId).select('prerequisiteCourseIds status publishStatus approvalStatus');
+  if (!course) {
+    return false;
+  }
+  const isAvailable = course.status
+    ? ['published', 'archived'].includes(course.status)
+    : (course.publishStatus === 'published' && course.approvalStatus === 'approved');
+
+  if (!isAvailable) {
     return false;
   }
 

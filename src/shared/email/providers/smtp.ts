@@ -53,4 +53,13 @@ export class SmtpProvider implements EmailProvider {
 
     return { messageId: info.messageId, provider: 'smtp' };
   }
+
+  async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy'; error?: string }> {
+    try {
+      await this.transporter.verify();
+      return { status: 'healthy' };
+    } catch (error: unknown) {
+      return { status: 'unhealthy', error: error instanceof Error ? error.message : String(error) };
+    }
+  }
 }

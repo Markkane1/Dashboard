@@ -9,7 +9,24 @@ const redact = {
     'req.headers.authorization',
     'req.headers.cookie',
     'req.headers["set-cookie"]',
-    'res.headers["set-cookie"]'
+    'res.headers["set-cookie"]',
+    'req.body.password',
+    'req.body.token',
+    'req.body.tokenHash',
+    'req.body.passwordResetTokenHash',
+    'req.body.emailVerificationTokenHash',
+    'req.body.pendingEmailTokenHash',
+    'req.body.emailVerificationToken',
+    'req.body.resetToken',
+    'req.body.verificationToken',
+    'req.body.authorization',
+    'req.body.cookie',
+    'req.body.meta.password',
+    'req.body.meta.token',
+    'req.body.meta.authorization',
+    'req.body.meta.cookie',
+    'req.file',
+    'req.files'
   ],
   censor: '[REDACTED]'
 };

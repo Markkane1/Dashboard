@@ -16,8 +16,11 @@ const { Lesson, Progress, Course, User } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
 const {
   VIDEO_STORAGE,
+  getVideoStorageKey,
   getLocalVideoDir,
-  getPublicVideoUrl
+  isRemoteVideoUrl,
+  VideoStorageNotImplementedError,
+  videoStorageProvider
 } = require('../services/videoStorage');
 const { logger } = require('../logger');
 const { hasPermission, PERMISSIONS } = require('../../shared/permissions');
@@ -45,10 +48,10 @@ const upload = multer({
   fileFilter: (_req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (!storageConfig.allowedVideoExtensions.includes(ext)) {
-      return cb(new Error(`Only ${storageConfig.allowedVideoExtensions.join(', ')} extension(s) are allowed.`));
+      return cb(new Error("Only MP4 video uploads are supported."));
     }
     if (!storageConfig.allowedVideoTypes.includes(file.mimetype)) {
-      return cb(new Error(`Only MIME type(s) ${storageConfig.allowedVideoTypes.join(', ')} are supported.`));
+      return cb(new Error("Only MP4 video uploads are supported."));
     }
     cb(null, true);
   }
@@ -270,13 +273,6 @@ router.post(
   '/:lessonId/upload',
   auth,
   requireContentManager,
-  (_req: Request, res: Response, next: NextFunction) => {
-    if (VIDEO_STORAGE !== 'local') {
-      return res.status(501).json({ error: "Configured video storage provider is not implemented for direct uploads yet." });
-    }
-
-    next();
-  },
   (req: Request, res: Response, next: NextFunction) => {
     upload.single('video')(req, res, (err: any) => {
       if (err) {
@@ -322,7 +318,18 @@ router.post(
         return res.status(400).json({ error: "The uploaded file is not a valid video." });
       }
 
-      lesson.videoUrl = getPublicVideoUrl(req.file.filename);
+      const storedVideo = await videoStorageProvider.upload(req.file);
+
+      if (VIDEO_STORAGE !== 'local') {
+        removeUploadedFile(req.file);
+      }
+
+      // Clean up the old video from storage if one exists
+      if (oldValue.videoUrl && !isRemoteVideoUrl(oldValue.videoUrl)) {
+        await videoStorageProvider.delete(getVideoStorageKey(oldValue.videoUrl));
+      }
+
+      lesson.videoUrl = storedVideo.url;
       lesson.videoOriginalName = req.file.originalname;
       if (validation.duration !== undefined) {
         lesson.duration = validation.duration;
@@ -350,6 +357,9 @@ router.post(
     } catch (error) {
       removeUploadedFile(req.file);
       logger.error({ err: error }, 'Error uploading lesson video');
+      if (error instanceof VideoStorageNotImplementedError) {
+        return res.status(501).json({ error: "Configured video storage provider is not implemented for direct uploads yet." });
+      }
       res.status(500).json({ error: "Failed to upload lesson video." });
     }
   }
@@ -376,6 +386,12 @@ router.patch('/:lessonId', auth, requireContentManager, async (req: Request, res
       return res.status(400).json({ error: validationError });
     }
 
+    const existingLesson = await Lesson.findById(req.params.lessonId);
+    if (!existingLesson) {
+      return res.status(404).json({ error: 'Lesson not found.' });
+    }
+    const oldVideoUrl = existingLesson.videoUrl;
+
     const lesson = await Lesson.findByIdAndUpdate(
       req.params.lessonId,
       { $set: updates },
@@ -383,6 +399,18 @@ router.patch('/:lessonId', auth, requireContentManager, async (req: Request, res
     );
     if (!lesson) {
       return res.status(404).json({ error: 'Lesson not found.' });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'videoUrl') && !updates.videoUrl && oldVideoUrl) {
+      if (!isRemoteVideoUrl(oldVideoUrl)) {
+        await videoStorageProvider.delete(getVideoStorageKey(oldVideoUrl));
+      }
+      await writeAuditLog(req, {
+        action: 'lesson.video-delete',
+        entityType: 'Lesson',
+        entityId: lesson._id,
+        details: { result: 'success', deletedVideoUrl: oldVideoUrl }
+      });
     }
 
     await writeAuditLog(req, { action: 'lesson.update', entityType: 'Lesson', entityId: lesson._id, details: { updatedFields: Object.keys(updates) } });
@@ -406,6 +434,10 @@ router.delete('/:lessonId', auth, requireContentManager, async (req: Request, re
     const lesson = await Lesson.findByIdAndDelete(req.params.lessonId);
     if (!lesson) {
       return res.status(404).json({ error: 'Lesson not found.' });
+    }
+
+    if (lesson.videoUrl && !isRemoteVideoUrl(lesson.videoUrl)) {
+      await videoStorageProvider.delete(getVideoStorageKey(lesson.videoUrl));
     }
 
     await Promise.all([

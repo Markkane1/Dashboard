@@ -23,6 +23,7 @@ export interface SendEmailResult {
 
 export interface EmailProvider {
   send(input: SendEmailInput): Promise<SendEmailResult>;
+  healthCheck?(): Promise<{ status: 'healthy' | 'unhealthy'; error?: string }>;
 }
 
 /**

@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const { Course, Enrollment } = require('../models');
+import mongoose from 'mongoose';
+import { Course, Enrollment } from '../models';
 
 async function getMissingPrerequisiteIds(userId: unknown, course: any): Promise<string[]> {
   const prerequisiteIds = Array.isArray(course?.prerequisiteCourseIds)

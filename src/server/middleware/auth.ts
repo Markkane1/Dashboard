@@ -30,7 +30,8 @@ module.exports = async function (req: Request, res: Response, next: NextFunction
   try {
     const decoded = jwt.verify(token, env.AUTH_SECRET, {
       issuer: API_TOKEN_ISSUER,
-      audience: API_TOKEN_AUDIENCE
+      audience: API_TOKEN_AUDIENCE,
+      algorithms: ['HS256']
     });
 
     const payload = decoded as JwtPayload & {

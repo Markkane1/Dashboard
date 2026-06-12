@@ -1,4 +1,4 @@
-const { CertificateIssuance } = require('../models');
+import { CertificateIssuance } from '../models';
 
 function normalizeCode(value: unknown, fallback: string) {
   const cleaned = String(value || '')

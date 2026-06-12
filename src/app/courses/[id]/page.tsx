@@ -88,6 +88,7 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
     { label: "Lessons", value: `${course.lessonsCount || 0} lessons` },
     { label: "Format", value: course.isExternal ? "External course" : course.isDiploma ? "Diploma pathway" : "Online course" },
   ];
+  const canContinueLearning = !course.isExternal && !course.isDiploma && Number(course.lessonsCount || 0) > 0;
 
   let related: Course[] = [];
   try {
@@ -128,7 +129,12 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
         description={course.description || "Preview the course summary, syllabus, and enrollment options below."}
         actions={(
           <div className="flex flex-wrap gap-3">
-            <EnrollButton courseId={course.id} isAuthenticated={isAuthenticated} initialEnrolled={initialEnrolled} />
+            <EnrollButton
+              courseId={course.id}
+              isAuthenticated={isAuthenticated}
+              initialEnrolled={initialEnrolled}
+              canContinueLearning={canContinueLearning}
+            />
             {course.syllabusUrl && (
               <a href={course.syllabusUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
                 View syllabus

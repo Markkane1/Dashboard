@@ -46,6 +46,17 @@ function buildApiUrl(path: string) {
     : new URL(apiPath);
 }
 
+function getInternalRequestHeaders(): Record<string, string> {
+  if (typeof window !== "undefined") {
+    return {};
+  }
+
+  const origin = process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+  return {
+    Origin: origin.replace(/\/$/, ""),
+  };
+}
+
 /**
  * Fetch all courses from the backend.
  */
@@ -96,6 +107,7 @@ export async function fetchCoursesByIds(courseIds: string[]): Promise<Course[]> 
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getInternalRequestHeaders(),
     },
     body: JSON.stringify({ ids: [...new Set(courseIds)] }),
     cache: "no-store"

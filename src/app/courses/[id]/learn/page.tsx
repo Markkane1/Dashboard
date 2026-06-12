@@ -6,7 +6,7 @@ import { fetchCourseLessons } from "@/infrastructure/api/lessons";
 import CoursePlayer from "@/features/lessons/components/CoursePlayer";
 import { Link } from "@/shared/navigation";
 import { logger } from '@/shared/logger';
-import { PageShell } from "@/shared/components/ui/DesignSystem";
+import { EmptyState, PageShell } from "@/shared/components/ui/DesignSystem";
 
 interface LearnPageProps {
   params: Promise<{
@@ -48,8 +48,19 @@ export default async function LearnPage({ params, searchParams }: LearnPageProps
   }
 
   if (lessons.length === 0) {
-    // If no lessons are published yet, redirect back to course main page
-    redirect(`/courses/${courseId}`);
+    return (
+      <PageShell>
+        <EmptyState
+          title="No lessons are available yet"
+          description="This course does not currently have published lessons. Return to the course overview for details."
+          actions={(
+            <Link href={`/courses/${courseId}`} className="btn-primary">
+              Back to course
+            </Link>
+          )}
+        />
+      </PageShell>
+    );
   }
 
   // 4. Determine the active lesson

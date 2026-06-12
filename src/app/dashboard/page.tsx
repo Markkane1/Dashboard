@@ -40,6 +40,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const courses = await fetchCoursesByIds(dashboardCourseIds);
   const inProgressCourses = courses.filter((course) => inProgressIds.includes(course.id));
   const completedCourses = courses.filter((course) => completedIds.includes(course.id));
+  const canContinueCourse = (course: { isExternal?: boolean; isDiploma?: boolean; lessonsCount?: number }) =>
+    !course.isExternal && !course.isDiploma && Number(course.lessonsCount || 0) > 0;
   const progressSummaries = token
     ? await Promise.all(
         inProgressIds.map(async (courseId) => {
@@ -169,7 +171,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
                   return (
                     <CourseCard key={course.id} course={course}>
-                      {!course.isExternal ? (
+                      {canContinueCourse(course) ? (
                         <Link href={`/courses/${course.id}/learn`} className="btn-primary mt-4 w-full">
                           {t("dashboard.continueLearning")}
                         </Link>
@@ -219,7 +221,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
                   return (
                     <CourseCard key={course.id} course={course}>
-                      {!course.isExternal && (
+                      {canContinueCourse(course) && (
                         <Link href={`/courses/${course.id}/learn`} className="btn-secondary mt-4 w-full">
                           {t("dashboard.continueLearning")}
                         </Link>

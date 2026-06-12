@@ -94,7 +94,6 @@ export default function HomeClient({
   };
 
   const clearAllFilters = () => router.push("/");
-  const activeFilterCount = [activeCategory, activeSdg, activeTopic, activeSection, activeSearch].filter(Boolean).length;
   const regularCourses = courses.filter((course) => !course.isDiploma && !course.isExternal);
   const diplomaCourses = courses.filter((course) => course.isDiploma);
   const externalCourses = courses.filter((course) => course.isExternal);

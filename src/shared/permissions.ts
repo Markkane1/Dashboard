@@ -264,7 +264,7 @@ export function hasAnyPermission(
   return permissions.some((permission) => hasPermission(user, permission));
 }
 
-export default {
+const permissionsApi = {
   USER_ROLES,
   ALL_USER_ROLES,
   ASSIGNABLE_USER_ROLES,
@@ -284,3 +284,5 @@ export default {
   getPermissionsForRole,
   getPermissionsForRoles,
 };
+
+export default permissionsApi;

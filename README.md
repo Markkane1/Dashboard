@@ -100,8 +100,10 @@ npm run seed:demo
 
 The demo seed creates:
 
-- Email: `admin@example.com`
-- Password: `AdminPassword123`
+- Admin: `demo.admin@example.com`
+- Instructor: `demo.instructor@example.com`
+- Learner: `demo.learner@example.com`
+- Password for all demo accounts: `DemoPass123!`
 
 For production handover, change or disable this account immediately after first login. Do not use the demo password for a live EPA Punjab deployment.
 

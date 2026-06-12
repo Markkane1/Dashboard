@@ -25,7 +25,7 @@ export async function enrollCourse(courseId: string): Promise<{ success: boolean
     try {
       await fetchCourseById(courseId);
       courseExists = true;
-    } catch (e) {}
+    } catch {}
 
     if (!courseExists) {
       return { success: false, error: "Course not found in system database" };
@@ -67,7 +67,7 @@ export async function unenrollCourse(courseId: string): Promise<{ success: boole
     try {
       await fetchCourseById(courseId);
       courseExists = true;
-    } catch (e) {}
+    } catch {}
 
     if (!courseExists) {
       return { success: false, error: "Course not found in system database" };

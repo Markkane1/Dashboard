@@ -10,9 +10,15 @@ interface EnrollButtonProps {
   courseId: string;
   isAuthenticated: boolean;
   initialEnrolled: boolean;
+  canContinueLearning?: boolean;
 }
 
-export default function EnrollButton({ courseId, isAuthenticated, initialEnrolled }: EnrollButtonProps) {
+export default function EnrollButton({
+  courseId,
+  isAuthenticated,
+  initialEnrolled,
+  canContinueLearning = true,
+}: EnrollButtonProps) {
   const router = useRouter();
   const [isEnrolled, setIsEnrolled] = useState(initialEnrolled);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,9 +56,11 @@ export default function EnrollButton({ courseId, isAuthenticated, initialEnrolle
         <div className="inline-flex items-center justify-center rounded-md border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-black text-teal-700">
           Already enrolled
         </div>
-        <Link href={`/courses/${encodeURIComponent(courseId)}/learn`} className="btn-primary">
-          Continue learning
-        </Link>
+        {canContinueLearning ? (
+          <Link href={`/courses/${encodeURIComponent(courseId)}/learn`} className="btn-primary">
+            Continue learning
+          </Link>
+        ) : null}
       </div>
     );
   }

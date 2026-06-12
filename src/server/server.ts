@@ -5,6 +5,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
 const { connectMongo } = require('./db/mongoose');
 const { env } = require('./config/env');
 const { requireAllowedMutationOrigin } = require('./middleware/security');
@@ -89,6 +90,7 @@ app.use(cors({
   }
 }));
 app.use(express.json());
+app.use(mongoSanitize());
 app.use(pinoHttp);
 app.use(cookieParser());
 app.use('/api', apiLimiter);

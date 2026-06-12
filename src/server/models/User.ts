@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const { ALL_USER_ROLES, USER_ROLES } = require('../../shared/permissions');
+import mongoose from 'mongoose';
+import { ALL_USER_ROLES, USER_ROLES } from '../../shared/permissions';
 
 const userSchema = new mongoose.Schema(
   {

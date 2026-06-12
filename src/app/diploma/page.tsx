@@ -6,7 +6,7 @@ import { fetchCoursePage, fetchCoursesByIds } from "@/infrastructure/api/courses
 import { Course } from "@/shared/types";
 import { Link } from "@/shared/navigation";
 import { AuthenticatedDownloadButton } from "@/features/users/components/DashboardActions";
-import { DashboardCard, EmptyState, PageHeader, PageShell } from "@/shared/components/ui/DesignSystem";
+import { EmptyState, PageHeader, PageShell } from "@/shared/components/ui/DesignSystem";
 
 export default async function DiplomaPage() {
   const session = await auth();
@@ -102,13 +102,13 @@ export default async function DiplomaPage() {
                   <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">
                     Required courses
                   </h3>
-                  {requiredCourses.length === 0 ? (
+                  {trackRequiredCourses.length === 0 ? (
                     <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm font-semibold text-slate-500">
                       No required courses are configured for this diploma yet.
                     </p>
                   ) : (
                     <ul className="mt-3 space-y-2">
-                      {requiredCourses.map((course) => {
+                      {trackRequiredCourses.map((course) => {
                         const completed = completedCourseIds.includes(course.id);
                         return (
                           <li
@@ -157,4 +157,3 @@ export default async function DiplomaPage() {
     </PageShell>
   );
 }
-

@@ -19,11 +19,65 @@ type AuthenticatedRequest = Request & { user: NonNullable<Request['user']> };
 const assignmentUploadDir = path.resolve(process.cwd(), 'uploads', 'assignments');
 fs.mkdirSync(assignmentUploadDir, { recursive: true });
 
+function stripExif(buffer: Buffer): Buffer {
+  if (buffer.length < 4) return buffer;
+  if (buffer[0] !== 0xFF || buffer[1] !== 0xD8) {
+    return buffer;
+  }
+
+  const chunks: Buffer[] = [];
+  chunks.push(buffer.subarray(0, 2)); // Add SOI
+
+  let offset = 2;
+  while (offset < buffer.length) {
+    if (buffer[offset] !== 0xFF) {
+      chunks.push(buffer.subarray(offset));
+      break;
+    }
+
+    const marker = buffer[offset + 1];
+    if (marker === 0xD9) { // EOI
+      chunks.push(buffer.subarray(offset, offset + 2));
+      break;
+    }
+
+    if (marker === 0x00 || (marker >= 0xD0 && marker <= 0xD7) || marker === 0x01) {
+      chunks.push(buffer.subarray(offset, offset + 2));
+      offset += 2;
+      continue;
+    }
+
+    if (offset + 4 > buffer.length) {
+      chunks.push(buffer.subarray(offset));
+      break;
+    }
+
+    const length = buffer.readUInt16BE(offset + 2);
+    const nextOffset = offset + 2 + length;
+
+    if (nextOffset > buffer.length) {
+      chunks.push(buffer.subarray(offset));
+      break;
+    }
+
+    if (marker === 0xE1) {
+      // Skip APP1 segment (EXIF)
+    } else {
+      chunks.push(buffer.subarray(offset, nextOffset));
+    }
+
+    offset = nextOffset;
+  }
+
+  return Buffer.concat(chunks);
+}
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: (_req: Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => cb(null, assignmentUploadDir),
     filename: (_req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-');
+      const baseName = path.basename(file.originalname);
+      const safeName = baseName.replace(/[^a-zA-Z0-9._-]/g, '-');
       cb(null, `${Date.now()}-${safeName}`);
     }
   }),
@@ -37,7 +91,33 @@ const upload = multer({
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ];
-    if (!allowed.includes(file.mimetype)) return cb(new Error('Unsupported assignment evidence file type.'));
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error('Unsupported assignment evidence file type.'));
+    }
+
+    const originalName = file.originalname;
+    const ext = path.extname(originalName).toLowerCase();
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.txt', '.doc', '.docx'];
+
+    if (!ext || !allowedExtensions.includes(ext)) {
+      return cb(new Error('Unsupported assignment evidence file type.'));
+    }
+
+    // Check for double extension bypass
+    const parts = originalName.toLowerCase().split('.');
+    if (parts.length > 2) {
+      const executableExtensions = ['js', 'sh', 'php', 'py', 'exe', 'bat', 'cmd'];
+      for (let i = 1; i < parts.length - 1; i++) {
+        if (executableExtensions.includes(parts[i])) {
+          return cb(new Error('Potential double extension bypass detected.'));
+        }
+      }
+      const actualExt = parts[parts.length - 1];
+      if (!allowedExtensions.includes(`.${actualExt}`)) {
+        return cb(new Error('Unsupported assignment evidence file type.'));
+      }
+    }
+
     cb(null, true);
   }
 });
@@ -168,62 +248,92 @@ router.post('/', auth, requireContentManager, async (req: Request, res: Response
   }
 });
 
-router.post('/:id/submissions', auth, upload.single('file'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res: Response) => {
-  try {
-    if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid assignment id.' });
-    const assignment = await Assignment.findOne({ _id: req.params.id, status: 'published' });
-    if (!assignment) return res.status(404).json({ error: 'Assignment not found.' });
-    if (!(await hasCourseAccess(req.user, assignment.courseId.toString()))) {
-      return res.status(403).json({ error: 'You must be enrolled in this course to submit assignments.' });
-    }
-    if (!(await Enrollment.exists({ userId: req.user.id, courseId: assignment.courseId }))) {
-      return res.status(403).json({ error: 'Course enrollment is required.' });
-    }
+router.post(
+  '/:id/submissions',
+  auth,
+  (req: Request, res: Response, next: NextFunction) => {
+    upload.single('file')(req, res, (err: any) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(413).json({ error: 'File size exceeds limit.' });
+          }
+          return res.status(400).json({ error: `Upload error: ${err.message}` });
+        }
+        return res.status(400).json({ error: err.message || 'Failed to upload file.' });
+      }
+      next();
+    });
+  },
+  async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res: Response) => {
+    try {
+      if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid assignment id.' });
+      const assignment = await Assignment.findOne({ _id: req.params.id, status: 'published' });
+      if (!assignment) return res.status(404).json({ error: 'Assignment not found.' });
+      if (!(await hasCourseAccess(req.user, assignment.courseId.toString()))) {
+        return res.status(403).json({ error: 'You must be enrolled in this course to submit assignments.' });
+      }
+      if (!(await Enrollment.exists({ userId: req.user.id, courseId: assignment.courseId }))) {
+        return res.status(403).json({ error: 'Course enrollment is required.' });
+      }
 
-    const text = String(req.body?.text || '').trim();
-    const linkUrl = String(req.body?.linkUrl || '').trim();
-    if (!text && !linkUrl && !req.file) return res.status(400).json({ error: 'Submit text, a link, or a file.' });
+      const text = String(req.body?.text || '').trim();
+      const linkUrl = String(req.body?.linkUrl || '').trim();
+      if (!text && !linkUrl && !req.file) return res.status(400).json({ error: 'Submit text, a link, or a file.' });
 
-    let submission = await AssignmentSubmission.findOne({ assignmentId: assignment._id, learnerId: req.user.id });
-    const submissionUpdate = {
-      courseId: assignment.courseId,
-      text,
-      linkUrl,
-      fileUrl: req.file ? `/uploads/assignments/${req.file.filename}` : undefined,
-      fileName: req.file?.originalname || undefined,
-      fileMimeType: req.file?.mimetype || undefined,
-      status: 'submitted',
-      reviewedBy: undefined,
-      reviewedAt: undefined,
-      reviewComments: ''
-    };
-    if (submission) {
-      Object.assign(submission, submissionUpdate);
-      submission.history.push({
+      // Strip EXIF metadata if it's a JPEG image
+      if (req.file && (req.file.mimetype === 'image/jpeg' || req.file.mimetype === 'image/jpg')) {
+        try {
+          const filePath = req.file.path;
+          const buffer = fs.readFileSync(filePath);
+          const cleanBuffer = stripExif(buffer);
+          fs.writeFileSync(filePath, cleanBuffer);
+        } catch (err) {
+          logger.error({ err }, 'Failed to strip EXIF metadata from uploaded assignment');
+        }
+      }
+
+      let submission = await AssignmentSubmission.findOne({ assignmentId: assignment._id, learnerId: req.user.id });
+      const submissionUpdate = {
+        courseId: assignment.courseId,
+        text,
+        linkUrl,
+        fileUrl: req.file ? `/uploads/assignments/${req.file.filename}` : undefined,
+        fileName: req.file?.originalname || undefined,
+        fileMimeType: req.file?.mimetype || undefined,
         status: 'submitted',
-        actorId: req.user.id,
-        comments: 'Submitted by learner.'
-      });
-      await submission.save();
-    } else {
-      submission = await AssignmentSubmission.create({
-        assignmentId: assignment._id,
-        learnerId: req.user.id,
-        ...submissionUpdate,
-        history: [{
+        reviewedBy: undefined,
+        reviewedAt: undefined,
+        reviewComments: ''
+      };
+      if (submission) {
+        Object.assign(submission, submissionUpdate);
+        submission.history.push({
           status: 'submitted',
           actorId: req.user.id,
           comments: 'Submitted by learner.'
-        }]
-      });
+        });
+        await submission.save();
+      } else {
+        submission = await AssignmentSubmission.create({
+          assignmentId: assignment._id,
+          learnerId: req.user.id,
+          ...submissionUpdate,
+          history: [{
+            status: 'submitted',
+            actorId: req.user.id,
+            comments: 'Submitted by learner.'
+          }]
+        });
+      }
+      await writeAuditLog(req, { action: 'assignment.submit', entityType: 'AssignmentSubmission', entityId: submission._id, details: { assignmentId: assignment._id, courseId: assignment.courseId } });
+      res.status(201).json(serializeSubmission(submission));
+    } catch (error) {
+      logger.error({ err: error }, 'Error submitting assignment');
+      res.status(500).json({ error: 'Failed to submit assignment.' });
     }
-    await writeAuditLog(req, { action: 'assignment.submit', entityType: 'AssignmentSubmission', entityId: submission._id, details: { assignmentId: assignment._id, courseId: assignment.courseId } });
-    res.status(201).json(serializeSubmission(submission));
-  } catch (error) {
-    logger.error({ err: error }, 'Error submitting assignment');
-    res.status(500).json({ error: 'Failed to submit assignment.' });
   }
-});
+);
 
 router.get('/:id/submissions', auth, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -259,7 +369,7 @@ router.get('/submissions/:submissionId/file', auth, async (req: AuthenticatedReq
       return res.status(404).json({ error: 'Evidence file not found.' });
     }
     res.setHeader('Content-Type', submission.fileMimeType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${String(submission.fileName).replace(/"/g, '')}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${String(submission.fileName).replace(/[\r\n"]/g, '')}"`);
     fs.createReadStream(filePath).pipe(res);
   } catch (error) {
     logger.error({ err: error }, 'Error downloading assignment evidence');

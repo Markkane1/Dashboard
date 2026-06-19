@@ -1,0 +1,594 @@
+﻿{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@auth/core": {
+      "name": "@auth/core",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "nodemailer"
+      ],
+      "effects": [
+        "next-auth"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/@auth/core"
+      ],
+      "fixAvailable": {
+        "name": "next-auth",
+        "version": "1.12.1",
+        "isSemVerMajor": true
+      }
+    },
+    "@istanbuljs/load-nyc-config": {
+      "name": "@istanbuljs/load-nyc-config",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "js-yaml"
+      ],
+      "effects": [
+        "babel-plugin-istanbul"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/@istanbuljs/load-nyc-config"
+      ],
+      "fixAvailable": {
+        "name": "ts-jest",
+        "version": "29.1.2",
+        "isSemVerMajor": true
+      }
+    },
+    "@jest/core": {
+      "name": "@jest/core",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@jest/reporters",
+        "@jest/transform",
+        "jest-config",
+        "jest-resolve-dependencies",
+        "jest-runner",
+        "jest-runtime",
+        "jest-snapshot"
+      ],
+      "effects": [
+        "jest",
+        "jest-cli"
+      ],
+      "range": ">=25.1.0",
+      "nodes": [
+        "node_modules/@jest/core"
+      ],
+      "fixAvailable": {
+        "name": "jest",
+        "version": "25.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "@jest/expect": {
+      "name": "@jest/expect",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "jest-snapshot"
+      ],
+      "effects": [
+        "@jest/globals",
+        "jest-circus"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/@jest/expect"
+      ],
+      "fixAvailable": {
+        "name": "jest",
+        "version": "25.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "@jest/globals": {
+      "name": "@jest/globals",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@jest/expect"
+      ],
+      "effects": [
+        "jest-runtime"
+      ],
+      "range": ">=28.0.0-alpha.0",
+      "nodes": [
+        "node_modules/@jest/globals"
+      ],
+      "fixAvailable": {
+        "name": "jest",
+        "version": "25.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "@jest/reporters": {
+      "name": "@jest/reporters",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@jest/transform"
+      ],
+      "effects": [],
+      "range": ">=25.1.0",
+      "nodes": [
+        "node_modules/@jest/reporters"
+      ],
+      "fixAvailable": true
+    },
+    "@jest/transform": {
+      "name": "@jest/transform",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "babel-plugin-istanbul"
+      ],
+      "effects": [
+        "@jest/core",
+        "@jest/reporters",
+        "jest-runner",
+        "jest-runtime",
+        "jest-snapshot",
+        "ts-jest"
+      ],
+      "range": ">=25.1.0",
+      "nodes": [
+        "node_modules/@jest/transform"
+      ],
+      "fixAvailable": {
+        "name": "ts-jest",
+        "version": "29.1.2",
+        "isSemVerMajor": true
+      }
+    },
+    "babel-jest": {
+      "name": "babel-jest",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@jest/transform",
+        "babel-plugin-istanbul"
+      ],
+      "effects": [
+        "jest-config",
+        "ts-jest"
+      ],
+      "range": ">=25.1.0",
+      "nodes": [
+        "node_modules/babel-jest"
+      ],
+      "fixAvailable": {
+        "name": "ts-jest",
+        "version": "29.1.2",
+        "isSemVerMajor": true
+      }
+    },
+    "babel-plugin-istanbul": {
+      "name": "babel-plugin-istanbul",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@istanbuljs/load-nyc-config"
+      ],
+      "effects": [
+        "@jest/transform",
+        "babel-jest"
+      ],
+      "range": ">=6.0.0-beta.0",
+      "nodes": [
+        "node_modules/babel-plugin-istanbul"
+      ],
+      "fixAvailable": {
+        "name": "ts-jest",
+        "version": "29.1.2",
+        "isSemVerMajor": true
+      }
+    },
+    "exceljs": {
+      "name": "exceljs",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "uuid"
+      ],
+      "effects": [],
+      "range": ">=3.5.0",
+      "nodes": [
+        "node_modules/exceljs"
+      ],
+      "fixAvailable": {
+        "name": "exceljs",
+        "version": "3.4.0",
+        "isSemVerMajor": true
+      }
+    },
+    "jest": {
+      "name": "jest",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@jest/core",
+        "jest-cli"
+      ],
+      "effects": [
+        "ts-jest"
+      ],
+      "range": ">=25.1.0",
+      "nodes": [
+        "node_modules/jest"
+      ],
+      "fixAvailable": {
+        "name": "jest",
+        "version": "25.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "jest-circus": {
+      "name": "jest-circus",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@jest/expect",
+        "jest-runtime",
+        "jest-snapshot"
+      ],
+      "effects": [
+        "jest-config"
+      ],
+      "range": ">=25.2.4",
+      "nodes": [
+        "node_modules/jest-circus"
+      ],
+      "fixAvailable": true
+    },
+    "jest-cli": {
+      "name": "jest-cli",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@jest/core",
+        "jest-config"
+      ],
+      "effects": [],
+      "range": ">=25.1.0",
+      "nodes": [
+        "node_modules/jest-cli"
+      ],
+      "fixAvailable": true
+    },
+    "jest-config": {
+      "name": "jest-config",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "babel-jest",
+        "jest-circus",
+        "jest-runner"
+      ],
+      "effects": [],
+      "range": ">=25.1.0",
+      "nodes": [
+        "node_modules/@jest/core/node_modules/jest-config",
+        "node_modules/jest-cli/node_modules/jest-config"
+      ],
+      "fixAvailable": true
+    },
+    "jest-resolve-dependencies": {
+      "name": "jest-resolve-dependencies",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "jest-snapshot"
+      ],
+      "effects": [],
+      "range": ">=27.0.0-next.0",
+      "nodes": [
+        "node_modules/jest-resolve-dependencies"
+      ],
+      "fixAvailable": true
+    },
+    "jest-runner": {
+      "name": "jest-runner",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@jest/transform",
+        "jest-runtime"
+      ],
+      "effects": [
+        "@jest/core",
+        "jest-config"
+      ],
+      "range": ">=25.1.0",
+      "nodes": [
+        "node_modules/jest-runner"
+      ],
+      "fixAvailable": {
+        "name": "jest",
+        "version": "25.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "jest-runtime": {
+      "name": "jest-runtime",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@jest/globals",
+        "@jest/transform",
+        "jest-snapshot"
+      ],
+      "effects": [
+        "jest-circus",
+        "jest-runner"
+      ],
+      "range": ">=25.1.0",
+      "nodes": [
+        "node_modules/jest-runtime"
+      ],
+      "fixAvailable": {
+        "name": "jest",
+        "version": "25.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "jest-snapshot": {
+      "name": "jest-snapshot",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@jest/transform"
+      ],
+      "effects": [
+        "@jest/expect",
+        "jest-circus",
+        "jest-resolve-dependencies",
+        "jest-runtime"
+      ],
+      "range": ">=27.0.0-next.0",
+      "nodes": [
+        "node_modules/jest-snapshot"
+      ],
+      "fixAvailable": {
+        "name": "jest",
+        "version": "25.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "js-yaml": {
+      "name": "js-yaml",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1120792,
+          "name": "js-yaml",
+          "dependency": "js-yaml",
+          "title": "JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
+          "url": "https://github.com/advisories/GHSA-h67p-54hq-rp68",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-407"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<=4.1.1"
+        }
+      ],
+      "effects": [
+        "@istanbuljs/load-nyc-config"
+      ],
+      "range": "<=4.1.1",
+      "nodes": [
+        "node_modules/@istanbuljs/load-nyc-config/node_modules/js-yaml"
+      ],
+      "fixAvailable": {
+        "name": "ts-jest",
+        "version": "29.1.2",
+        "isSemVerMajor": true
+      }
+    },
+    "next-auth": {
+      "name": "next-auth",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@auth/core",
+        "nodemailer"
+      ],
+      "effects": [],
+      "range": "<=0.0.0-semantically-released || 1.1.0 - 1.5.0 || >=2.0.0-beta.0",
+      "nodes": [
+        "node_modules/next-auth"
+      ],
+      "fixAvailable": {
+        "name": "next-auth",
+        "version": "1.12.1",
+        "isSemVerMajor": true
+      }
+    },
+    "nodemailer": {
+      "name": "nodemailer",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1115470,
+          "name": "nodemailer",
+          "dependency": "nodemailer",
+          "title": "Nodemailer has SMTP command injection due to unsanitized `envelope.size` parameter",
+          "url": "https://github.com/advisories/GHSA-c7w3-x93f-qmm8",
+          "severity": "low",
+          "cwe": [
+            "CWE-93"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<8.0.4"
+        },
+        {
+          "source": 1116270,
+          "name": "nodemailer",
+          "dependency": "nodemailer",
+          "title": "Nodemailer Vulnerable to SMTP Command Injection via CRLF in Transport name Option (EHLO/HELO) ",
+          "url": "https://github.com/advisories/GHSA-vvjj-xcjg-gr5g",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-93"
+          ],
+          "cvss": {
+            "score": 4.9,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<=8.0.4"
+        },
+        {
+          "source": 1120795,
+          "name": "nodemailer",
+          "dependency": "nodemailer",
+          "title": "Nodemailer: CRLF injection in Nodemailer List-* header comments allows arbitrary message header injection",
+          "url": "https://github.com/advisories/GHSA-268h-hp4c-crq3",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-93"
+          ],
+          "cvss": {
+            "score": 5.4,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"
+          },
+          "range": "<=8.0.8"
+        },
+        {
+          "source": 1120796,
+          "name": "nodemailer",
+          "dependency": "nodemailer",
+          "title": "Nodemailer jsonTransport bypasses disableFileAccess and disableUrlAccess during message normalization",
+          "url": "https://github.com/advisories/GHSA-wqvq-jvpq-h66f",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-862"
+          ],
+          "cvss": {
+            "score": 5.4,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"
+          },
+          "range": "<=8.0.8"
+        },
+        {
+          "source": 1120797,
+          "name": "nodemailer",
+          "dependency": "nodemailer",
+          "title": "Nodemailer: Improper TLS Certificate Validation in OAuth2 Token Fetch Enables Credential Interception",
+          "url": "https://github.com/advisories/GHSA-r7g4-qg5f-qqm2",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-295"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:L/A:N"
+          },
+          "range": "<=8.0.7"
+        }
+      ],
+      "effects": [
+        "@auth/core",
+        "next-auth"
+      ],
+      "range": "<=8.0.8",
+      "nodes": [
+        "node_modules/nodemailer"
+      ],
+      "fixAvailable": {
+        "name": "nodemailer",
+        "version": "9.0.1",
+        "isSemVerMajor": true
+      }
+    },
+    "ts-jest": {
+      "name": "ts-jest",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@jest/transform",
+        "babel-jest",
+        "jest"
+      ],
+      "effects": [],
+      "range": ">=25.10.0-alpha.1",
+      "nodes": [
+        "node_modules/ts-jest"
+      ],
+      "fixAvailable": {
+        "name": "ts-jest",
+        "version": "29.1.2",
+        "isSemVerMajor": true
+      }
+    },
+    "uuid": {
+      "name": "uuid",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1119441,
+          "name": "uuid",
+          "dependency": "uuid",
+          "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+          "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-787",
+            "CWE-1285"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<11.1.1"
+        }
+      ],
+      "effects": [
+        "exceljs"
+      ],
+      "range": "<11.1.1",
+      "nodes": [
+        "node_modules/uuid"
+      ],
+      "fixAvailable": {
+        "name": "exceljs",
+        "version": "3.4.0",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 23,
+      "high": 0,
+      "critical": 0,
+      "total": 23
+    },
+    "dependencies": {
+      "prod": 310,
+      "dev": 873,
+      "optional": 159,
+      "peer": 10,
+      "peerOptional": 0,
+      "total": 1259
+    }
+  }
+}

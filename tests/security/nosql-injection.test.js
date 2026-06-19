@@ -1,6 +1,7 @@
 const request = require('supertest');
 const app = require('../../src/server/server');
 const User = require('../../src/server/models/User').default || require('../../src/server/models/User');
+const Course = require('../../src/server/models/Course').default || require('../../src/server/models/Course');
 const { connectDB, disconnectDB, generateToken } = require('../integration/setup');
 
 // Mock audit logging
@@ -14,6 +15,7 @@ describe('MongoDB NoSQL Injection Security Tests', () => {
 
   beforeAll(async () => {
     await connectDB();
+    await Course.createIndexes();
 
     testUser = await User.create({
       name: 'NoSQL Test User',
@@ -102,7 +104,7 @@ describe('MongoDB NoSQL Injection Security Tests', () => {
   describe('Regex DoS (ReDoS) Verification', () => {
     it('should complete search request within 2 seconds even with a very long repeating string', async () => {
       const longPayload = 'a'.repeat(10000) + '!';
-      
+
       const startTime = Date.now();
       const res = await request(app)
         .get('/api/courses')

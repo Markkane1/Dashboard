@@ -100,20 +100,20 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
 
   return (
     <PageShell>
-      <nav className="mb-4 flex flex-wrap items-center gap-2 text-xs font-bold text-text-muted">
-        <Link href="/courses" className="text-sm font-semibold text-secondary hover:text-primary">
+      <nav className="mb-4 flex flex-wrap items-center gap-2 text-xs font-bold text-[#858796]">
+        <Link href="/courses" className="text-sm font-bold text-[#4e73df] hover:text-[#2e59d9] transition-colors">
           Courses
         </Link>
         <span>{" > "}</span>
         {categoryObj ? (
-          <Link href={`/courses?category=${categoryObj.id}`} className="text-sm font-semibold text-secondary hover:text-primary">
+          <Link href={`/courses?category=${categoryObj.id}`} className="text-sm font-bold text-[#4e73df] hover:text-[#2e59d9] transition-colors">
             {categoryLabel}
           </Link>
         ) : (
-          <span className="text-sm font-semibold text-text-primary">{categoryLabel}</span>
+          <span className="text-sm font-bold text-[#5a5c69]">{categoryLabel}</span>
         )}
         <span>{" > "}</span>
-        <span className="min-w-0 max-w-full truncate text-sm text-text-primary sm:max-w-md">{course.title}</span>
+        <span className="min-w-0 max-w-full truncate text-sm text-[#5a5c69] sm:max-w-md">{course.title}</span>
       </nav>
 
       {resolvedSearchParams?.error === "not-enrolled" && (
@@ -136,12 +136,12 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
               canContinueLearning={canContinueLearning}
             />
             {course.syllabusUrl && (
-              <a href={course.syllabusUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+              <a href={course.syllabusUrl} target="_blank" rel="noopener noreferrer" className="bg-white border border-[#e3e6f0] hover:bg-[#f8f9fc] text-[#5a5c69] font-bold py-2 px-4 rounded transition-colors text-sm">
                 View syllabus
               </a>
             )}
             {course.isExternal && course.externalUrl && (
-              <a href={course.externalUrl} target="_blank" rel="noopener noreferrer" className="btn-primary">
+              <a href={course.externalUrl} target="_blank" rel="noopener noreferrer" className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded transition-colors text-sm">
                 Open external course
               </a>
             )}
@@ -153,36 +153,36 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
         <DashboardCard className="p-6">
           <div className="grid gap-5">
             <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-muted">{categoryLabel}</span>
+              <span className="rounded bg-[#f8f9fc] border border-[#e3e6f0] px-3 py-1 text-xs font-bold text-[#858796]">{categoryLabel}</span>
               {course.isDiploma && (
-                <span className="rounded-full bg-mint/20 px-3 py-1 text-xs font-semibold text-secondary">Diploma</span>
+                <span className="rounded bg-[#f6c23e] px-3 py-1 text-xs font-bold text-white">Diploma</span>
               )}
             </div>
             <div className="grid gap-2">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-text-muted">SDGs</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-[#858796]">SDGs</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {course.sdgGoals.map((goal) => (
-                    <span key={goal} className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-primary">SDG {goal}</span>
+                    <span key={goal} className="rounded bg-[#f8f9fc] border border-[#e3e6f0] px-3 py-1 text-xs font-bold text-[#858796]">SDG {goal}</span>
                   ))}
                 </div>
               </div>
               {topics.length > 0 && (
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-text-muted">Topics</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#858796]">Topics</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {topics.map((item) => (
-                      <span key={item} className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-primary">{item.replace(/-/g, " ")}</span>
+                      <span key={item} className="rounded bg-[#f8f9fc] border border-[#e3e6f0] px-3 py-1 text-xs font-bold text-[#858796]">{item.replace(/-/g, " ")}</span>
                     ))}
                   </div>
                 </div>
               )}
               {sectionLabels.length > 0 && (
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-text-muted">Sections</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#858796]">Sections</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {sectionLabels.map((item) => (
-                      <span key={item} className="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-text-primary">{item}</span>
+                      <span key={item} className="rounded bg-[#f8f9fc] border border-[#e3e6f0] px-3 py-1 text-xs font-bold text-[#858796]">{item}</span>
                     ))}
                   </div>
                 </div>
@@ -194,23 +194,23 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
         <DashboardCard className="p-6">
           <div className="grid gap-4">
             <div>
-              <h2 className="text-lg font-black text-text-primary">Course quick facts</h2>
-              <p className="mt-1 text-sm text-text-muted">Use this summary before enrolling.</p>
+              <h2 className="text-lg font-bold text-[#5a5c69]">Course quick facts</h2>
+              <p className="mt-1 text-sm text-[#858796]">Use this summary before enrolling.</p>
             </div>
             <dl className="grid gap-3">
               {quickFacts.map((fact) => (
-                <div key={fact.label} className="rounded-lg border border-border bg-surface px-3 py-2">
-                  <dt className="text-xs font-black uppercase tracking-[0.18em] text-text-muted">{fact.label}</dt>
-                  <dd className="mt-1 text-sm font-semibold text-text-primary">{fact.value}</dd>
+                <div key={fact.label} className="rounded border border-[#e3e6f0] bg-[#f8f9fc] px-3 py-2">
+                  <dt className="text-xs font-bold uppercase tracking-wide text-[#858796]">{fact.label}</dt>
+                  <dd className="mt-1 text-sm font-bold text-[#5a5c69]">{fact.value}</dd>
                 </div>
               ))}
             </dl>
             {course.syllabusUrl ? (
-              <a href={course.syllabusUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full">
+              <a href={course.syllabusUrl} target="_blank" rel="noopener noreferrer" className="bg-white border border-[#e3e6f0] hover:bg-[#f8f9fc] text-[#5a5c69] font-bold py-2 px-4 rounded transition-colors text-sm w-full text-center block">
                 View syllabus
               </a>
             ) : (
-              <p className="rounded-lg bg-surface px-3 py-2 text-sm font-semibold text-text-muted">
+              <p className="rounded bg-[#f8f9fc] border border-[#e3e6f0] px-3 py-2 text-sm font-bold text-[#858796]">
                 Syllabus details will be provided inside the course.
               </p>
             )}
@@ -222,10 +222,10 @@ export default async function CourseDetailPage({ params, searchParams }: CourseD
         <section className="mt-6">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-black text-text-primary">Related courses</h2>
-              <p className="mt-1 text-sm text-text-muted">Explore other courses from the same category.</p>
+              <h2 className="text-xl font-bold text-[#5a5c69]">Related courses</h2>
+              <p className="mt-1 text-sm text-[#858796]">Explore other courses from the same category.</p>
             </div>
-            <Link href={`/courses?category=${course.category}`} className="btn-secondary">
+            <Link href={`/courses?category=${course.category}`} className="bg-white border border-[#e3e6f0] hover:bg-[#f8f9fc] text-[#5a5c69] font-bold py-2 px-4 rounded transition-colors text-sm">
               View category
             </Link>
           </div>

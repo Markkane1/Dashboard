@@ -79,31 +79,32 @@ export default async function DiplomaPage() {
               : 0;
 
             return (
-              <section key={diploma.id} className="dashboard-card min-w-0 p-4 sm:p-5">
-                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-black text-amber-800">
-                      Diploma Track
-                    </span>
-                    <h2 className="mt-3 text-lg font-black text-slate-950">{diploma.title}</h2>
+              <section key={diploma.id} className="bg-white shadow-[0_0.15rem_1.75rem_0_rgba(58,59,69,0.15)] rounded-lg min-w-0 mb-4 border border-[#e3e6f0]">
+                <div className="p-5">
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <span className="rounded bg-[#f6c23e] px-2 py-1 text-xs font-bold text-white mb-2 inline-block">
+                        Diploma Track
+                      </span>
+                      <h2 className="mt-1 text-lg font-bold text-[#5a5c69]">{diploma.title}</h2>
+                    </div>
+                    <span className="text-sm font-bold text-[#1cc88a]">{percent}% complete</span>
                   </div>
-                  <span className="text-sm font-black text-forest">{percent}% complete</span>
-                </div>
 
-                <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
-                  {diploma.description || "Complete all required courses to unlock this specialist diploma."}
-                </p>
+                  <p className="mt-3 text-sm leading-6 text-[#858796]">
+                    {diploma.description || "Complete all required courses to unlock this specialist diploma."}
+                  </p>
 
-                <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-amber-500" style={{ width: `${percent}%` }} />
-                </div>
+                  <div className="mt-5 h-2 w-full overflow-hidden rounded bg-[#eaecf4]">
+                    <div className="h-full bg-[#1cc88a]" style={{ width: `${percent}%` }} />
+                  </div>
 
                 <div className="mt-5">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-500">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#858796]">
                     Required courses
                   </h3>
                   {trackRequiredCourses.length === 0 ? (
-                    <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm font-semibold text-slate-500">
+                    <p className="mt-3 rounded border border-[#e3e6f0] bg-[#f8f9fc] p-3 text-sm font-bold text-[#858796]">
                       No required courses are configured for this diploma yet.
                     </p>
                   ) : (
@@ -113,15 +114,15 @@ export default async function DiplomaPage() {
                         return (
                           <li
                             key={course.id}
-                            className="flex min-w-0 flex-col gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between"
+                            className="flex min-w-0 flex-col gap-2 rounded border border-[#e3e6f0] px-3 py-2 text-sm min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between"
                           >
-                            <Link href={`/courses/${course.id}`} className="min-w-0 font-bold text-slate-800 hover:text-forest">
+                            <Link href={`/courses/${course.id}`} className="min-w-0 font-bold text-[#5a5c69] hover:text-[#4e73df] transition-colors">
                               {course.title}
                             </Link>
-                            <span className={`shrink-0 rounded px-2 py-1 text-xs font-black ${
+                            <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
                               completed
-                                ? "bg-emerald-50 text-forest"
-                                : "bg-slate-100 text-slate-500"
+                                ? "bg-[#1cc88a] text-white"
+                                : "bg-[#f8f9fc] text-[#858796] border border-[#e3e6f0]"
                             }`}>
                               {completed ? "Completed" : "Pending"}
                             </span>
@@ -138,17 +139,18 @@ export default async function DiplomaPage() {
                       downloadUrl={`/api/admin/docs/diploma?diplomaId=${encodeURIComponent(diploma.id)}`}
                       label="Download Diploma"
                       fallbackFilename="diploma.pdf"
-                      className="btn-primary bg-amber-600 hover:bg-amber-700"
+                      className="bg-[#1cc88a] hover:bg-[#17a673] text-white font-bold py-2 px-4 rounded transition-colors text-sm"
                     />
                   ) : (
                     <Link
                       href="/courses"
-                      className="btn-primary"
+                      className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded transition-colors text-sm"
                     >
                       Continue pathway
                     </Link>
                   )}
                 </div>
+              </div>
               </section>
             );
           })}

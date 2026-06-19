@@ -60,34 +60,34 @@ function ResetPasswordForm() {
       <FormPanel className="max-w-md">
         {success ? (
           <div className="space-y-4">
-            <div className="rounded-md border border-teal-200 bg-teal-50 p-4 text-sm font-semibold text-teal-700">
+            <div className="rounded border border-[#1cc88a] bg-[#e8fbf4] p-4 text-sm font-bold text-[#1cc88a]">
               Password updated. You can now sign in.
             </div>
-            <Link href="/auth/login" className="btn-primary w-full">
+            <Link href="/auth/login" className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded w-full text-center block transition-colors text-sm">
               Back to login
             </Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
-              <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
+              <div role="alert" className="rounded border border-[#e74a3b] bg-[#fce4e4] p-3 text-sm font-bold text-[#e74a3b]">
                 {error}
               </div>
             )}
 
-            <label className="block text-sm font-bold text-slate-700">
+            <label className="block text-sm font-bold text-[#858796]">
               New password
-              <input {...register("password")} type="password" className="control mt-2 w-full" />
-              {errors.password && <span className="mt-1 block text-xs font-bold text-red-600">{errors.password.message}</span>}
+              <input {...register("password")} type="password" className="w-full mt-2 bg-white border border-[#e3e6f0] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#bac8f3] focus:ring-0 transition-colors" />
+              {errors.password && <span className="mt-1 block text-xs font-bold text-[#e74a3b]">{errors.password.message}</span>}
             </label>
 
-            <label className="block text-sm font-bold text-slate-700">
+            <label className="block text-sm font-bold text-[#858796]">
               Confirm password
-              <input {...register("confirmPassword")} type="password" className="control mt-2 w-full" />
-              {errors.confirmPassword && <span className="mt-1 block text-xs font-bold text-red-600">{errors.confirmPassword.message}</span>}
+              <input {...register("confirmPassword")} type="password" className="w-full mt-2 bg-white border border-[#e3e6f0] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#bac8f3] focus:ring-0 transition-colors" />
+              {errors.confirmPassword && <span className="mt-1 block text-xs font-bold text-[#e74a3b]">{errors.confirmPassword.message}</span>}
             </label>
 
-            <button type="submit" disabled={isLoading || !token} className="btn-primary w-full">
+            <button type="submit" disabled={isLoading || !token} className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded w-full transition-colors text-sm">
               {isLoading ? "Updating..." : "Reset password"}
             </button>
           </form>

@@ -15,7 +15,8 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrlParam = searchParams.get("callbackUrl") || searchParams.get("redirect") || searchParams.get("returnTo") || "/dashboard";
+  const callbackUrl = (callbackUrlParam.startsWith("/") && !callbackUrlParam.startsWith("//")) ? callbackUrlParam : "/dashboard";
   const errorParam = searchParams.get("error");
 
   const getErrorMessage = () => {
@@ -82,34 +83,34 @@ function LoginForm() {
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4">
-          <label className="block text-sm font-bold text-slate-700">
+          <label className="block text-sm font-bold text-[#858796]">
             Email address
-            <input {...register("email")} type="email" placeholder="you@example.com" aria-invalid={errors.email ? "true" : "false"} className="control mt-2 w-full" />
-            {errors.email && <span className="mt-1 block text-xs font-bold text-red-600">{errors.email.message}</span>}
+            <input {...register("email")} type="email" placeholder="you@example.com" aria-invalid={errors.email ? "true" : "false"} className="w-full mt-2 bg-white border border-[#e3e6f0] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#bac8f3] focus:ring-0 transition-colors" />
+            {errors.email && <span className="mt-1 block text-xs font-bold text-[#e74a3b]">{errors.email.message}</span>}
           </label>
 
-          <label className="block text-sm font-bold text-slate-700">
+          <label className="block text-sm font-bold text-[#858796]">
             Password
-            <input {...register("password")} type="password" placeholder="Enter your password" aria-invalid={errors.password ? "true" : "false"} className="control mt-2 w-full" />
-            {errors.password && <span className="mt-1 block text-xs font-bold text-red-600">{errors.password.message}</span>}
+            <input {...register("password")} type="password" placeholder="Enter your password" aria-invalid={errors.password ? "true" : "false"} className="w-full mt-2 bg-white border border-[#e3e6f0] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#bac8f3] focus:ring-0 transition-colors" />
+            {errors.password && <span className="mt-1 block text-xs font-bold text-[#e74a3b]">{errors.password.message}</span>}
           </label>
 
-          <button type="submit" disabled={isLoading} className="btn-primary w-full">
+          <button type="submit" disabled={isLoading} className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded w-full transition-colors text-sm">
             {isLoading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
-        <div className="my-5 border-t border-slate-200" />
+        <div className="my-5 border-t border-[#e3e6f0]" />
 
-        <button onClick={handleGoogleSignIn} type="button" className="btn-secondary w-full">
-          Sign in with Google
+        <button onClick={handleGoogleSignIn} type="button" className="bg-[#ea4335] hover:bg-[#c53727] text-white font-bold py-2 px-4 rounded w-full transition-colors text-sm flex items-center justify-center gap-2">
+          <i className="fab fa-google fa-fw"></i> Sign in with Google
         </button>
 
-        <div className="mt-5 space-y-2 text-center text-sm font-semibold">
-          <p className="text-slate-600">
-            New to the platform? <Link href="/auth/signup" className="text-teal-700 hover:underline">Create an account</Link>
+        <div className="mt-5 space-y-2 text-center text-sm font-bold">
+          <p className="text-[#858796]">
+            New to the platform? <Link href="/auth/signup" className="text-[#4e73df] hover:text-[#2e59d9] hover:underline">Create an account!</Link>
           </p>
-          <Link href="/auth/forgot-password" className="text-xs text-teal-700 hover:underline">
+          <Link href="/auth/forgot-password" className="text-xs text-[#4e73df] hover:text-[#2e59d9] hover:underline">
             Forgotten your username or password?
           </Link>
         </div>

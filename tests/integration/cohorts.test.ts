@@ -101,6 +101,24 @@ describe('Cohorts API Integration Tests', () => {
         })
         .expect(400);
     });
+
+    it('should return 400 instead of 500 for object-valued fields', async () => {
+      await request(app)
+        .post('/api/cohorts')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Origin', 'http://localhost:3000')
+        .send({
+          title: {},
+          description: {},
+          courseIds: {},
+          trainerIds: {},
+          startsAt: {},
+          endsAt: {},
+          seatLimit: {},
+          status: {}
+        })
+        .expect(400);
+    });
   });
 
   describe('PATCH /api/cohorts/:id', () => {

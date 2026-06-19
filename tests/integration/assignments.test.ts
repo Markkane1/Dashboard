@@ -32,7 +32,11 @@ describe('Assignments API Integration Tests', () => {
     if (fs.existsSync(uploadDir)) {
       const files = fs.readdirSync(uploadDir);
       for (const file of files) {
-        fs.unlinkSync(path.join(uploadDir, file));
+        try {
+          fs.unlinkSync(path.join(uploadDir, file));
+        } catch (err) {
+          console.warn(`Temporary warning: unable to clean up test file ${file}: ${err.message}`);
+        }
       }
     }
   });

@@ -87,7 +87,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         )}
       />
 
-      <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="mb-6 bg-white shadow-[0_0.15rem_1.75rem_0_rgba(58,59,69,0.15)] rounded-lg p-3">
         <div className="flex flex-col gap-2 sm:flex-row" role="tablist" aria-label="Dashboard sections">
           {tabs.map((tab) => (
             <Link
@@ -95,7 +95,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               href={`/dashboard?section=${tab.key}`}
               role="tab"
               aria-selected={section === tab.key}
-              className={`whitespace-nowrap rounded-2xl px-4 py-2 text-sm font-black transition ${section === tab.key ? "bg-forest text-white" : "text-slate-700 hover:bg-slate-100"}`}
+              className={`whitespace-nowrap rounded px-4 py-2 text-sm font-bold transition ${section === tab.key ? "bg-[#4e73df] text-white" : "text-[#858796] hover:bg-[#f8f9fc]"}`}
             >
               {tab.label}
             </Link>
@@ -119,20 +119,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   <p className="mt-1 text-sm font-semibold text-slate-600">{t("dashboard.snapshotDesc")}</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">{t("dashboard.activeCourses")}</p>
-                    <p className="mt-2 text-3xl font-black text-slate-950">{inProgressCourses.length}</p>
+                  <div className="rounded bg-[#f8f9fc] border border-[#e3e6f0] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#858796]">{t("dashboard.activeCourses")}</p>
+                    <p className="mt-2 text-3xl font-bold text-[#5a5c69]">{inProgressCourses.length}</p>
                   </div>
-                  <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">{t("dashboard.coursesCompleted")}</p>
-                    <p className="mt-2 text-3xl font-black text-slate-950">{completedCourses.length}</p>
+                  <div className="rounded bg-[#f8f9fc] border border-[#e3e6f0] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#858796]">{t("dashboard.coursesCompleted")}</p>
+                    <p className="mt-2 text-3xl font-bold text-[#5a5c69]">{completedCourses.length}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Link href="/courses" className="btn-secondary">
+                  <Link href="/courses" className="bg-white border border-[#e3e6f0] hover:bg-[#f8f9fc] text-[#5a5c69] font-bold py-2 px-4 rounded transition-colors text-sm">
                     {t("common.browseCatalog")}
                   </Link>
-                  <Link href="/diploma" className="btn-primary">
+                  <Link href="/diploma" className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded transition-colors text-sm">
                     {t("dashboard.viewDiploma")}
                   </Link>
                 </div>
@@ -142,27 +142,27 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <DashboardCard className="p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">{t("dashboard.diplomaPathways")}</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-600">{t("dashboard.pathwaysDesc")}</p>
+                  <h2 className="text-lg font-bold text-[#5a5c69]">{t("dashboard.diplomaPathways")}</h2>
+                  <p className="mt-1 text-sm text-[#858796]">{t("dashboard.pathwaysDesc")}</p>
                 </div>
-                <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-forest">{completedIds.length} {t("common.completed")}</span>
+                <span className="inline-flex rounded px-3 py-1 text-xs font-bold bg-[#1cc88a] text-white">{completedIds.length} {t("common.completed")}</span>
               </div>
-              <div className="mt-5 space-y-3 text-sm text-slate-600">
+              <div className="mt-5 space-y-3 text-sm text-[#858796]">
                 <p>{t("dashboard.pathwaysTrack")}</p>
-                <p className="font-semibold text-slate-900">{t("dashboard.pathwaysNeedFull")}</p>
+                <p className="font-bold text-[#5a5c69]">{t("dashboard.pathwaysNeedFull")}</p>
               </div>
             </DashboardCard>
           </section>
 
           {inProgressCourses.length > 0 && (
             <section className="mt-6">
-              <div className="mb-3 flex items-center justify-between gap-4">
+              <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-black text-slate-950">{t("dashboard.continueLearning")}</h2>
-                  <p className="text-sm font-semibold text-slate-500">{t("dashboard.jumpBack")}</p>
+                  <h2 className="text-lg font-bold text-[#5a5c69]">{t("dashboard.continueLearning")}</h2>
+                  <p className="text-sm text-[#858796]">{t("dashboard.jumpBack")}</p>
                 </div>
-                <Link href="/dashboard?section=courses" className="btn-secondary">
-                  {t("dashboard.viewAll")}
+                <Link href="/dashboard?section=courses" className="text-sm font-bold text-[#4e73df] hover:text-[#2e59d9] transition-colors">
+                  {t("dashboard.viewAll")} &rarr;
                 </Link>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -172,17 +172,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   return (
                     <CourseCard key={course.id} course={course}>
                       {canContinueCourse(course) ? (
-                        <Link href={`/courses/${course.id}/learn`} className="btn-primary mt-4 w-full">
+                        <Link href={`/courses/${course.id}/learn`} className="block text-center bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded mt-4 w-full transition-colors text-sm">
                           {t("dashboard.continueLearning")}
                         </Link>
                       ) : null}
-                      <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
-                        <div className="flex justify-between text-xs font-bold text-slate-500">
+                      <div className="mt-4 space-y-2 border-t border-[#e3e6f0] pt-4">
+                        <div className="flex justify-between text-xs font-bold text-[#858796]">
                           <span>{t("common.progress")}</span>
-                          <span className="text-teal-700">{percentComplete}%</span>
+                          <span className="text-[#1cc88a]">{percentComplete}%</span>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full bg-teal-700" style={{ width: `${percentComplete}%` }} />
+                        <div className="h-2 overflow-hidden rounded bg-[#eaecf4]">
+                          <div className="h-full bg-[#1cc88a]" style={{ width: `${percentComplete}%` }} />
                         </div>
                       </div>
                     </CourseCard>
@@ -197,10 +197,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       {section === "courses" && (
         <>
           <section className="mt-6">
-            <div className="mb-3 flex items-center justify-between gap-4">
+            <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-slate-950">{t("dashboard.continueLearning")}</h2>
-                <p className="text-sm font-semibold text-slate-500">{inProgressCourses.length} {t("dashboard.activeCourses")}</p>
+                <h2 className="text-lg font-bold text-[#5a5c69]">{t("dashboard.continueLearning")}</h2>
+                <p className="text-sm text-[#858796]">{inProgressCourses.length} {t("dashboard.activeCourses")}</p>
               </div>
             </div>
 
@@ -209,7 +209,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 title={t("dashboard.noActive")}
                 description={t("dashboard.noActiveDesc")}
                 actions={(
-                  <Link href="/courses" className="btn-primary">
+                  <Link href="/courses" className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded transition-colors text-sm">
                     {t("common.browseCatalog")}
                   </Link>
                 )}
@@ -222,18 +222,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   return (
                     <CourseCard key={course.id} course={course}>
                       {canContinueCourse(course) && (
-                        <Link href={`/courses/${course.id}/learn`} className="btn-secondary mt-4 w-full">
+                        <Link href={`/courses/${course.id}/learn`} className="block text-center bg-white border border-[#e3e6f0] hover:bg-[#f8f9fc] text-[#5a5c69] font-bold py-2 px-4 rounded mt-4 w-full transition-colors text-sm">
                           {t("dashboard.continueLearning")}
                         </Link>
                       )}
 
-                      <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
-                        <div className="flex justify-between text-xs font-bold text-slate-500">
+                      <div className="mt-4 space-y-2 border-t border-[#e3e6f0] pt-4">
+                        <div className="flex justify-between text-xs font-bold text-[#858796]">
                           <span>{t("common.progress")}</span>
-                          <span className="text-teal-700">{percentComplete}%</span>
+                          <span className="text-[#1cc88a]">{percentComplete}%</span>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full bg-teal-700" style={{ width: `${percentComplete}%` }} />
+                        <div className="h-2 overflow-hidden rounded bg-[#eaecf4]">
+                          <div className="h-full bg-[#1cc88a]" style={{ width: `${percentComplete}%` }} />
                         </div>
                       </div>
 
@@ -248,10 +248,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </section>
 
           <section className="mt-6">
-            <div className="mb-3 flex items-center justify-between gap-4">
+            <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-slate-950">{t("dashboard.completedCourses")}</h2>
-                <p className="text-sm font-semibold text-slate-500">{completedCourses.length} {t("dashboard.completedCourses")}</p>
+                <h2 className="text-lg font-bold text-[#5a5c69]">{t("dashboard.completedCourses")}</h2>
+                <p className="text-sm text-[#858796]">{completedCourses.length} {t("dashboard.completedCourses")}</p>
               </div>
             </div>
 
@@ -264,8 +264,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {completedCourses.map((course) => (
                   <CourseCard key={course.id} course={course}>
-                    <div className="mt-4 border-t border-slate-200 pt-4">
-                      <span className="inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-bold text-teal-700">
+                    <div className="mt-4 border-t border-[#e3e6f0] pt-4">
+                      <span className="inline-flex rounded bg-[#1cc88a] px-2 py-1 text-xs font-bold text-white mb-2">
                         {t("common.completed")}
                       </span>
                       <DownloadCertificateButton courseId={course.id} />
@@ -285,7 +285,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               title={t("dashboard.noCertificates")}
               description={t("dashboard.noCertificatesDesc")}
               actions={(
-                <Link href="/courses" className="btn-primary">
+                <Link href="/courses" className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded transition-colors text-sm">
                   {t("common.browseCatalog")}
                 </Link>
               )}
@@ -294,9 +294,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {completedCourses.map((course) => (
                 <CourseCard key={course.id} course={course}>
-                  <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4">
+                  <div className="mt-4 flex flex-col gap-3 border-t border-[#e3e6f0] pt-4">
                     <DownloadCertificateButton courseId={course.id} />
-                    <span className="text-sm font-semibold text-slate-600">{t("dashboard.certAvailable")}</span>
+                    <span className="text-sm text-[#858796]">{t("dashboard.certAvailable")}</span>
                   </div>
                 </CourseCard>
               ))}
@@ -306,10 +306,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <DashboardCard className="p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-black text-slate-950">{t("dashboard.diplomaPathways")}</h2>
-                <p className="mt-1 text-sm font-semibold text-slate-600">{t("dashboard.pathwaysTrack")}</p>
+                <h2 className="text-lg font-bold text-[#5a5c69]">{t("dashboard.diplomaPathways")}</h2>
+                <p className="mt-1 text-sm text-[#858796]">{t("dashboard.pathwaysTrack")}</p>
               </div>
-              <Link href="/diploma" className="btn-secondary">
+              <Link href="/diploma" className="bg-white border border-[#e3e6f0] hover:bg-[#f8f9fc] text-[#5a5c69] font-bold py-2 px-4 rounded transition-colors text-sm">
                 {t("dashboard.viewDiploma")}
               </Link>
             </div>

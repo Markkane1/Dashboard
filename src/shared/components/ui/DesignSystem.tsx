@@ -22,13 +22,13 @@ type PageHeaderProps = {
 
 export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
   return (
-    <section className={classNames("page-header", className)}>
+    <div className={classNames("flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6", className)}>
       <div>
-        <h1 className="page-title">{title}</h1>
-        {description ? <p className="page-description">{description}</p> : null}
+        <h1 className="text-2xl font-bold text-[#5a5c69] mb-1">{title}</h1>
+        {description ? <p className="text-sm text-[#858796]">{description}</p> : null}
       </div>
-      {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
-    </section>
+      {actions ? <div className="mt-3 sm:mt-0 flex items-center gap-2">{actions}</div> : null}
+    </div>
   );
 }
 
@@ -67,7 +67,14 @@ type DashboardCardProps = React.HTMLAttributes<HTMLElement> & {
 };
 
 export function DashboardCard({ className, children, ...props }: DashboardCardProps) {
-  return <section className={classNames("dashboard-card p-6", className)} {...props}>{children}</section>;
+  return (
+    <div className={classNames("bg-white shadow-[0_0.15rem_1.75rem_0_rgba(58,59,69,0.15)] rounded-lg mb-4 border border-[#e3e6f0]", className)} {...props}>
+      <div className="py-3 px-4 border-b border-[#e3e6f0] font-bold text-[#4e73df]">Title</div>
+      <div className="p-4">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 type StatCardProps = {
@@ -79,11 +86,13 @@ type StatCardProps = {
 
 export function StatCard({ title, value, description, className }: StatCardProps) {
   return (
-    <article className={classNames("stat-card surface-card p-5", className)}>
-      <p className="stat-card-title">{title}</p>
-      <p className="stat-card-value">{value}</p>
-      {description ? <p className="stat-card-meta">{description}</p> : null}
-    </article>
+    <div className={classNames("bg-white border-l-[0.25rem] border-[#4e73df] shadow-[0_0.15rem_1.75rem_0_rgba(58,59,69,0.15)] rounded-lg py-2 h-full", className)}>
+      <div className="p-4">
+        <div className="text-xs font-bold text-[#4e73df] uppercase tracking-wide mb-1">{title}</div>
+        <div className="text-xl font-bold text-[#5a5c69] mb-0">{value}</div>
+        {description ? <div className="text-xs text-[#858796] mt-2">{description}</div> : null}
+      </div>
+    </div>
   );
 }
 
@@ -106,15 +115,13 @@ export function FormPanel({ title, children, className }: { title?: string; clas
 
 export function EmptyState({ title, description, actions, className }: { title: string; description?: string; actions?: React.ReactNode; className?: string }) {
   return (
-    <div className={classNames("empty-state", className)}>
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface text-primary shadow-sm">
-        <InfoIcon />
+    <div className={classNames("bg-white shadow-[0_0.15rem_1.75rem_0_rgba(58,59,69,0.15)] rounded-lg p-10 flex flex-col items-center justify-center text-center", className)}>
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f8f9fc] text-[#4e73df] mb-4">
+        <InfoIcon className="w-8 h-8" />
       </div>
-      <div>
-        <p className="empty-state-title">{title}</p>
-        {description ? <p className="empty-state-description">{description}</p> : null}
-      </div>
-      {actions ? <div className="mt-4">{actions}</div> : null}
+      <h3 className="text-lg font-bold text-[#5a5c69] mb-2">{title}</h3>
+      {description ? <p className="text-sm text-[#858796] max-w-md">{description}</p> : null}
+      {actions ? <div className="mt-6">{actions}</div> : null}
     </div>
   );
 }

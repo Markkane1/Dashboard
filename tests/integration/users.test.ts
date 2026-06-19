@@ -194,6 +194,35 @@ describe('Users API Integration Tests', () => {
     });
   });
 
+  describe('Unsupported methods on static user routes', () => {
+    const cases = [
+      ['get', '/api/users/admin-password-reset'],
+      ['put', '/api/users/admin-password-reset'],
+      ['get', '/api/users/authenticate'],
+      ['put', '/api/users/authenticate'],
+      ['get', '/api/users/complete'],
+      ['put', '/api/users/complete'],
+      ['get', '/api/users/enroll'],
+      ['put', '/api/users/enroll'],
+      ['put', '/api/users/me'],
+      ['get', '/api/users/resend-verification'],
+      ['put', '/api/users/resend-verification'],
+      ['get', '/api/users/unenroll'],
+      ['put', '/api/users/unenroll'],
+      ['get', '/api/users/verify-email'],
+      ['put', '/api/users/verify-email']
+    ] as const;
+
+    it.each(cases)('should return 404 for %s %s', async (method, path) => {
+      await request(app)
+        [method](path)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Origin', 'http://localhost:3000')
+        .send({ name: 'Method tampering probe' })
+        .expect(404);
+    });
+  });
+
   describe('PATCH /api/users/:id/role (Admin Access Only)', () => {
     it('should update roles and permissions (happy path)', async () => {
       const response = await request(app)

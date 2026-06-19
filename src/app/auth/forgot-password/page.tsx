@@ -44,25 +44,25 @@ export default function ForgotPasswordPage() {
               <div role="alert" className="rounded-md border border-teal-200 bg-teal-50 p-3 text-sm font-semibold text-teal-700">
                 If this email is registered, you will receive a reset link.
               </div>
-              <button onClick={() => setIsSubmitted(false)} className="btn-secondary">
+              <button onClick={() => setIsSubmitted(false)} className="bg-white border border-[#e3e6f0] hover:bg-[#f8f9fc] text-[#5a5c69] font-bold py-2 px-4 rounded transition-colors text-sm w-full">
                 Send another request
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <label className="block text-sm font-bold text-slate-700">
+              <label className="block text-sm font-bold text-[#858796]">
                 Email address
-                <input {...register("email")} type="email" placeholder="you@example.com" aria-invalid={errors.email ? "true" : "false"} className="control mt-2 w-full" />
-                {errors.email && <span className="mt-1 block text-xs font-bold text-red-600">{errors.email.message}</span>}
+                <input {...register("email")} type="email" placeholder="you@example.com" aria-invalid={errors.email ? "true" : "false"} className="w-full mt-2 bg-white border border-[#e3e6f0] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#bac8f3] focus:ring-0 transition-colors" />
+                {errors.email && <span className="mt-1 block text-xs font-bold text-[#e74a3b]">{errors.email.message}</span>}
               </label>
-              <button type="submit" disabled={isLoading} className="btn-primary w-full">
+              <button type="submit" disabled={isLoading} className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded w-full transition-colors text-sm">
                 {isLoading ? "Sending request..." : "Send reset link"}
               </button>
             </form>
           )}
 
-          <div className="mt-5 text-center text-sm font-semibold">
-            <Link href="/auth/login" className="text-teal-700 hover:underline">Back to log in</Link>
+          <div className="mt-5 text-center text-sm font-bold">
+            <Link href="/auth/login" className="text-[#4e73df] hover:text-[#2e59d9] hover:underline">Back to log in</Link>
           </div>
         </FormPanel>
       </div>

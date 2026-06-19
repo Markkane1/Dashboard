@@ -71,18 +71,18 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_0.9fr]">
         <DashboardCard className="p-6">
-          <div className="grid gap-3">
-            <p className="text-sm font-semibold text-text-muted">Catalog total</p>
-            <p className="text-3xl font-black text-text-primary">{coursePage.totalCount}</p>
-            <p className="text-sm text-text-muted">Courses matching current filters</p>
+          <div className="grid gap-2">
+            <p className="text-xs font-bold uppercase tracking-wide text-[#4e73df]">Catalog total</p>
+            <p className="text-3xl font-bold text-[#5a5c69]">{coursePage.totalCount}</p>
+            <p className="text-sm text-[#858796]">Courses matching current filters</p>
           </div>
         </DashboardCard>
 
         <DashboardCard className="p-6">
-          <div className="grid gap-3">
-            <p className="text-sm font-semibold text-text-muted">Active filters</p>
-            <p className="text-3xl font-black text-text-primary">{activeFilterCount}</p>
-            <p className="text-sm text-text-muted">Reset or refine your search</p>
+          <div className="grid gap-2">
+            <p className="text-xs font-bold uppercase tracking-wide text-[#1cc88a]">Active filters</p>
+            <p className="text-3xl font-bold text-[#5a5c69]">{activeFilterCount}</p>
+            <p className="text-sm text-[#858796]">Reset or refine your search</p>
           </div>
         </DashboardCard>
       </div>
@@ -122,9 +122,9 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
                 ))}
               </select>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <button type="submit" className="btn-primary">Apply</button>
-              <Link href="/courses" className="btn-secondary">Clear filters</Link>
+            <div className="flex flex-wrap gap-3 mt-4">
+              <button type="submit" className="bg-[#4e73df] hover:bg-[#2e59d9] text-white font-bold py-2 px-4 rounded transition-colors text-sm">Apply</button>
+              <Link href="/courses" className="bg-white border border-[#e3e6f0] hover:bg-[#f8f9fc] text-[#5a5c69] font-bold py-2 px-4 rounded transition-colors text-sm">Clear filters</Link>
             </div>
           </FilterBar>
         </form>

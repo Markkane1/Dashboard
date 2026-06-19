@@ -2,14 +2,25 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useLayoutContext } from './LayoutContext';
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isMobileSidebarOpen, setIsMobileSidebarOpen } = useLayoutContext();
 
   return (
-    <aside 
-      className={`bg-gradient-to-b from-[#4e73df] to-[#224abe] flex flex-col text-white transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-[14rem]'}`}
-    >
+    <>
+      {/* Mobile Overlay */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300" 
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
+      <aside 
+        className={`bg-gradient-to-b from-[#4e73df] to-[#224abe] flex flex-col text-white transition-transform duration-300 z-50 fixed inset-y-0 left-0 md:relative md:translate-x-0 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${isCollapsed ? 'md:w-20' : 'w-[14rem]'}`}
+      >
       {/* Brand */}
       <Link href="/admin" className="flex items-center justify-center h-16 mb-4 px-4 hover:opacity-90">
         <div className="rotate-[-15deg] text-3xl">
@@ -106,5 +117,6 @@ export default function Sidebar() {
 
 
     </aside>
+    </>
   );
 }

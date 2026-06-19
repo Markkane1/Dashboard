@@ -4,6 +4,7 @@ import React from 'react';
 import { SessionProvider } from 'next-auth/react';
 import { NextIntlClientProvider, type AbstractIntlMessages } from 'next-intl';
 import type { AppLocale } from '@/shared/i18n-config';
+import { LayoutProvider } from '@/shared/components/Theme/LayoutContext';
 
 export default function Providers({
   children,
@@ -17,7 +18,9 @@ export default function Providers({
   return (
     <SessionProvider>
       <NextIntlClientProvider formats={{}} locale={locale} messages={messages} now={new Date()} timeZone="UTC">
-        {children}
+        <LayoutProvider>
+          {children}
+        </LayoutProvider>
       </NextIntlClientProvider>
     </SessionProvider>
   );

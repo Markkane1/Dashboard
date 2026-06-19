@@ -1,13 +1,19 @@
 "use client";
 
 import React from 'react';
+import { useLayoutContext } from './LayoutContext';
 
 export default function Topbar() {
+  const { setIsMobileSidebarOpen } = useLayoutContext();
+
   return (
-    <nav className="bg-white h-[4.375rem] shadow-[0_0.15rem_1.75rem_0_rgba(58,59,69,0.15)] flex items-center justify-between px-6 z-10">
+    <nav className="bg-white h-[4.375rem] shadow-[0_0.15rem_1.75rem_0_rgba(58,59,69,0.15)] flex items-center justify-between px-6 z-10 sticky top-0">
       
       {/* Mobile Toggle */}
-      <button className="md:hidden text-[#4e73df] p-2 hover:bg-gray-100 rounded-full w-10 h-10 flex items-center justify-center mr-3">
+      <button 
+        onClick={() => setIsMobileSidebarOpen(true)}
+        className="md:hidden text-[#4e73df] p-2 hover:bg-gray-100 rounded-full w-10 h-10 flex items-center justify-center mr-3"
+      >
         <i className="fa fa-bars"></i>
       </button>
 

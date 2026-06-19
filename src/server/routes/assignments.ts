@@ -285,9 +285,9 @@ router.post(
       if (req.file && (req.file.mimetype === 'image/jpeg' || req.file.mimetype === 'image/jpg')) {
         try {
           const filePath = req.file.path;
-          const buffer = fs.readFileSync(filePath);
+          const buffer = await fs.promises.readFile(filePath);
           const cleanBuffer = stripExif(buffer);
-          fs.writeFileSync(filePath, cleanBuffer);
+          await fs.promises.writeFile(filePath, cleanBuffer);
         } catch (err) {
           logger.error({ err }, 'Failed to strip EXIF metadata from uploaded assignment');
         }

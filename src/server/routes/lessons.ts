@@ -476,6 +476,10 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to view this lesson." });
     }
 
+    if (!lesson.isPublished && !hasPermission(req.user, PERMISSIONS.MANAGE_CONTENT)) {
+      return res.status(403).json({ error: "Access denied. This lesson is not published yet." });
+    }
+
     // 3. Fetch user progress document for this lesson
     const progress = await Progress.findOne({ userId, lessonId });
 

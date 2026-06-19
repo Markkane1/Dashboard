@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { Lesson } = require('../models');
 const { hasCourseAccess } = require('../services/enrollments');
+const { hasPermission, PERMISSIONS } = require('../../shared/permissions');
 const {
   getVideoStorageKey,
   isRemoteVideoUrl,
@@ -60,6 +61,10 @@ router.get('/:lessonId', auth, async (req: AuthenticatedRequest, res: Response) 
     // 2. Authorization: Verify user is enrolled in the lesson's parent course
     if (!(await hasCourseAccess(req.user, lesson.courseId))) {
       return res.status(403).json({ error: "Access denied. You must be enrolled in this course to access course media." });
+    }
+
+    if (!lesson.isPublished && !hasPermission(req.user, PERMISSIONS.MANAGE_CONTENT)) {
+      return res.status(403).json({ error: "Access denied. This lesson is not published yet." });
     }
 
     const { videoUrl } = lesson;

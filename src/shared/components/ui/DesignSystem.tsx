@@ -113,11 +113,11 @@ export function FormPanel({ title, children, className }: { title?: string; clas
   );
 }
 
-export function EmptyState({ title, description, actions, className }: { title: string; description?: string; actions?: React.ReactNode; className?: string }) {
+export function EmptyState({ title, description, actions, icon, className }: { title: string; description?: string; actions?: React.ReactNode; icon?: React.ReactNode; className?: string }) {
   return (
     <div className={classNames("bg-white shadow-[0_0.15rem_1.75rem_0_rgba(58,59,69,0.15)] rounded-lg p-10 flex flex-col items-center justify-center text-center", className)}>
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f8f9fc] text-[#4e73df] mb-4">
-        <InfoIcon className="w-8 h-8" />
+        {icon || <InfoIcon className="w-8 h-8" />}
       </div>
       <h3 className="text-lg font-bold text-[#5a5c69] mb-2">{title}</h3>
       {description ? <p className="text-sm text-[#858796] max-w-md">{description}</p> : null}

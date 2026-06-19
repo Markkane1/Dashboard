@@ -88,7 +88,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       />
 
       <div className="mb-6 bg-white shadow-[0_0.15rem_1.75rem_0_rgba(58,59,69,0.15)] rounded-lg p-3">
-        <div className="flex flex-col gap-2 sm:flex-row" role="tablist" aria-label="Dashboard sections">
+        <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide sm:flex-wrap sm:pb-0" role="tablist" aria-label="Dashboard sections">
           {tabs.map((tab) => (
             <Link
               key={tab.key}
